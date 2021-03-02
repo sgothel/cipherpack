@@ -1,0 +1,5 @@
+#include <elevator/version.hpp>
+
+const char* elevator::VERSION = "@VERSION@";
+const char* elevator::VERSION_SHORT = "@VERSION_SHORT@";
+const char* elevator::VERSION_API = "@VERSION_API@";
