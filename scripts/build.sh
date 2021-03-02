@@ -34,7 +34,8 @@ buildit() {
     mkdir -p build-$archabi
     cd build-$archabi
     # CLANG_ARGS="-DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++"
-    cmake $CLANG_ARGS -DCMAKE_INSTALL_PREFIX=$rootdir/dist-$archabi -DBUILD_TESTING=ON ..
+    # cmake $CLANG_ARGS -DCMAKE_INSTALL_PREFIX=$rootdir/dist-$archabi -DBUILD_TESTING=ON ..
+    cmake $CLANG_ARGS -DCMAKE_INSTALL_PREFIX=$rootdir/dist-$archabi -DBUILD_TESTING=ON -DDEBUG=ON ..
     # cmake $CLANG_ARGS -DCMAKE_INSTALL_PREFIX=$rootdir/dist-$archabi -DBUILDJAVA=ON -DBUILDEXAMPLES=ON -DBUILD_TESTING=ON ..
     # cmake $CLANG_ARGS -DCMAKE_INSTALL_PREFIX=$rootdir/dist-$archabi -DBUILDJAVA=ON -DBUILDEXAMPLES=ON -DBUILD_TESTING=ON -DUSE_STRIP=OFF ..
     # cmake $CLANG_ARGS -DCMAKE_INSTALL_PREFIX=$rootdir/dist-$archabi -DBUILDJAVA=ON -DBUILDEXAMPLES=ON -DBUILD_TESTING=ON -DUSE_STRIP=ON -DJAVAC_DEBUG_ARGS="none" ..
@@ -47,7 +48,7 @@ buildit() {
     make -j $CPU_COUNT install test
     if [ $? -eq 0 ] ; then
         echo "BUILD SUCCESS $bname $archabi"
-        cp -a examples/* $rootdir/dist-$archabi/bin
+        # cp -a examples/* $rootdir/dist-$archabi/bin
         cd $rootdir
         return 0
     else
