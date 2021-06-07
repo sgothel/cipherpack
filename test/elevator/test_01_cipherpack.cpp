@@ -46,7 +46,7 @@ TEST_CASE( "Elevator Test 01 CipherPack", "[pack][cipher]" ) {
         std::ofstream ofs(fname_payload, std::ios::out | std::ios::binary);
 
         REQUIRE( ofs.good() == true );
-        // REQUIRE( ofs.is_open() == true );
+        REQUIRE( ofs.is_open() == true );
 
         for(int i=0; i < 3*4096; i+=one_line.size()) {
             ofs.write(reinterpret_cast<char*>(one_line.data()), one_line.size());
@@ -55,9 +55,9 @@ TEST_CASE( "Elevator Test 01 CipherPack", "[pack][cipher]" ) {
 
     bool res_enc = Cipherpack::encryptThenSign_RSA1(enc_pub_key_fname, sign_sec_key_fname, sign_sec_key_passphrase, fname_payload, fname_encrypted, overwrite);
     jau::fprintf_td(stderr, "Encrypt1 result: Output encrypted file %s: Result %d\n", fname_encrypted.c_str(), res_enc);
-    // REQUIRE( res_enc == true );
+    REQUIRE( res_enc == true );
 
     bool res_dec = Cipherpack::checkSignThenDecrypt_RSA1(sign_pub_key_fname, dec_sec_key_fname, dec_sec_key_passphrase, fname_encrypted, fname_decrypted, overwrite);
     jau::fprintf_td(stderr, "Decrypted1 result: Output decrypted file %s: Result %d\n", fname_decrypted.c_str(), res_dec);
-    // REQUIRE( res_dec == true );
+    REQUIRE( res_dec == true );
 }
