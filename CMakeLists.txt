@@ -35,7 +35,7 @@ set (elevator_DOCS_DIR documentation)
 find_path (SYSTEM_USR_DIR "stdlib.h")
 include_directories (${SYSTEM_USR_DIR})
 
-add_subdirectory (jaulib EXCLUDE_FROM_ALL)
+# add_subdirectory (jaulib EXCLUDE_FROM_ALL)
 # add_subdirectory (jaulib)
 
 add_subdirectory (src/elevator)
