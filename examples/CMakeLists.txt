@@ -1,6 +1,6 @@
 include_directories(
   ${PROJECT_SOURCE_DIR}/jaulib/include
-  ${PROJECT_SOURCE_DIR}/include/amalgamation-amd64
+  ${AMALGAMATION_ARCH_INC}
   ${PROJECT_SOURCE_DIR}/include
 )
 

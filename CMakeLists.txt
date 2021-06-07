@@ -12,6 +12,9 @@ FIND_PACKAGE (Threads REQUIRED)
 include(jaulib/JaulibSetup.cmake)
 JaulibSetup()
 
+# Determine amalgamation platform include director, depnding on OS_ARCH
+set(AMALGAMATION_ARCH_INC "${PROJECT_SOURCE_DIR}/include/amalgamation-${OS_ARCH}")
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
 set(CMAKE_SHARED_LINKER_FLAGS  "${CMAKE_SHARED_LINKER_FLAGS} -frtti")
 set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -frtti")
