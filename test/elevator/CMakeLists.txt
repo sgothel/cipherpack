@@ -18,6 +18,7 @@ endif(CMAKE_COMPILER_IS_GNUCC)
 set( SOURCES_IDIOMATIC_EXAMPLES
     test_01.cpp
     test_01_cipherpack.cpp
+    test_02_iostream.cpp
 )
 
 string( REPLACE ".cpp" "" BASENAMES_IDIOMATIC_EXAMPLES "${SOURCES_IDIOMATIC_EXAMPLES}" )

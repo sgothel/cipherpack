@@ -51,6 +51,9 @@ class IOUtil {
         static ssize_t read_stream(Botan::DataSource& in, Botan::secure_vector<uint8_t>& buffer,
                                    StreamConsumerFunc consumer_fn);
 
+        static ssize_t read_http_get(const std::string& url, Botan::secure_vector<uint8_t>& buffer,
+                                     StreamConsumerFunc consumer_fn);
+
         static void print_stats(const std::string &prefix, const uint64_t out_bytes_total, uint64_t td_ms);
 };
 

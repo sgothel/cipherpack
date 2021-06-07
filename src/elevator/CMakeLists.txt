@@ -14,7 +14,7 @@ set (elevator_LIB_SRCS
   ${PROJECT_SOURCE_DIR}/jaulib/src/basic_types.cpp
   ${PROJECT_SOURCE_DIR}/jaulib/src/environment.cpp
   ${AMALGAMATION_ARCH_INC}/botan_all.cpp
-  ${PROJECT_SOURCE_DIR}/src/elevator/process.cpp
+  ${PROJECT_SOURCE_DIR}/src/elevator/elevator.cpp
   ${PROJECT_SOURCE_DIR}/src/elevator/IOUtil.cpp
   ${PROJECT_SOURCE_DIR}/src/elevator/Crypto.cpp
 #  ${PROJECT_SOURCE_DIR}/src/elevator/Crypto0.cpp
@@ -28,6 +28,7 @@ add_library (elevator SHARED ${elevator_LIB_SRCS})
 target_link_libraries (
   elevator
   unwind
+  curl
   ${CMAKE_THREAD_LIBS_INIT}
 )
 

@@ -10,9 +10,7 @@ namespace elevator {
 
 class Elevator {
     public:
-        static void env_init() noexcept {
-            jau::environment::get("elevator");
-        }
+        static void env_init() noexcept;
 };
 
 } // namespace elevator
