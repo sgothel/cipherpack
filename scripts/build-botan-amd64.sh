@@ -29,8 +29,9 @@ MOD_BASIC=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1
 CXX_FLAGS=
 LD_FLAGS=
 
-rm -rf dist-amd64-min
-mkdir -p dist-amd64-min
+mkdir -p $rootdir/include/amalgamation-amd64
+rm -f $rootdir/include/amalgamation-amd64/botan_all.h
+rm -f $rootdir/include/amalgamation-amd64/botan_all.cpp
 
 ./configure.py --cpu=$USE_CPU --prefix=`pwd`/dist-amd64-min --minimized-build \
     --enable-modules=$MOD_BASIC,$MOD_CIPHER,$MOD_HASH,$MOD_RNG,$MOD_HW_THIS \
@@ -41,6 +42,6 @@ mkdir -p dist-amd64-min
 
 #    --with-lzma --with-bzip2 \
 
-cp -a botan_all.cpp botan_all.h dist-amd64-min/
+mv botan_all.cpp botan_all.h $rootdir/include/amalgamation-amd64/
 
 cd $rootdir

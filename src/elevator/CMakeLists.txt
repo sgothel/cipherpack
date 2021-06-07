@@ -1,7 +1,6 @@
 set (elevator_LIB_INCLUDE_DIRS
   ${PROJECT_SOURCE_DIR}/jaulib/include
-  ${PROJECT_SOURCE_DIR}/botan/dist-amd64-min
-#  ${PROJECT_SOURCE_DIR}/botan/dist-amd64-min/include/botan-3
+  ${PROJECT_SOURCE_DIR}/include/amalgamation-amd64
   ${PROJECT_SOURCE_DIR}/include
 )
 
@@ -14,7 +13,7 @@ set (elevator_LIB_SRCS
   ${PROJECT_SOURCE_DIR}/jaulib/src/debug.cpp
   ${PROJECT_SOURCE_DIR}/jaulib/src/basic_types.cpp
   ${PROJECT_SOURCE_DIR}/jaulib/src/environment.cpp
-  ${PROJECT_SOURCE_DIR}/botan/dist-amd64-min/botan_all.cpp
+  ${PROJECT_SOURCE_DIR}/include/amalgamation-amd64/botan_all.cpp
   ${PROJECT_SOURCE_DIR}/src/elevator/process.cpp
   ${PROJECT_SOURCE_DIR}/src/elevator/IOUtil.cpp
   ${PROJECT_SOURCE_DIR}/src/elevator/Crypto.cpp

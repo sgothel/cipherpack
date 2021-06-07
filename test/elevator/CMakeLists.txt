@@ -1,7 +1,6 @@
 include_directories(
   ${PROJECT_SOURCE_DIR}/jaulib/include
-  ${PROJECT_SOURCE_DIR}/botan/dist-amd64-min
-#  ${PROJECT_SOURCE_DIR}/botan/dist-amd64-min/include/botan-3
+  ${PROJECT_SOURCE_DIR}/include/amalgamation-amd64
   ${PROJECT_SOURCE_DIR}/include
 )
 
