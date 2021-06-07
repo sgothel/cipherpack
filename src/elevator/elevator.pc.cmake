@@ -4,7 +4,7 @@ libdir=${exec_prefix}/lib@LIB_SUFFIX@
 includedir=${prefix}/include/elevator
 
 Name: elevator
-Description: An Upgrade Process Library
+Description: Elevator library
 Version: @elevator_VERSION_STRING@
 
 Libs: -L${libdir} -lelevator

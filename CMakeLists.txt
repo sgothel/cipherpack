@@ -12,6 +12,10 @@ FIND_PACKAGE (Threads REQUIRED)
 include(jaulib/JaulibSetup.cmake)
 JaulibSetup()
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
+set(CMAKE_SHARED_LINKER_FLAGS  "${CMAKE_SHARED_LINKER_FLAGS} -frtti")
+set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -frtti")
+
 configure_file (${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/version.cpp.in
                 ${CMAKE_CURRENT_BINARY_DIR}/src/version.cpp)
 
@@ -28,7 +32,8 @@ set (elevator_DOCS_DIR documentation)
 find_path (SYSTEM_USR_DIR "stdlib.h")
 include_directories (${SYSTEM_USR_DIR})
 
-add_subdirectory (jaulib)
+add_subdirectory (jaulib EXCLUDE_FROM_ALL)
+# add_subdirectory (jaulib)
 
 add_subdirectory (src/elevator)
 

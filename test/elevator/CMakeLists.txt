@@ -1,11 +1,14 @@
 include_directories(
   ${PROJECT_SOURCE_DIR}/jaulib/include
+  ${PROJECT_SOURCE_DIR}/botan/dist-amd64-min
+#  ${PROJECT_SOURCE_DIR}/botan/dist-amd64-min/include/botan-3
   ${PROJECT_SOURCE_DIR}/include
 )
 
 # These examples use the standard separate compilation
 set( SOURCES_IDIOMATIC_EXAMPLES
     test_01.cpp
+    test_01_cipherpack.cpp
 )
 
 string( REPLACE ".cpp" "" BASENAMES_IDIOMATIC_EXAMPLES "${SOURCES_IDIOMATIC_EXAMPLES}" )
