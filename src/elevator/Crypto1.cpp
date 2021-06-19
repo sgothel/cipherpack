@@ -154,7 +154,7 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
         }
 
         uint64_t out_bytes_payload = 0;
-        auto consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) {
+        IOUtil::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> void {
             if( !is_final ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
@@ -205,7 +205,7 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
 
 bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
                                        const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                       const std::string &data_fname,
+                                       Botan::DataSource &source,
                                        const std::string &outfilename, const bool overwrite) {
     Elevator::env_init();
 
@@ -252,69 +252,18 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
         std::vector<uint8_t> encrypted_key;
         std::vector<uint8_t> nonce;
 
-        try {
-            // DER-Header-1 snoop header1-size
-            {
-                std::vector<uint8_t> header1_size_buffer; // 32-bit little-endian fixed-byte-size
+        Botan::secure_vector<uint8_t> input_buffer;
+        DataSource_Recorder input(source, input_buffer);
 
-                Botan::DataSource_Stream input(data_fname, true /* use_binary */);
+        try {
+            // DER-Header-1
+            input.start_recording();
+            {
+                std::vector<uint8_t> header1_size_buffer;
                 Botan::BER_Decoder ber(input);
                 ber.start_sequence()
                    .decode(package_magic_charvec, Botan::ASN1_Type::OctetString)
-                   .decode(header1_size_buffer, Botan::ASN1_Type::OctetString);
-
-                {
-                    const std::string s(reinterpret_cast<char*>(package_magic_charvec.data()), package_magic_charvec.size());
-                    if( s.empty() ) {
-                       ERR_PRINT("Decrypt failed: Unknown package_magic in %s", data_fname.c_str());
-                       IOUtil::remove(outfilename);
-                       return false;
-                    }
-                    DBG_PRINT("Decrypt: package_magic is %s", s.c_str());
-                    if( s != package_magic ) {
-                       ERR_PRINT("Decrypt failed: Expected package magic %s, but got %s in %s",
-                               package_magic.c_str(), s.c_str(), data_fname.c_str());
-                       IOUtil::remove(outfilename);
-                       return false;
-                    }
-                }
-                {
-                    if( 4 != header1_size_buffer.size() ) {
-                        ERR_PRINT("Decrypt failed: Expected header1_size element of 4 bytes, but got % " PRIu64 " in %s",
-                                header1_size_buffer.size(), data_fname.c_str());
-                        IOUtil::remove(outfilename);
-                        return false;
-                    }
-                    header1_size = jau::get_uint32(header1_size_buffer.data(), 0, true /* littleEndian */);
-                    DBG_PRINT("Decrypt: DER Header1 Size %" PRIu32 " bytes", header1_size);
-                }
-            }
-        } catch (Botan::Decoding_Error &e) {
-            ERR_PRINT("Decrypt failed: Header-1a Invalid input file format: file %s, %s", data_fname, e.what());
-            IOUtil::remove(outfilename);
-            return false;
-        }
-
-        Botan::DataSource_Stream input(data_fname, true /* use_binary */);
-
-        try {
-            // DER-Header-1 read into memory
-            Botan::secure_vector<uint8_t> header_buffer(header1_size);
-
-            const uint64_t header1_size_read = input.read(header_buffer.data(), header1_size);
-            if( header1_size_read != header1_size ) {
-                ERR_PRINT("Decrypt failed: Expected header1_size % " PRIu64 ", but got % " PRIu64 " in %s",
-                        header1_size, header1_size_read, data_fname.c_str());
-                IOUtil::remove(outfilename);
-                return false;
-            }
-
-            {
-                std::vector<uint8_t> header1_size_buffer_dummy;
-                Botan::BER_Decoder ber(header_buffer);
-                ber.start_sequence()
-                   .decode(package_magic_charvec, Botan::ASN1_Type::OctetString)
-                   .decode(header1_size_buffer_dummy, Botan::ASN1_Type::OctetString)
+                   .decode(header1_size_buffer, Botan::ASN1_Type::OctetString)
                    .decode(filename_charvec, Botan::ASN1_Type::OctetString)
                    .decode(payload_version, Botan::ASN1_Type::Integer)
                    .decode(payload_version_parent, Botan::ASN1_Type::Integer)
@@ -323,8 +272,28 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
                    .decode(cipher_algo_oid)
                    .decode(encrypted_key, Botan::ASN1_Type::OctetString)
                    .decode(nonce, Botan::ASN1_Type::OctetString)
-                   .end_cons();
+                   // .end_cons() // header2 + encrypted data follows ...
+                   ;
+
+                if( 4 != header1_size_buffer.size() ) {
+                    ERR_PRINT("Decrypt failed: Expected header1_size element of 4 bytes, but got %" PRIu64 " in %s",
+                            header1_size_buffer.size(), source.id().c_str());
+                    IOUtil::remove(outfilename);
+                    return false;
+                }
+                header1_size = jau::get_uint32(header1_size_buffer.data(), 0, true /* littleEndian */);
+                DBG_PRINT("Decrypt: DER Header1 Size %" PRIu32 " bytes", header1_size);
             }
+            Botan::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
+            input.clear_recording(); // implies stop_recording()
+
+            if( header1_size != header1_buffer.size() ) {
+                ERR_PRINT("Decrypt failed: Expected header1_size %" PRIu64 " but got %" PRIu64 " in %s",
+                        header1_size, header1_buffer.size(), source.id().c_str());
+                IOUtil::remove(outfilename);
+                return false;
+            }
+
             std::vector<uint8_t> signature;
             {
                 Botan::BER_Decoder ber(input);
@@ -334,21 +303,23 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
                    ;
             }
             DBG_PRINT("Decrypt: Signature for %" PRIu64 " bytes: %s",
-                    header_buffer.size(),
+                    header1_buffer.size(),
                     jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str());
 
             Botan::PK_Verifier verifier(*sign_pub_key, rsa_sign_algo);
-            verifier.update(header_buffer);
+            verifier.update(header1_buffer);
             if( !verifier.check_signature(signature) ) {
                 ERR_PRINT("Decrypt failed: Signature mismatch on %" PRIu64 " bytes, received signature %s in %s",
-                        header_buffer.size(),
+                        header1_buffer.size(),
                         jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str(),
-                        data_fname.c_str());
+                        source.id().c_str());
                 IOUtil::remove(outfilename);
                 return false;
+            } else {
+                DBG_PRINT("Decrypt: Signature OK");
             }
         } catch (Botan::Decoding_Error &e) {
-            ERR_PRINT("Decrypt failed: Invalid input file format: file %s, %s", data_fname, e.what());
+            ERR_PRINT("Decrypt failed: Invalid input file format: source %s, %s", source.id().c_str(), e.what());
             IOUtil::remove(outfilename);
             return false;
         }
@@ -504,4 +475,3 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
 
     return true;
 }
-

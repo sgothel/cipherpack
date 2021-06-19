@@ -205,16 +205,15 @@ class Cipherpack {
          *                           and hence the encrypted symmetric key. Proves authenticity of the file.
          * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the symmetric key.
          * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
-         * @param data_fname         The filename of the ciphertext pack file source, containing the payload.
+         * @param source             The Botan::DataSource of the ciphertext pack file source, containing the payload.
          * @param outfilename        The filename of the resulting plaintext target.
          * @param overwrite If true, overwrite a potentially existing `outfilename`.
          * @return true if successful, otherwise false.
          */
         static bool checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
                                               const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                              const std::string &data_fname,
+                                              Botan::DataSource &source,
                                               const std::string &outfilename, const bool overwrite);
-
         /**
          * The encrypted stream will be produced as follows:
          * <pre>

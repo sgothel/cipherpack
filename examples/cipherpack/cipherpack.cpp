@@ -72,10 +72,11 @@ int main(int argc, char *argv[])
     } else {
 #endif
         bool res_enc = Cipherpack::encryptThenSign_RSA1(enc_pub_key_fname, sign_sec_key_fname, sign_sec_key_passphrase, fname_payload, fname_encrypted, overwrite);
-        jau::fprintf_td(stderr, "Encrypt1 result: Output encrypted file %s: Result %d\n", fname_encrypted.c_str(), res_enc);
+        jau::PLAIN_PRINT(true, "Encrypt1 result: Output encrypted file %s: Result %d\n", fname_encrypted.c_str(), res_enc);
         if( res_enc ) {
-            bool res_dec = Cipherpack::checkSignThenDecrypt_RSA1(sign_pub_key_fname, dec_sec_key_fname, dec_sec_key_passphrase, fname_encrypted, fname_decrypted, overwrite);
-            jau::fprintf_td(stderr, "Decrypted1 result: Output decrypted file %s: Result %d\n", fname_decrypted.c_str(), res_dec);
+            Botan::DataSource_Stream enc_stream(fname_encrypted, true /* use_binary */);
+            bool res_dec = Cipherpack::checkSignThenDecrypt_RSA1(sign_pub_key_fname, dec_sec_key_fname, dec_sec_key_passphrase, enc_stream, fname_decrypted, overwrite);
+            jau::PLAIN_PRINT(true, "Decrypted1 result: Output decrypted file %s: Result %d\n", fname_decrypted.c_str(), res_dec);
         }
 #if 0
     }
