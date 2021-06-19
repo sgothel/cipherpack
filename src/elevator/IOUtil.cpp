@@ -423,3 +423,53 @@ void IOUtil::print_stats(const std::string &prefix, const uint64_t out_bytes_tot
 }
 
 
+
+DataSource_Http::DataSource_Http(const std::string& url)
+: m_url(url), m_buffer(0x00, IOUtil::BEST_HTTP_RINGBUFFER_SIZE), m_bytes_consumed(0)
+{
+    IOUtil::read_http_get(m_url, m_buffer, http_content_length, http_total_bytes, m_http_result);
+}
+
+size_t DataSource_Http::read(uint8_t out[], size_t length) {
+    const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, 0 /* timeoutMS */);
+    m_bytes_consumed += consumed_bytes;
+    return consumed_bytes;
+}
+
+size_t DataSource_Http::peek(uint8_t out[], size_t length, size_t peek_offset) const {
+    (void)out;
+    (void)length;
+    (void)peek_offset;
+    throw Botan::Not_Implemented("DataSource_Http::peek not implemented");
+    return 0;
+}
+
+
+
+void DataSource_Recorder::start_recording() noexcept {
+    if( is_recording() ) {
+        m_buffer.resize(0);
+    }
+    m_rec_offset = get_bytes_read();
+    m_is_recording = true;
+}
+
+void DataSource_Recorder::stop_recording() noexcept {
+    m_is_recording = false;
+}
+
+void DataSource_Recorder::clear_recording() noexcept {
+    m_is_recording = false;
+    m_buffer.clear();
+    m_rec_offset = 0;
+}
+
+size_t DataSource_Recorder::read(uint8_t out[], size_t length) {
+    if( is_recording() ) {
+        size_t got = m_parent.read(out, length);
+        m_buffer.insert(m_buffer.end(), out, out+got);
+        return got;
+    } else {
+        return m_parent.read(out, length);
+    }
+}
