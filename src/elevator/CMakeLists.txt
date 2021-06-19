@@ -32,10 +32,10 @@ target_link_libraries (
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
-if(CMAKE_COMPILER_IS_GNUCC)
+# if(CMAKE_COMPILER_IS_GNUCC)
 # botan fails on cast align etc
 target_compile_options(elevator PUBLIC "-Wno-cast-align" "-Wno-unused-parameter")
-endif(CMAKE_COMPILER_IS_GNUCC)
+# endif(CMAKE_COMPILER_IS_GNUCC)
 
 if(USE_STRIP)
 add_custom_command(TARGET elevator POST_BUILD

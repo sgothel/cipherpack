@@ -25,7 +25,7 @@ string( REPLACE ".cpp" "" BASENAMES_IDIOMATIC_EXAMPLES "${SOURCES_IDIOMATIC_EXAM
 set( TARGETS_IDIOMATIC_EXAMPLES ${BASENAMES_IDIOMATIC_EXAMPLES} )
 
 foreach( name ${TARGETS_IDIOMATIC_EXAMPLES} )
-    add_executable(${name} ${name}.cpp)
+    add_executable(${name} ${name}.cpp test_data.cpp)
     target_link_libraries(${name} elevator catch2l)
     add_dependencies(${name} elevator catch2l)
     add_test (NAME ${name} COMMAND ${name})

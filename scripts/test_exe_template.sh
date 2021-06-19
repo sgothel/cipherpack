@@ -1,5 +1,8 @@
 #!/bin/sh
 
+export elevator_debug=true
+export elevator_verbose=true
+
 # Arguments:
 #   --perf_analysis   special performance analysis using 3rd party tools
 #   -v normal         dummy for full benchmarking
@@ -67,6 +70,7 @@ runit() {
     #export ASAN_OPTIONS=verbosity=1:malloc_context_size=20
     #export ASAN_OPTIONS=print_stats:halt_on_error:replace_intrin
 
+    cd $build_dir/test/elevator/
     $EXE_WRAPPER $build_dir/test/elevator/$bname $*
 }
 
