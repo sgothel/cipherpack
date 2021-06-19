@@ -113,39 +113,6 @@ class Cipherpack {
          * i.e. {@link #aead_cipher_algo}.
          *
          * <p>
-         * DO NOT USE
-         * </p>
-         *
-         * The encrypted stream will be produced as follows:
-         * <pre>
-         * DER {
-         *     ASN1_Type::ObjectId                  pk_alg_id 'AlgorithmIdentifier' = ( "RSA/OAEP" + "SHA-256" ),
-         *     ASN1_Type::ObjectId                  cipher_algo_oid = "ChaCha20Poly1305",
-         *     ASN1_Type::OctetString               encrypted_key,
-         *     ASN1_Type::OctetString               nonce
-         * },
-         * uint8_t encrypted_data[]
-         * </pre>
-         *
-         * @param pub_key_fname
-         * @param data_fname
-         * @param outfilename
-         * @param overwrite
-         * @return
-         */
-        static bool encrypt_RSA(const std::string &pub_key_fname,
-                                const std::string &data_fname,
-                                const std::string &outfilename, const bool overwrite);
-
-        static bool decrypt_RSA(const std::string &sec_key_fname, const std::string &passphrase,
-                                const std::string &data_fname,
-                                const std::string &outfilename, const bool overwrite);
-
-        /**
-         * Implementation uses an Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo,
-         * i.e. {@link #aead_cipher_algo}.
-         *
-         * <p>
          * READY TO USE
          * </p>
          *
@@ -213,40 +180,6 @@ class Cipherpack {
         static bool checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
                                               const std::string &dec_sec_key_fname, const std::string &passphrase,
                                               Botan::DataSource &source,
-                                              const std::string &outfilename, const bool overwrite);
-        /**
-         * The encrypted stream will be produced as follows:
-         * <pre>
-         * DER {
-         *     ASN1_Type::OctetString               package_magic
-         *     ASN1_Type::OctetString               filename
-         *     ASN1_Type::Integer                   payload_version
-         *     ASN1_Type::Integer                   payload_version_parent
-         *     ASN1_Type::[ObjectId|OctetString]    sign_algo_[oid|name] = "EMSA1(SHA-256)",
-         *     ASN1_Type::ObjectId                  pk_alg_id 'AlgorithmIdentifier' = ( "RSA/OAEP" + "SHA-256" ),
-         *     ASN1_Type::[ObjectId|OctetString]    cipher_algo_[oid|name] = "ChaCha(20)",
-         *     ASN1_Type::OctetString               encrypted_key,
-         *     ASN1_Type::OctetString               nonce
-         * },
-         * uint8_t encrypted_data[]
-         * </pre>
-         *
-         * @param enc_pub_key_fname
-         * @param sign_sec_key_fname
-         * @param passphrase
-         * @param data_fname
-         * @param outfilename
-         * @param overwrite
-         * @return
-         */
-        static bool encryptThenSign_RSA2(const std::string &enc_pub_key_fname,
-                                         const std::string &sign_sec_key_fname, const std::string &passphrase,
-                                         const std::string &data_fname,
-                                         const std::string &outfilename, const bool overwrite);
-
-        static bool checkSignThenDecrypt_RSA2(const std::string &sign_pub_key_fname,
-                                              const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                              const std::string &data_fname,
                                               const std::string &outfilename, const bool overwrite);
 };
 
