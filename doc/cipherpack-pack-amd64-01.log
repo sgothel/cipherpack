@@ -1,0 +1,61 @@
+Usage bin/cipherpack pack <enc-pub-key> <sign-sec-key> <sign-sec-key-passphrase> <input-filename> <header-filename> <file-version> <file-version-parent> <output-filename>
+Usage bin/cipherpack unpack <sign-pub-key> <dec-sec-key> <dec-sec-key-passphrase> <input-source> <output-filename>
+
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa \"\" ../test_data/data-64kB.bin data-64kb.bin 1 0 ../test_data/data-64kB.bin.enc
+COMMANDLINE ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-64kB.bin data-64kb.bin 1 0 ../test_data/data-64kB.bin.enc
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 9 arguments: bin/cipherpack pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-64kB.bin data-64kb.bin 1 0 ../test_data/data-64kB.bin.enc 
+[       18] Encrypt: Writing done, 1,151 header + 64,016 payload == 65,167 total bytes for 64,000 bytes input, ratio 1.018234 out/in
+[       18] Encrypt: Duration 0 s, 18 ms
+[       18] Encrypt: Size 65,167 B
+[       18] Encrypt: Bitrate 28,963 kbit/s, 3,620 kB/s
+[       18] Pack: Encrypted ../test_data/data-64kB.bin to ../test_data/data-64kB.bin.enc
+
+[       18] Pack: PackInfo[source ../test_data/data-64kB.bin, filename[header data-64kb.bin, stored ../test_data/data-64kB.bin.enc (E)], creation 2021-06-20 18:58:32 UTC, version[1, parent 0], valid 1]
+
+
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa \"\" ../test_data/data- data-64kb.bin 1 0 ../test_data/data-64kB.bin.enc        
+data-1GB.mkv            data-1GB.mkv.enc.dec    data-382MB.mkv          data-382MB.mkv.enc.dec  data-64kB.bin.enc       
+data-1GB.mkv.enc        data-2GB.mkv            data-382MB.mkv.enc      data-64kB.bin           data-64kB.bin.enc.dec   
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa \"\" ../test_data/data-382MB.mkv data-382MB.mkv 1 0 ../test_data/data-382MB.mkv.enc
+COMMANDLINE ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-382MB.mkv data-382MB.mkv 1 0 ../test_data/data-382MB.mkv.enc
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 9 arguments: bin/cipherpack pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-382MB.mkv data-382MB.mkv 1 0 ../test_data/data-382MB.mkv.enc 
+[      900] Encrypt: Writing done, 1,152 header + 401,310,873 payload == 401,312,025 total bytes for 401,310,857 bytes input, ratio 1.000003 out/in
+[      900] Encrypt: Duration 1 s, 900 ms
+[      900] Encrypt: Size 401 MB
+[      900] Encrypt: Bitrate 3,567 Mbit/s, 446 MB/s
+[      900] Pack: Encrypted ../test_data/data-382MB.mkv to ../test_data/data-382MB.mkv.enc
+
+[      900] Pack: PackInfo[source ../test_data/data-382MB.mkv, filename[header data-382MB.mkv, stored ../test_data/data-382MB.mkv.enc (E)], creation 2021-06-20 19:00:45 UTC, version[1, parent 0], valid 1]
+
+
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa \"\" ../test_data/data-1GB.mkv data-1GB.mkv 1 0 ../test_data/data-1GB.mkv.enc
+COMMANDLINE ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-1GB.mkv data-1GB.mkv 1 0 ../test_data/data-1GB.mkv.enc
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 9 arguments: bin/cipherpack pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-1GB.mkv data-1GB.mkv 1 0 ../test_data/data-1GB.mkv.enc 
+[    2,237] Encrypt: Writing done, 1,150 header + 1,055,354,383 payload == 1,055,355,533 total bytes for 1,055,354,367 bytes input, ratio 1.000001 out/in
+[    2,237] Encrypt: Duration 2 s, 2,237 ms
+[    2,237] Encrypt: Size 1,055 MB
+[    2,237] Encrypt: Bitrate 3,774 Mbit/s, 472 MB/s
+[    2,237] Pack: Encrypted ../test_data/data-1GB.mkv to ../test_data/data-1GB.mkv.enc
+
+[    2,237] Pack: PackInfo[source ../test_data/data-1GB.mkv, filename[header data-1GB.mkv, stored ../test_data/data-1GB.mkv.enc (E)], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
+
+
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa \"\" ../test_data/data-2GB.mkv data-2GB.mkv 1 0 ../test_data/data-2GB.mkv.enc
+COMMANDLINE ../scripts/run_cipherpack.sh pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-2GB.mkv data-2GB.mkv 1 0 ../test_data/data-2GB.mkv.enc
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 9 arguments: bin/cipherpack pack ../keys/terminal_rsa.pub.pem ../keys/host_rsa "" ../test_data/data-2GB.mkv data-2GB.mkv 1 0 ../test_data/data-2GB.mkv.enc 
+[    4,522] Encrypt: Writing done, 1,150 header + 2,023,680,756 payload == 2,023,681,906 total bytes for 2,023,680,740 bytes input, ratio 1.000001 out/in
+[    4,522] Encrypt: Duration 5 s, 4,522 ms
+[    4,522] Encrypt: Size 2,024 MB
+[    4,522] Encrypt: Bitrate 3,580 Mbit/s, 448 MB/s
+[    4,522] Pack: Encrypted ../test_data/data-2GB.mkv to ../test_data/data-2GB.mkv.enc
+
+[    4,522] Pack: PackInfo[source ../test_data/data-2GB.mkv, filename[header data-2GB.mkv, stored ../test_data/data-2GB.mkv.enc (E)], creation 2021-06-20 19:02:24 UTC, version[1, parent 0], valid 1]
+

@@ -119,7 +119,7 @@ class Cipherpack {
         static std::unique_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
 
         /**
-         * Package magic {@code ZAF_ELEVATOR_0002}.
+         * Package magic {@code ZAF_ELEVATOR_0003}.
          */
         static const std::string package_magic;
 
@@ -175,6 +175,7 @@ class Cipherpack {
          * DER Header 1 {
          *     ASN1_Type::OctetString               package_magic
          *     ASN1_Type::OctetString               filename
+         *     ASN1_Type::Integer                   creation_timestamp_sec
          *     ASN1_Type::Integer                   payload_version
          *     ASN1_Type::Integer                   payload_version_parent
          *     ASN1_Type::[ObjectId|OctetString]    sign_algo_[oid|name] = "EMSA1(SHA-256)",
@@ -189,20 +190,26 @@ class Cipherpack {
          * uint8_t encrypted_data[]
          * </pre>
          *
-         * @param enc_pub_key_fname The public key of the receiver (terminal device), used to encrypt the symmetric key.
-         * @param sign_sec_key_fname The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted symmetric key for authenticity.
-         * @param passphrase The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
-         * @param data_fname The filename of the plaintext payload.
-         * @param outfilename The filename of the ciphertext pack file target.
-         * @param overwrite If true, overwrite a potentially existing `outfilename`.
-         * @return true if successful, otherwise false.
+         * @param enc_pub_key_fname      The public key of the receiver (terminal device), used to encrypt the symmetric key.
+         * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted symmetric key for authenticity.
+         * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
+         * @param input_fname            The filename of the plaintext payload.
+         * @param designated_fname           The designated filename for the decrypted file as written in the DER-Header-1
+         * @param payload_version        The version of this payload
+         * @param payload_version_parent The version of this payload's parent
+         * @param output_fname           The filename of the ciphertext pack file target.
+         * @param overwrite              If true, overwrite a potentially existing `outfilename`.
+         * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
          *
          * @see #checkSignThenDecrypt_RSA1()
          */
-        static bool encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
-                                         const std::string &sign_sec_key_fname, const std::string &passphrase,
-                                         const std::string &data_fname,
-                                         const std::string &outfilename, const bool overwrite);
+        static PackInfo encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
+                                             const std::string &sign_sec_key_fname, const std::string &passphrase,
+                                             const std::string &input_fname,
+                                             const std::string &designated_fname,
+                                             const uint64_t payload_version,
+                                             const uint64_t payload_version_parent,
+                                             const std::string &output_fname, const bool overwrite);
 
         /**
          * See {@link #encryptThenSign_RSA1()} for details.
@@ -212,14 +219,14 @@ class Cipherpack {
          * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the symmetric key.
          * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
          * @param source             The Botan::DataSource of the ciphertext pack file source, containing the payload.
-         * @param outfilename        The filename of the resulting plaintext target.
+         * @param output_fname       The filename of the resulting plaintext target.
          * @param overwrite If true, overwrite a potentially existing `outfilename`.
-         * @return true if successful, otherwise false.
+         * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
          */
-        static bool checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
-                                              const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                              Botan::DataSource &source,
-                                              const std::string &outfilename, const bool overwrite);
+        static PackInfo checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
+                                                  const std::string &dec_sec_key_fname, const std::string &passphrase,
+                                                  Botan::DataSource &source,
+                                                  const std::string &output_fname, const bool overwrite);
 };
 
 } // namespace elevator

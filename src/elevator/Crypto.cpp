@@ -13,7 +13,7 @@
 
 using namespace elevator;
 
-const std::string Cipherpack::package_magic      = "ZAF_ELEVATOR_0002";
+const std::string Cipherpack::package_magic      = "ZAF_ELEVATOR_0003";
 
 const std::string Cipherpack::rsa_padding_algo   = "OAEP"; // or "EME1"
 const std::string Cipherpack::rsa_hash_algo      = "SHA-256";

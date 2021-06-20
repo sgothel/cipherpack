@@ -14,29 +14,34 @@
 
 using namespace elevator;
 
-bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
-                                  const std::string &sign_sec_key_fname, const std::string &passphrase,
-                                  const std::string &data_fname,
-                                  const std::string &outfilename, const bool overwrite) {
+Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
+                                                      const std::string &sign_sec_key_fname, const std::string &passphrase,
+                                                      const std::string &input_fname,
+                                                      const std::string &designated_fname,
+                                                      const uint64_t payload_version,
+                                                      const uint64_t payload_version_parent,
+                                                      const std::string &output_fname, const bool overwrite) {
     Elevator::env_init();
+
+    const uint64_t ts_creation_sec = jau::getWallClockSeconds();
 
     const uint64_t _t0 = jau::getCurrentMilliseconds();
 
-    if( IOUtil::file_exists(outfilename) ) {
+    if( IOUtil::file_exists(output_fname) ) {
         if( overwrite ) {
-            if( !IOUtil::remove(outfilename) ) {
-                ERR_PRINT("Encrypt failed: Failed deletion of existing output file %s", outfilename.c_str());
-                return false;
+            if( !IOUtil::remove(output_fname) ) {
+                ERR_PRINT("Encrypt failed: Failed deletion of existing output file %s", output_fname.c_str());
+                return PackInfo(ts_creation_sec, input_fname, false);
             }
         } else {
-            ERR_PRINT("Encrypt failed: Not overwriting existing output file %s", outfilename.c_str());
-            return false;
+            ERR_PRINT("Encrypt failed: Not overwriting existing output file %s", output_fname.c_str());
+            return PackInfo(ts_creation_sec, input_fname, false);
         }
     }
-    std::ofstream outfile(outfilename, std::ios::out | std::ios::binary);
+    std::ofstream outfile(output_fname, std::ios::out | std::ios::binary);
     if ( !outfile.good() || !outfile.is_open() ) {
-        ERR_PRINT("Encrypt failed: Output file not open %s", outfilename.c_str());
-        return false;
+        ERR_PRINT("Encrypt failed: Output file not open %s", output_fname.c_str());
+        return PackInfo(ts_creation_sec, input_fname, false);
     }
     uint64_t out_bytes_header;
 
@@ -45,22 +50,22 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
 
         std::unique_ptr<Botan::Public_Key> enc_pub_key = load_public_key(enc_pub_key_fname);
         if( !enc_pub_key ) {
-            return false;
+            return PackInfo(ts_creation_sec, input_fname, false);
         }
         std::unique_ptr<Botan::Private_Key> sign_sec_key = load_private_key(sign_sec_key_fname, passphrase);
         if( !sign_sec_key ) {
-            return false;
+            return PackInfo(ts_creation_sec, input_fname, false);
         }
 
         std::unique_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create(aead_cipher_algo, Botan::ENCRYPTION);
         if(!aead) {
            ERR_PRINT("Encrypt failed: AEAD algo %s not available", aead_cipher_algo.c_str());
-           return false;
+           return PackInfo(ts_creation_sec, input_fname, false);
         }
         const Botan::OID cipher_algo_oid = Botan::OID::from_string(aead_cipher_algo);
         if( cipher_algo_oid.empty() ) {
             ERR_PRINT("Encrypt failed: No OID defined for cypher algo %s", aead_cipher_algo.c_str());
-            return false;
+            return PackInfo(ts_creation_sec, input_fname, false);
         }
 
         const Botan::AlgorithmIdentifier hash_id(rsa_hash_algo, Botan::AlgorithmIdentifier::USE_EMPTY_PARAM);
@@ -78,9 +83,6 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
         aead->start(nonce);
 
         {
-            uint64_t payload_version = 1;
-            uint64_t payload_version_parent = 0;
-
             Botan::secure_vector<uint8_t> header_buffer;
             header_buffer.reserve(buffer_size);
 
@@ -90,7 +92,8 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
                 Botan::DER_Encoder der(header_buffer);
                 der.start_sequence()
                    .encode(std::vector<uint8_t>(package_magic.begin(), package_magic.end()), Botan::ASN1_Type::OctetString)
-                   .encode(std::vector<uint8_t>(data_fname.begin(), data_fname.end()), Botan::ASN1_Type::OctetString)
+                   .encode(std::vector<uint8_t>(designated_fname.begin(), designated_fname.end()), Botan::ASN1_Type::OctetString)
+                   .encode(ts_creation_sec, Botan::ASN1_Type::Integer)
                    .encode(payload_version, Botan::ASN1_Type::Integer)
                    .encode(payload_version_parent, Botan::ASN1_Type::Integer)
                    .encode(std::vector<uint8_t>(rsa_sign_algo.begin(), rsa_sign_algo.end()), Botan::ASN1_Type::OctetString)
@@ -125,6 +128,8 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
         uint64_t out_bytes_total = outfile.tellp();
         if( out_bytes_header != out_bytes_total ) {
             ERR_PRINT("Encrypt: DER Header done, %" PRIu64 " header != %" PRIu64 " total bytes", out_bytes_header, out_bytes_total);
+            IOUtil::remove(output_fname);
+            return PackInfo(ts_creation_sec, input_fname, false);
         } else {
             DBG_PRINT("Encrypt: DER Header done, %" PRIu64 " header == %" PRIu64 " total bytes", out_bytes_header, out_bytes_total);
         }
@@ -145,12 +150,12 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
         };
         Botan::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(buffer_size);
-        const ssize_t in_bytes_total = IOUtil::read_file(data_fname, io_buffer, consume_data);
+        const ssize_t in_bytes_total = IOUtil::read_file(input_fname, io_buffer, consume_data);
 
         if ( 0>in_bytes_total || outfile.fail() ) {
-            ERR_PRINT("Encrypt failed: Output file write failed %s", outfilename.c_str());
-            IOUtil::remove(outfilename);
-            return false;
+            ERR_PRINT("Encrypt failed: Output file write failed %s", output_fname.c_str());
+            IOUtil::remove(output_fname);
+            return PackInfo(ts_creation_sec, input_fname, false);
         }
 
         out_bytes_total = outfile.tellp();
@@ -160,6 +165,8 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
                     jau::to_decstring(out_bytes_payload).c_str(),
                     jau::to_decstring(out_bytes_total).c_str(),
                     jau::to_decstring(in_bytes_total).c_str());
+            IOUtil::remove(output_fname);
+            return PackInfo(ts_creation_sec, input_fname, false);
         } else if( jau::environment::get().verbose ) {
             jau::PLAIN_PRINT(true, "Encrypt: Writing done, %s header + %s payload == %s total bytes for %s bytes input, ratio %lf out/in",
                     jau::to_decstring(out_bytes_header).c_str(),
@@ -172,36 +179,36 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
         IOUtil::print_stats("Encrypt", out_bytes_total, _td_ms);
     } catch (std::exception &e) {
         ERR_PRINT("Encrypt failed: Caught exception: %s", e.what());
-        IOUtil::remove(outfilename);
-        return false;
+        IOUtil::remove(output_fname);
+        return PackInfo(ts_creation_sec, input_fname, false);
     }
-
-    return true;
+    return PackInfo(ts_creation_sec, input_fname, false, output_fname, true, designated_fname, payload_version, payload_version_parent);
 }
 
-bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
-                                       const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                       Botan::DataSource &source,
-                                       const std::string &outfilename, const bool overwrite) {
+Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
+                                                           const std::string &dec_sec_key_fname, const std::string &passphrase,
+                                                           Botan::DataSource &source,
+                                                           const std::string &output_fname, const bool overwrite) {
     Elevator::env_init();
 
+    uint64_t ts_creation_sec = 0;
     const uint64_t _t0 = jau::getCurrentMilliseconds();
 
-    if( IOUtil::file_exists(outfilename) ) {
+    if( IOUtil::file_exists(output_fname) ) {
         if( overwrite ) {
-            if( !IOUtil::remove(outfilename) ) {
-                ERR_PRINT("Decrypt failed: Failed deletion of existing output file %s", outfilename.c_str());
-                return false;
+            if( !IOUtil::remove(output_fname) ) {
+                ERR_PRINT("Decrypt failed: Failed deletion of existing output file %s", output_fname.c_str());
+                return PackInfo(ts_creation_sec, source.id(), true);
             }
         } else {
-            ERR_PRINT("Decrypt failed: Not overwriting existing output file %s", outfilename.c_str());
-            return false;
+            ERR_PRINT("Decrypt failed: Not overwriting existing output file %s", output_fname.c_str());
+            return PackInfo(ts_creation_sec, source.id(), true);
         }
     }
-    std::ofstream outfile(outfilename, std::ios::out | std::ios::binary);
+    std::ofstream outfile(output_fname, std::ios::out | std::ios::binary);
     if ( !outfile.good() || !outfile.is_open() ) {
-        ERR_PRINT("Decrypt failed: Output file not open %s", outfilename.c_str());
-        return false;
+        ERR_PRINT("Decrypt failed: Output file not open %s", output_fname.c_str());
+        return PackInfo(ts_creation_sec, source.id(), true);
     }
 
     try {
@@ -209,15 +216,15 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
 
         std::unique_ptr<Botan::Public_Key> sign_pub_key = load_public_key(sign_pub_key_fname);
         if( !sign_pub_key ) {
-            return false;
+            return PackInfo(ts_creation_sec, source.id(), true);
         }
         std::unique_ptr<Botan::Private_Key> dec_sec_key = load_private_key(dec_sec_key_fname, passphrase);
         if( !dec_sec_key ) {
-            return false;
+            return PackInfo(ts_creation_sec, source.id(), true);
         }
 
         std::vector<uint8_t> package_magic_charvec;
-        std::vector<uint8_t> filename_charvec;
+        std::vector<uint8_t> designated_fame_charvec;
         uint64_t payload_version;
         uint64_t payload_version_parent;
         std::vector<uint8_t> sign_algo_charvec;
@@ -233,10 +240,21 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
             // DER-Header-1
             input.start_recording();
             {
-                Botan::BER_Decoder ber(input);
-                ber.start_sequence()
-                   .decode(package_magic_charvec, Botan::ASN1_Type::OctetString)
-                   .decode(filename_charvec, Botan::ASN1_Type::OctetString)
+                Botan::BER_Decoder ber0(input);
+
+                Botan::BER_Decoder ber = ber0.start_sequence();
+                ber.decode(package_magic_charvec, Botan::ASN1_Type::OctetString);
+
+                const std::string package_magic_in(package_magic_charvec.begin(), package_magic_charvec.end());
+                if( package_magic != package_magic_in ) {
+                    ERR_PRINT("Decrypt failed: Expected Magic %s, but got %s", package_magic.c_str(), package_magic_in.c_str());
+                    IOUtil::remove(output_fname);
+                    return PackInfo(ts_creation_sec, source.id(), true);
+                }
+                DBG_PRINT("Decrypt: Magic is %s", package_magic_in.c_str());
+
+                ber.decode(designated_fame_charvec, Botan::ASN1_Type::OctetString)
+                   .decode(ts_creation_sec, Botan::ASN1_Type::Integer)
                    .decode(payload_version, Botan::ASN1_Type::Integer)
                    .decode(payload_version_parent, Botan::ASN1_Type::Integer)
                    .decode(sign_algo_charvec, Botan::ASN1_Type::OctetString)
@@ -270,52 +288,44 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
                         header1_buffer.size(),
                         jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str(),
                         source.id().c_str());
-                IOUtil::remove(outfilename);
-                return false;
+                IOUtil::remove(output_fname);
+                return PackInfo(ts_creation_sec, source.id(), true);
             } else {
                 DBG_PRINT("Decrypt: Signature OK");
             }
         } catch (Botan::Decoding_Error &e) {
             ERR_PRINT("Decrypt failed: Invalid input file format: source %s, %s", source.id().c_str(), e.what());
-            IOUtil::remove(outfilename);
-            return false;
+            IOUtil::remove(output_fname);
+            return PackInfo(ts_creation_sec, source.id(), true);
         }
 
+        const std::string designated_fname(reinterpret_cast<char*>(designated_fame_charvec.data()), designated_fame_charvec.size());
         {
-            const std::string package_magic_in(package_magic_charvec.begin(), package_magic_charvec.end());
-            if( package_magic != package_magic_in ) {
-                ERR_PRINT("Decrypt failed: Expected Magic %s, but got %s", package_magic.c_str(), package_magic_in.c_str());
-                IOUtil::remove(outfilename);
-                return false;
+            if( designated_fname.empty() ) {
+               ERR_PRINT("Decrypt failed: Unknown filename in %s", output_fname.c_str());
+               IOUtil::remove(output_fname);
+               return PackInfo(ts_creation_sec, source.id(), true);
             }
-            DBG_PRINT("Decrypt: Magic is %s", package_magic_in.c_str());
         }
-        {
-            const std::string s(reinterpret_cast<char*>(filename_charvec.data()), filename_charvec.size());
-            if( s.empty() ) {
-               ERR_PRINT("Decrypt failed: Unknown filename in %s", outfilename.c_str());
-               IOUtil::remove(outfilename);
-               return false;
-            }
-            DBG_PRINT("Decrypt: filename is %s", s.c_str());
-        }
-        DBG_PRINT("Decrypt: payload version %s (parent %s)",
+        DBG_PRINT("Decrypt: designated filename %s, version %s (parent %s)",
+                designated_fname.c_str(),
                 jau::to_decstring(payload_version).c_str(),
                 jau::to_decstring(payload_version_parent).c_str());
+        DBG_PRINT("Decrypt: creation time %s UTC", IOUtil::getTimestampString(ts_creation_sec, false).c_str());
 
         const std::string sign_algo(reinterpret_cast<char*>(sign_algo_charvec.data()), sign_algo_charvec.size());
         {
             if( sign_algo.empty() ) {
-               ERR_PRINT("Decrypt failed: Unknown signing algo in %s", outfilename.c_str());
-               IOUtil::remove(outfilename);
-               return false;
+               ERR_PRINT("Decrypt failed: Unknown signing algo in %s", output_fname.c_str());
+               IOUtil::remove(output_fname);
+               return PackInfo(ts_creation_sec, source.id(), true);
             }
             DBG_PRINT("Decrypt: sign algo is %s", sign_algo.c_str());
             if( sign_algo != rsa_sign_algo) {
                ERR_PRINT("Decrypt failed: Expected signing algo %s, but got %s in %s",
-                       rsa_sign_algo.c_str(), sign_algo.c_str(), outfilename.c_str());
-               IOUtil::remove(outfilename);
-               return false;
+                       rsa_sign_algo.c_str(), sign_algo.c_str(), output_fname.c_str());
+               IOUtil::remove(output_fname);
+               return PackInfo(ts_creation_sec, source.id(), true);
             }
         }
         {
@@ -325,9 +335,9 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
             DBG_PRINT("Decrypt: ciphertext encryption/padding algo is %s -> %s", pk_alg_oid.to_string().c_str(), pk_algo_str.c_str());
             if( pk_algo_str != padding_combo ) {
                 ERR_PRINT("Decrypt failed: Expected ciphertext encryption/padding algo %s, but got %s in %s",
-                        padding_combo.c_str(), pk_algo_str.c_str(), outfilename.c_str());
-                IOUtil::remove(outfilename);
-                return false;
+                        padding_combo.c_str(), pk_algo_str.c_str(), output_fname.c_str());
+                IOUtil::remove(output_fname);
+                return PackInfo(ts_creation_sec, source.id(), true);
             }
         }
         {
@@ -336,22 +346,22 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
             const std::string hash_algo = Botan::OIDS::oid2str_or_empty(hash_algo_id.get_oid());
             if( hash_algo.empty() ) {
                 ERR_PRINT("Decrypt failed: Unknown hash function used with %s padding, OID is %s in %s",
-                        rsa_padding_algo.c_str(), hash_algo_id.get_oid().to_string().c_str(), outfilename.c_str());
-                IOUtil::remove(outfilename);
-                return false;
+                        rsa_padding_algo.c_str(), hash_algo_id.get_oid().to_string().c_str(), output_fname.c_str());
+                IOUtil::remove(output_fname);
+                return PackInfo(ts_creation_sec, source.id(), true);
             }
             DBG_PRINT("Decrypt: hash function for %s padding is %s", rsa_padding_algo.c_str(), hash_algo.c_str());
             if( hash_algo != rsa_hash_algo ) {
                ERR_PRINT("Decrypt failed: Expected hash function for % padding is %s, but got %s in %s",
-                       rsa_padding_algo.c_str(), rsa_hash_algo.c_str(), hash_algo.c_str(), outfilename.c_str());
-               IOUtil::remove(outfilename);
-               return false;
+                       rsa_padding_algo.c_str(), rsa_hash_algo.c_str(), hash_algo.c_str(), output_fname.c_str());
+               IOUtil::remove(output_fname);
+               return PackInfo(ts_creation_sec, source.id(), true);
             }
             if( !hash_algo_id.get_parameters().empty() ) {
                 ERR_PRINT("Decrypt failed: Unknown %s padding - %s hash function parameter used in %s",
-                        rsa_padding_algo.c_str(), hash_algo.c_str(), outfilename.c_str());
-                IOUtil::remove(outfilename);
-                return false;
+                        rsa_padding_algo.c_str(), hash_algo.c_str(), output_fname.c_str());
+                IOUtil::remove(output_fname);
+                return PackInfo(ts_creation_sec, source.id(), true);
             }
         }
 
@@ -359,23 +369,23 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
         const std::string cipher_algo = Botan::OIDS::oid2str_or_empty(cipher_algo_oid);
         {
             if( cipher_algo.empty() ) {
-               ERR_PRINT("Decrypt failed: Unknown ciphertext encryption algo in %s", outfilename.c_str());
-               IOUtil::remove(outfilename);
-               return false;
+               ERR_PRINT("Decrypt failed: Unknown ciphertext encryption algo in %s", output_fname.c_str());
+               IOUtil::remove(output_fname);
+               return PackInfo(ts_creation_sec, source.id(), true);
             }
             DBG_PRINT("Decrypt: ciphertext encryption algo is %s", cipher_algo.c_str());
             if( cipher_algo != aead_cipher_algo) {
                ERR_PRINT("Decrypt failed: Expected ciphertext encryption algo %s, but got %s in %s",
-                       aead_cipher_algo.c_str(), cipher_algo.c_str(), outfilename.c_str());
-               IOUtil::remove(outfilename);
-               return false;
+                       aead_cipher_algo.c_str(), cipher_algo.c_str(), output_fname.c_str());
+               IOUtil::remove(output_fname);
+               return PackInfo(ts_creation_sec, source.id(), true);
             }
         }
 
         std::unique_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create_or_throw(cipher_algo, Botan::DECRYPTION);
         if(!aead) {
            ERR_PRINT("Decrypt failed: Cipher algo %s not available", cipher_algo.c_str());
-           return false;
+           return PackInfo(ts_creation_sec, source.id(), true);
         }
 
         const size_t expected_keylen = aead->key_spec().maximum_keylength();
@@ -395,7 +405,7 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: EncPayload written0 + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Decrypt: DecPayload written0 + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
             } else {
                 // DBG_PRINT("Decrypt: p111a size %" PRIu64 ", capacity %" PRIu64 "", data.size(), data.capacity());
                 // DBG_PRINT("Decrypt: p111a data %s",
@@ -406,7 +416,7 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
                 //           jau::bytesHexString(data.data(), 0, data.size(), true /* lsbFirst */).c_str());
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: EncPayload writtenF + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Decrypt: DecPayload writtenF + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
             }
         };
         Botan::secure_vector<uint8_t> io_buffer;
@@ -414,9 +424,9 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
         const ssize_t in_bytes_total = IOUtil::read_stream(input, io_buffer, consume_data);
 
         if ( 0>in_bytes_total || outfile.fail() ) {
-            ERR_PRINT("Decrypt failed: Output file write failed %s", outfilename.c_str());
-            IOUtil::remove(outfilename);
-            return false;
+            ERR_PRINT("Decrypt failed: Output file write failed %s", output_fname.c_str());
+            IOUtil::remove(output_fname);
+            return PackInfo(ts_creation_sec, source.id(), true);
         }
 
         const uint64_t out_bytes_total = outfile.tellp();
@@ -433,11 +443,11 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
 
         const uint64_t _td_ms = jau::getCurrentMilliseconds() - _t0; // in milliseconds
         IOUtil::print_stats("Decrypt", out_bytes_total, _td_ms);
+
+        return PackInfo(ts_creation_sec, source.id(), true, output_fname, false, designated_fname, payload_version, payload_version_parent);
     } catch (std::exception &e) {
         ERR_PRINT("Decrypt failed: Caught exception: %s", e.what());
-        IOUtil::remove(outfilename);
-        return false;
+        IOUtil::remove(output_fname);
+        return PackInfo(ts_creation_sec, source.id(), true);
     }
-
-    return true;
 }

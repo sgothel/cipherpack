@@ -1,0 +1,42 @@
+Usage bin/cipherpack pack <enc-pub-key> <sign-sec-key> <sign-sec-key-passphrase> <input-filename> <header-filename> <file-version> <file-version-parent> <output-filename>
+Usage bin/cipherpack unpack <sign-pub-key> <dec-sec-key> <dec-sec-key-passphrase> <input-source> <output-filename>
+
+
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://jordan/deployment/elevator/data-64kB.bin.enc a.out             
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-64kB.bin.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-64kB.bin.enc a.out 
+[       16] Wordy: Decrypt: Writing done, 64,000 total bytes from 64,016 bytes input, ratio 0.999750 in/out
+[       16] Decrypt: Duration 0 s, 16 ms
+[       16] Decrypt: Size 64,000 B
+[       16] Decrypt: Bitrate 32,000 kbit/s, 4,000 kB/s
+[       16] Unpack: Decypted http://jordan/deployment/elevator/data-64kB.bin.enc to a.out
+
+[       16] Unpack: PackInfo[source http://jordan/deployment/elevator/data-64kB.bin.enc (E), filename[header data-64kb.bin, stored a.out], creation 2021-06-20 18:58:32 UTC, version[1, parent 0], valid 1]
+
+
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://jordan/deployment/elevator/data-1GB.bin.enc a.out
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.bin.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.bin.enc a.out 
+[       13] Error @ /src/elevator/Crypto1.cpp:297 checkSignThenDecrypt_RSA1: Decrypt failed: Invalid input file format: source http://jordan/deployment/elevator/data-1GB.bin.enc, BER: Tag mismatch when decoding object got UNIVERSAL STRING/CONSTRUCTED expected SEQUENCE/CONSTRUCTED; last errno 11 Resource temporarily unavailable
+[       13] Unpack: Decypted http://jordan/deployment/elevator/data-1GB.bin.enc to a.out
+
+[       13] Unpack: PackInfo[source http://jordan/deployment/elevator/data-1GB.bin.enc (E), filename[header none, stored none], creation 1970-01-01 00:00:00 UTC, version[0, parent 0], valid 0]
+
+
+sven@risa:/usr/local/projects/zafena/elevator/dist-amd64$ sh ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out 
+[    8,986] Wordy: Decrypt: Writing done, 1,055,354,367 total bytes from 1,055,354,383 bytes input, ratio 1.000000 in/out
+[    8,986] Decrypt: Duration 9 s, 8,986 ms
+[    8,986] Decrypt: Size 1,055 MB
+[    8,986] Decrypt: Bitrate 940 Mbit/s, 117 MB/s
+[    8,986] Unpack: Decypted http://jordan/deployment/elevator/data-1GB.mkv.enc to a.out
+
+[    8,986] Unpack: PackInfo[source http://jordan/deployment/elevator/data-1GB.mkv.enc (E), filename[header data-1GB.mkv, stored a.out], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
+
