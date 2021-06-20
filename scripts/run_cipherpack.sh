@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export elevator_debug=true
+# export elevator_debug=true
 export elevator_verbose=true
 #
 # ../scripts/run-cipherpack.sh some_plaintext_file.bin 
