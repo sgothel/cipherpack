@@ -38,7 +38,6 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
         ERR_PRINT("Encrypt failed: Output file not open %s", outfilename.c_str());
         return false;
     }
-    uint32_t header1_size;
     uint64_t out_bytes_header;
 
     try {
@@ -85,35 +84,12 @@ bool Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
             Botan::secure_vector<uint8_t> header_buffer;
             header_buffer.reserve(buffer_size);
 
-            std::vector<uint8_t> header1_size_buffer(4); // 32-bit little-endian fixed-byte-size
-
-            // DER-Header-1 pass-1 to determine the header1_size (wired DER encoded data, uint32_t little-endian)
-            {
-                Botan::DER_Encoder der(header_buffer);
-                der.start_sequence()
-                   .encode(std::vector<uint8_t>(package_magic.begin(), package_magic.end()), Botan::ASN1_Type::OctetString)
-                   .encode(header1_size_buffer, Botan::ASN1_Type::OctetString)
-                   .encode(std::vector<uint8_t>(data_fname.begin(), data_fname.end()), Botan::ASN1_Type::OctetString)
-                   .encode(payload_version, Botan::ASN1_Type::Integer)
-                   .encode(payload_version_parent, Botan::ASN1_Type::Integer)
-                   .encode(std::vector<uint8_t>(rsa_sign_algo.begin(), rsa_sign_algo.end()), Botan::ASN1_Type::OctetString)
-                   .encode(pk_alg_id)
-                   .encode(cipher_algo_oid)
-                   .encode(encrypted_key, Botan::ASN1_Type::OctetString)
-                   .encode(nonce, Botan::ASN1_Type::OctetString)
-                   .end_cons(); // final data push
-
-                header1_size = header_buffer.size();
-                jau::put_uint32(header1_size_buffer.data(), 0, header1_size, true /* littleEndian */);
-                DBG_PRINT("Encrypt: DER Header1 Size %" PRIu32 " bytes", header1_size);
-            }
-            // DER-Header-1 pass-2, producing final header1 with correct size and write
+            // DER-Header-1
             header_buffer.clear();
             {
                 Botan::DER_Encoder der(header_buffer);
                 der.start_sequence()
                    .encode(std::vector<uint8_t>(package_magic.begin(), package_magic.end()), Botan::ASN1_Type::OctetString)
-                   .encode(header1_size_buffer, Botan::ASN1_Type::OctetString)
                    .encode(std::vector<uint8_t>(data_fname.begin(), data_fname.end()), Botan::ASN1_Type::OctetString)
                    .encode(payload_version, Botan::ASN1_Type::Integer)
                    .encode(payload_version_parent, Botan::ASN1_Type::Integer)
@@ -240,8 +216,6 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
             return false;
         }
 
-        uint32_t header1_size;
-
         std::vector<uint8_t> package_magic_charvec;
         std::vector<uint8_t> filename_charvec;
         uint64_t payload_version;
@@ -259,11 +233,9 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
             // DER-Header-1
             input.start_recording();
             {
-                std::vector<uint8_t> header1_size_buffer;
                 Botan::BER_Decoder ber(input);
                 ber.start_sequence()
                    .decode(package_magic_charvec, Botan::ASN1_Type::OctetString)
-                   .decode(header1_size_buffer, Botan::ASN1_Type::OctetString)
                    .decode(filename_charvec, Botan::ASN1_Type::OctetString)
                    .decode(payload_version, Botan::ASN1_Type::Integer)
                    .decode(payload_version_parent, Botan::ASN1_Type::Integer)
@@ -274,25 +246,10 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
                    .decode(nonce, Botan::ASN1_Type::OctetString)
                    // .end_cons() // header2 + encrypted data follows ...
                    ;
-
-                if( 4 != header1_size_buffer.size() ) {
-                    ERR_PRINT("Decrypt failed: Expected header1_size element of 4 bytes, but got %" PRIu64 " in %s",
-                            header1_size_buffer.size(), source.id().c_str());
-                    IOUtil::remove(outfilename);
-                    return false;
-                }
-                header1_size = jau::get_uint32(header1_size_buffer.data(), 0, true /* littleEndian */);
-                DBG_PRINT("Decrypt: DER Header1 Size %" PRIu32 " bytes", header1_size);
             }
             Botan::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
             input.clear_recording(); // implies stop_recording()
-
-            if( header1_size != header1_buffer.size() ) {
-                ERR_PRINT("Decrypt failed: Expected header1_size %" PRIu64 " but got %" PRIu64 " in %s",
-                        header1_size, header1_buffer.size(), source.id().c_str());
-                IOUtil::remove(outfilename);
-                return false;
-            }
+            DBG_PRINT("Decrypt: DER Header1 Size %" PRIu32 " bytes", header1_buffer.size());
 
             std::vector<uint8_t> signature;
             {
@@ -324,6 +281,15 @@ bool Cipherpack::checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname
             return false;
         }
 
+        {
+            const std::string package_magic_in(package_magic_charvec.begin(), package_magic_charvec.end());
+            if( package_magic != package_magic_in ) {
+                ERR_PRINT("Decrypt failed: Expected Magic %s, but got %s", package_magic.c_str(), package_magic_in.c_str());
+                IOUtil::remove(outfilename);
+                return false;
+            }
+            DBG_PRINT("Decrypt: Magic is %s", package_magic_in.c_str());
+        }
         {
             const std::string s(reinterpret_cast<char*>(filename_charvec.data()), filename_charvec.size());
             if( s.empty() ) {

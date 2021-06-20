@@ -119,8 +119,8 @@ class Cipherpack {
          * <p>
          * The following RSA encryption + signature and symmetric payload operations are performed:
          * <ul>
-         *   <li>Writing a DER Header-1, containing its own size, the encrypted symmetric key using `enc_pub_key_fname` and further {@link PackInfo} details.</li>
-         *   <li>Writing a DER Header-2, containing the DER-Header-1 signature using `sign_sec_key_fname`, authenticating the encrypted symmetric key. </li>
+         *   <li>Writing a DER Header-1, containing the encrypted symmetric key using `enc_pub_key_fname` and further {@link PackInfo} details.</li>
+         *   <li>Writing a DER Header-2, containing the DER-Header-1 signature using `sign_sec_key_fname`, authenticating the complete Header-1. </li>
          *   <li>The encrypted payload, i.e. the ciphertext using Encryption + MAC via AEAD `ChaCha20Poly1305`.</li>
          * </ul>
          * Implementation performs all operation `in-place` without redundant copies.
@@ -134,7 +134,6 @@ class Cipherpack {
          * <pre>
          * DER Header 1 {
          *     ASN1_Type::OctetString               package_magic
-         *     ASN1_Type::OctetString               header1_size (wired DER encoded data, uint32_t little-endian)
          *     ASN1_Type::OctetString               filename
          *     ASN1_Type::Integer                   payload_version
          *     ASN1_Type::Integer                   payload_version_parent
