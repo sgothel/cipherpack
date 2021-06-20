@@ -79,7 +79,7 @@ class Cipherpack {
         static std::unique_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
 
         /**
-         * Package magic {@code ZAF_ELEVATOR_0001}.
+         * Package magic {@code ZAF_ELEVATOR_0002}.
          */
         static const std::string package_magic;
 
