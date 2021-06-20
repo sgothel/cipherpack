@@ -241,6 +241,14 @@ struct curl_glue2_t {
 
 static size_t consume_curl2(void *ptr, size_t size, size_t nmemb, void *stream) noexcept {
     curl_glue2_t * cg = (curl_glue2_t*)stream;
+    ssize_t total_read = *cg->total_read;
+
+    if( IOUtil::result_t::NONE!= cg->result ) {
+        // user abort!
+        DBG_PRINT("consume_curl2 ABORT by User: total %" PRIi64 ", result %d, rb %s",
+                total_read, cg->result.load(), cg->buffer.toString().c_str() );
+        return 0;
+    }
 
     if( 0 > *cg->content_length ) {
         curl_off_t v = 0;
@@ -249,7 +257,6 @@ static size_t consume_curl2(void *ptr, size_t size, size_t nmemb, void *stream) 
             *cg->content_length = v;
         }
     }
-    ssize_t total_read = *cg->total_read;
     const size_t realsize = size * nmemb;
     DBG_PRINT("consume_curl2.0 realsize % " PRIu64 ", rb %s", realsize, cg->buffer.toString().c_str() );
     cg->buffer.putBlocking(reinterpret_cast<uint8_t*>(ptr),
@@ -332,8 +339,15 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     /* performs the tast, blocking! */
     res = curl_easy_perform(curl_handle);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error processing http url %s, error %d %d",
-                  url, (int)res, errorbuffer.data());
+        if( IOUtil::result_t::NONE == cg->result ) {
+            // Error during normal processing
+            ERR_PRINT("Error processing http url %s, error %d %d",
+                      url, (int)res, errorbuffer.data());
+        } else {
+            // User aborted
+            DBG_PRINT("Processing aborted http url %s, error %d %d",
+                      url, (int)res, errorbuffer.data());
+        }
         goto errout;
     }
 
@@ -440,10 +454,37 @@ void IOUtil::print_stats(const std::string &prefix, const uint64_t out_bytes_tot
 DataSource_Http::DataSource_Http(const std::string& url)
 : m_url(url), m_buffer(0x00, IOUtil::BEST_HTTP_RINGBUFFER_SIZE), m_bytes_consumed(0)
 {
-    IOUtil::read_http_get(m_url, m_buffer, http_content_length, http_total_bytes, m_http_result);
+    /* init user referenced values */
+    m_http_content_length = -1;
+    m_http_total_bytes = 0;
+    m_http_result = IOUtil::result_t::NONE;
+
+    std::unique_ptr<curl_glue2_t> cg ( std::make_unique<curl_glue2_t>(nullptr, &m_http_content_length, false, &m_http_total_bytes, false,
+                                                                      m_buffer, m_http_result ) );
+
+    m_http_thread = std::move( std::thread( &::read_http_get_thread, url.c_str(), std::move(cg) ) ); // @suppress("Invalid arguments")
+
+    // IOUtil::read_http_get(m_url, m_buffer, m_http_content_length, m_http_total_bytes, m_http_result);
+}
+
+DataSource_Http::~DataSource_Http() {
+    DBG_PRINT("DataSource_Http: dtor.0 %s, %s", id().c_str(), m_buffer.toString().c_str());
+
+    m_http_result = IOUtil::result_t::FAILED; // signal end of curl thread!
+
+    m_buffer.drop(m_buffer.getSize()); // unblock putBlocking(..)
+    if( m_http_thread.joinable() ) {
+        DBG_PRINT("DataSource_Http: dtor.1 %s, %s", id().c_str(), m_buffer.toString().c_str());
+        m_http_thread.join();
+    }
+    DBG_PRINT("DataSource_Http: dtor.X %s, %s", id().c_str(), m_buffer.toString().c_str());
 }
 
 size_t DataSource_Http::read(uint8_t out[], size_t length) {
+    if( !check_available( 1 ) ) {
+        DBG_PRINT("DataSource_Http::read(.., length %" PRIu64 "): !avail, abort: %s", length, to_string().c_str());
+        return 0;
+    }
     const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, 0 /* timeoutMS */);
     m_bytes_consumed += consumed_bytes;
     return consumed_bytes;
@@ -457,7 +498,20 @@ size_t DataSource_Http::peek(uint8_t out[], size_t length, size_t peek_offset) c
     return 0;
 }
 
+std::string DataSource_Http::to_string() const {
+    return "DataSource_Http["+m_url+", http[content_length "+std::to_string(m_http_content_length.load())+
+                                                   ", read "+std::to_string(m_http_total_bytes.load())+
+                                                   ", result "+std::to_string((int8_t)m_http_result.load())+
+                            "], consumed "+std::to_string(m_bytes_consumed)+
+                            ", available "+std::to_string(get_available())+
+                            ", eod "+std::to_string(end_of_data())+", "+m_buffer.toString()+"]";
+}
 
+
+
+DataSource_Recorder::~DataSource_Recorder() {
+    DBG_PRINT("DataSource_Recorder: dtor.X %s", id().c_str());
+}
 
 void DataSource_Recorder::start_recording() noexcept {
     if( is_recording() ) {

@@ -9,6 +9,7 @@
 #include <string>
 #include <cstdint>
 #include <functional>
+#include <thread>
 
 #include <jau/basic_types.hpp>
 #include <jau/ringbuffer.hpp>
@@ -125,10 +126,7 @@ class DataSource_Http final : public Botan::DataSource {
     public:
         size_t read(uint8_t out[], size_t length) override;
         size_t peek(uint8_t out[], size_t length, size_t peek_offset) const override;
-        bool check_available(size_t n) override {
-            return ( IOUtil::result_t::NONE == m_http_result && http_content_length - m_bytes_consumed >= n ) ||
-                   ( IOUtil::result_t::SUCCESS == m_http_result && m_buffer.getSize() >= n );
-        }
+        bool check_available(size_t n) override { return get_available() >= n; }
         bool end_of_data() const override { return IOUtil::result_t::NONE != m_http_result && m_buffer.isEmpty(); }
 
         std::string id() const override { return m_url; }
@@ -139,14 +137,35 @@ class DataSource_Http final : public Botan::DataSource {
          */
         DataSource_Http(const std::string& url);
 
+        DataSource_Http(const DataSource_Http&) = delete;
+
+        DataSource_Http& operator=(const DataSource_Http&) = delete;
+
+        ~DataSource_Http() override;
+
         size_t get_bytes_read() const override { return m_bytes_consumed; }
+
+        size_t get_available() const noexcept {
+            if( IOUtil::result_t::NONE != m_http_result ) {
+                // http thread ended, only remaining bytes in buffer available left
+                return m_buffer.getSize();
+            }
+            if( m_http_content_length >= 0 ) {
+                return m_http_content_length - m_bytes_consumed;
+            }
+            // unknown size w/o content_length
+            return SIZE_MAX;
+        }
+
+        std::string to_string() const;
 
     private:
         const std::string m_url;
         IOUtil::ByteRingbuffer m_buffer;
-        jau::relaxed_atomic_ssize_t http_content_length;
-        jau::relaxed_atomic_ssize_t http_total_bytes;
+        jau::relaxed_atomic_ssize_t m_http_content_length;
+        jau::relaxed_atomic_ssize_t m_http_total_bytes;
         IOUtil::relaxed_atomic_result_t m_http_result;
+        std::thread m_http_thread;
         size_t m_bytes_consumed;
 };
 
@@ -188,7 +207,7 @@ class DataSource_Recorder final : public Botan::DataSource {
 
         DataSource_Recorder& operator=(const DataSource_Recorder&) = delete;
 
-        ~DataSource_Recorder() {}
+        ~DataSource_Recorder() override;
 
         size_t get_bytes_read() const override { return m_parent.get_bytes_read(); }
 
