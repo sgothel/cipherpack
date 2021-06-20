@@ -27,36 +27,76 @@ namespace elevator {
  */
 class Cipherpack {
     public:
+        /**
+         * Simple package information POD, capturing an invalid or valid
+         * processed package creation (encryption) or un-packaging (decryption).
+         */
         class PackInfo {
             private:
-                std::string filename;
+                uint64_t ts_creation_sec;
+                std::string source;
+                bool source_enc;
+                std::string stored_filename;
+                bool stored_enc;
+                std::string header_filename;
                 uint32_t payload_version;
                 uint32_t payload_version_parent;
-                uint64_t payload_size;
-                uint64_t ts_creation_sec;
                 bool valid;
 
             public:
+                /** default ctor, denoting an invalid package information */
                 PackInfo()
-                : payload_version(0), payload_version_parent(0),
-                  payload_size(0),
-                  ts_creation_sec( jau::getWallClockSeconds() ),
+                : ts_creation_sec( jau::getWallClockSeconds() ),
+                  source("none"), source_enc(false),
+                  stored_filename("none"), stored_enc(false),
+                  header_filename("none"),
+                  payload_version(0), payload_version_parent(0),
                   valid(false)
                 { }
 
-                PackInfo(const uint32_t pversion, const uint32_t pversion_parent)
-                : payload_version(pversion), payload_version_parent(pversion_parent),
-                  payload_size(0),
-                  ts_creation_sec( jau::getWallClockSeconds() ),
-                  valid(false) // FIXME
+                /** Source ctor, denoting an invalid package information */
+                PackInfo(const uint64_t ts_creation_sec_, const std::string& source_, const bool source_enc_)
+                : ts_creation_sec(ts_creation_sec_),
+                  source(source_), source_enc(source_enc_),
+                  stored_filename("none"), stored_enc(false),
+                  header_filename("none"),
+                  payload_version(0), payload_version_parent(0),
+                  valid(false)
                 { }
+
+                /** Complete ctor, denoting a valid package information */
+                PackInfo(const uint64_t ts_creation_sec_,
+                         const std::string& source_, const bool source_enc_,
+                         const std::string& stored_fname, bool stored_enc_,
+                         const std::string& header_fname,
+                         const uint32_t pversion, const uint32_t pversion_parent)
+                : ts_creation_sec(ts_creation_sec_),
+                  source(source_), source_enc(source_enc_),
+                  stored_filename(stored_fname), stored_enc(stored_enc_),
+                  header_filename(header_fname),
+                  payload_version(pversion), payload_version_parent(pversion_parent),
+                  valid(true)
+                { }
+
+                const std::string& getSource() const noexcept { return source; }
+                bool isSourceEncrypted() const noexcept { return source_enc; }
+                const std::string& getStoredFilename() const noexcept { return stored_filename; }
+                bool isStoredFileEncrypted() const noexcept { return stored_enc; }
+
+                /** Returns the designated decrypted filename from DER-Header-1. */
+                const std::string& getDesignatedFilename() const noexcept { return header_filename; }
 
                 constexpr uint32_t getPayloadVersion() const noexcept { return payload_version;}
                 constexpr uint32_t getPayloadVersionParent() const noexcept { return payload_version_parent;}
-                constexpr uint64_t getPayloadSize() const noexcept { return payload_size;}
 
-                /** Returns the creation timestamp in seconds since Unix epoch */
+                /** Returns the creation time in seconds since Unix epoch */
                 constexpr uint64_t getCreationTime() const noexcept { return ts_creation_sec; }
+
+                /**
+                 * Return the creation time as a timestring `YYYY-MM-DD HH:MM:SS`
+                 * @param local if true, returns the time in local time, otherwise UTC
+                 */
+                std::string getCreationTimeString(const bool local) const noexcept;
 
                 std::string toString() const noexcept;
 

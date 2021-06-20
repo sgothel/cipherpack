@@ -55,23 +55,19 @@ std::unique_ptr<Botan::Private_Key> Cipherpack::load_private_key(const std::stri
     return key;
 }
 
+std::string Cipherpack::PackInfo::getCreationTimeString(const bool local) const noexcept {
+    return IOUtil::getTimestampString(ts_creation_sec, local);
+}
+
 std::string Cipherpack::PackInfo::toString() const noexcept {
+    std::string source_enc_s = source_enc ? " (E)" : "";
+    std::string stored_enc_s = stored_enc ? " (E)" : "";
     std::string res = "PackInfo[";
-    res += "filename "+filename;
-    res += ", payload[version "+std::to_string(payload_version)+
-           ", parent_version "+std::to_string(payload_version_parent)+
-           ", size "+std::to_string(payload_size)+"], ";
-    {
-        std::time_t t0 = static_cast<std::time_t>(ts_creation_sec);
-        struct std::tm tm_0;
-        if( nullptr == ::gmtime_r( &t0, &tm_0 ) ) {
-            res += "1970-01-01 00:00:00"; // 19 + 1
-        } else {
-            char b[20];
-            strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S", &tm_0);
-            res += std::string(b);
-        }
-    }
-    res += ", valid "+std::to_string( isValid() )+"]";
+    res += "source "+source+source_enc_s+
+           ", filename[header "+header_filename+", stored "+stored_filename+stored_enc_s+
+           "], creation "+getCreationTimeString(false)+
+           " UTC, version["+std::to_string(payload_version)+
+           ", parent "+std::to_string(payload_version_parent)+
+           "], valid "+std::to_string( isValid() )+"]";
     return res;
 }

@@ -19,6 +19,13 @@ namespace elevator {
 
 class IOUtil {
     public:
+        /**
+         * Return the given timestamp as a timestring in format `YYYY-MM-DD HH:MM:SS`
+         * @param timestamp_sec timestamp in seconds since Unix epoch
+         * @param local if true, returns the time in local time, otherwise UTC
+         */
+        static std::string getTimestampString(const uint64_t timestamp_sec, const bool local) noexcept;
+
         static bool file_exists(const std::string& name) noexcept;
         static bool remove(const std::string& fname) noexcept;
 

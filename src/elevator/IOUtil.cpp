@@ -26,6 +26,19 @@
 
 using namespace elevator;
 
+std::string IOUtil::getTimestampString(const uint64_t timestamp_sec, const bool local) noexcept {
+    std::time_t t0 = static_cast<std::time_t>(timestamp_sec);
+    struct std::tm tm_0;
+    struct std::tm * res = local ? ::localtime_r( &t0, &tm_0 ) : ::gmtime_r( &t0, &tm_0 );
+    if( nullptr == res ) {
+        return "1970-01-01 00:00:00"; // 19 + 1
+    } else {
+        char b[20];
+        strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S", &tm_0);
+        return std::string(b);
+    }
+}
+
 bool IOUtil::file_exists(const std::string& name) noexcept {
     std::ifstream f(name);
     return f.good() && f.is_open();
