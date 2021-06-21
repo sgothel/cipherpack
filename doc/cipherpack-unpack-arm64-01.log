@@ -1,0 +1,42 @@
+sven@raspi04:~/projects/zafena/elevator/dist-arm64 $ ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://jordan/deployment/elevator/data-64kB.bin.enc a.out
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-64kB.bin.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-64kB.bin.enc a.out 
+[      127] Wordy: Decrypt: Writing done, 64,000 total bytes from 64,016 bytes input, ratio 0.999750 in/out
+[      128] Decrypt: Duration 0 s, 120 ms
+[      128] Decrypt: Size 64,000 B
+[      128] Decrypt: Bitrate 4,267 kbit/s, 533 kB/s
+[      134] Unpack: Decypted http://jordan/deployment/elevator/data-64kB.bin.enc to a.out
+
+[      134] Unpack: PackInfo[source http://jordan/deployment/elevator/data-64kB.bin.enc (E), filename[header data-64kb.bin, stored a.out], creation 2021-06-20 18:58:32 UTC, version[1, parent 0], valid 1]
+
+
+sven@raspi04:~/projects/zafena/elevator/dist-arm64 $ ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out 
+[   16,191] Wordy: Decrypt: Writing done, 1,055,354,367 total bytes from 1,055,354,383 bytes input, ratio 1.000000 in/out
+[   16,191] Decrypt: Duration 16 s, 16,188 ms
+[   16,191] Decrypt: Size 1,055 MB
+[   16,191] Decrypt: Bitrate 522 Mbit/s, 65 MB/s
+[   17,306] Unpack: Decypted http://jordan/deployment/elevator/data-1GB.mkv.enc to a.out
+
+[   17,306] Unpack: PackInfo[source http://jordan/deployment/elevator/data-1GB.mkv.enc (E), filename[header data-1GB.mkv, stored a.out], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
+
+
+sven@raspi04:~/projects/zafena/elevator/dist-arm64 $ ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out 
+[   15,965] Wordy: Decrypt: Writing done, 1,055,354,367 total bytes from 1,055,354,383 bytes input, ratio 1.000000 in/out
+[   15,966] Decrypt: Duration 16 s, 15,963 ms
+[   15,966] Decrypt: Size 1,055 MB
+[   15,966] Decrypt: Bitrate 529 Mbit/s, 66 MB/s
+[   17,380] Unpack: Decypted http://jordan/deployment/elevator/data-1GB.mkv.enc to a.out
+
+[   17,380] Unpack: PackInfo[source http://jordan/deployment/elevator/data-1GB.mkv.enc (E), filename[header data-1GB.mkv, stored a.out], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
+
+
