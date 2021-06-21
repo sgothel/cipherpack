@@ -14,6 +14,26 @@
 
 using namespace elevator;
 
+// static uint32_t to_uint32_t(const Botan::BigInt& v) const { return v.to_u32bit(); }
+
+static Botan::BigInt to_BigInt(const uint64_t & v) {
+    return Botan::BigInt::from_u64(v);
+}
+
+static uint64_t to_uint64_t(const Botan::BigInt& v) {
+    if( v.is_negative() ) {
+        throw Botan::Encoding_Error("BigInt::to_u64bit: Number is negative");
+    }
+    if( v.bits() > 64 ) {
+        throw Botan::Encoding_Error("BigInt::to_u64bit: Number is too big to convert");
+    }
+    uint64_t out = 0;
+    for(size_t i = 0; i < 8; ++i) {
+        out = (out << 8) | v.byte_at(7-i);
+    }
+    return out;
+}
+
 Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
                                                       const std::string &sign_sec_key_fname, const std::string &passphrase,
                                                       const std::string &input_fname,
@@ -93,9 +113,9 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
                 der.start_sequence()
                    .encode(std::vector<uint8_t>(package_magic.begin(), package_magic.end()), Botan::ASN1_Type::OctetString)
                    .encode(std::vector<uint8_t>(designated_fname.begin(), designated_fname.end()), Botan::ASN1_Type::OctetString)
-                   .encode(ts_creation_sec, Botan::ASN1_Type::Integer)
-                   .encode(payload_version, Botan::ASN1_Type::Integer)
-                   .encode(payload_version_parent, Botan::ASN1_Type::Integer)
+                   .encode(to_BigInt(ts_creation_sec), Botan::ASN1_Type::Integer)
+                   .encode(to_BigInt(payload_version), Botan::ASN1_Type::Integer)
+                   .encode(to_BigInt(payload_version_parent), Botan::ASN1_Type::Integer)
                    .encode(std::vector<uint8_t>(rsa_sign_algo.begin(), rsa_sign_algo.end()), Botan::ASN1_Type::OctetString)
                    .encode(pk_alg_id)
                    .encode(cipher_algo_oid)
@@ -253,10 +273,14 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
                 }
                 DBG_PRINT("Decrypt: Magic is %s", package_magic_in.c_str());
 
+                Botan::BigInt bi_ts_creation_sec;
+                Botan::BigInt bi_payload_version;
+                Botan::BigInt bi_payload_version_parent;
+
                 ber.decode(designated_fame_charvec, Botan::ASN1_Type::OctetString)
-                   .decode(ts_creation_sec, Botan::ASN1_Type::Integer)
-                   .decode(payload_version, Botan::ASN1_Type::Integer)
-                   .decode(payload_version_parent, Botan::ASN1_Type::Integer)
+                   .decode(bi_ts_creation_sec, Botan::ASN1_Type::Integer)
+                   .decode(bi_payload_version, Botan::ASN1_Type::Integer)
+                   .decode(bi_payload_version_parent, Botan::ASN1_Type::Integer)
                    .decode(sign_algo_charvec, Botan::ASN1_Type::OctetString)
                    .decode(pk_alg_id)
                    .decode(cipher_algo_oid)
@@ -264,6 +288,10 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
                    .decode(nonce, Botan::ASN1_Type::OctetString)
                    // .end_cons() // header2 + encrypted data follows ...
                    ;
+
+                ts_creation_sec = to_uint64_t(bi_ts_creation_sec);
+                payload_version = to_uint64_t(bi_payload_version);
+                payload_version_parent = to_uint64_t(bi_payload_version_parent);
             }
             Botan::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
             input.clear_recording(); // implies stop_recording()
