@@ -1,0 +1,13 @@
+~/projects/zafena/elevator/dist-armhf $ ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://jordan/deployment/elevator/data-1GB.mkv.enc a.out 
+[   80,299] Wordy: Decrypt: Writing done, 1,055,354,367 total bytes from 1,055,354,383 bytes input, ratio 1.000000 in/out
+[   80,299] Decrypt: Duration 80 s, 80,285 ms
+[   80,299] Decrypt: Size 1,055 MB
+[   80,299] Decrypt: Bitrate 105 Mbit/s, 13 MB/s
+[   80,612] Unpack: Decypted http://jordan/deployment/elevator/data-1GB.mkv.enc to a.out
+
+[   80,613] Unpack: PackInfo[source http://jordan/deployment/elevator/data-1GB.mkv.enc (E), filename[header data-1GB.mkv, stored a.out], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
+
