@@ -53,8 +53,8 @@ bool IOUtil::remove(const std::string& fname) noexcept {
 #endif
 }
 
-ssize_t IOUtil::read_file(const std::string& input_file, Botan::secure_vector<uint8_t>& buffer,
-                          StreamConsumerFunc consumer_fn)
+uint64_t IOUtil::read_file(const std::string& input_file, Botan::secure_vector<uint8_t>& buffer,
+                           StreamConsumerFunc consumer_fn)
 {
     if(input_file == "-") {
         return read_stream(std::cin, buffer, consumer_fn);
@@ -62,22 +62,22 @@ ssize_t IOUtil::read_file(const std::string& input_file, Botan::secure_vector<ui
         std::ifstream in(input_file, std::ios::binary);
         if( !in ) {
             ERR_PRINT("Error reading file %s", input_file.c_str());
-            return -1;
+            return 0;
         }
         return read_stream(in, buffer, consumer_fn);
     }
 }
 
-ssize_t IOUtil::read_stream(std::istream& in, Botan::secure_vector<uint8_t>& buffer,
+uint64_t IOUtil::read_stream(std::istream& in, Botan::secure_vector<uint8_t>& buffer,
                             StreamConsumerFunc consumer_fn)
 {
-    size_t total = 0;
+    uint64_t total = 0;
     bool has_more = in.good();
     while( has_more ) {
         buffer.resize(buffer.capacity());
 
         in.read(reinterpret_cast<char*>(buffer.data()), buffer.capacity());
-        const size_t got = static_cast<size_t>(in.gcount());
+        const uint64_t got = static_cast<size_t>(in.gcount());
 
         buffer.resize(got);
         total += got;
@@ -87,14 +87,14 @@ ssize_t IOUtil::read_stream(std::istream& in, Botan::secure_vector<uint8_t>& buf
    return total;
 }
 
-ssize_t IOUtil::read_stream(Botan::DataSource& in, Botan::secure_vector<uint8_t>& buffer,
-                            StreamConsumerFunc consumer_fn) {
-    size_t total = 0;
+uint64_t IOUtil::read_stream(Botan::DataSource& in, Botan::secure_vector<uint8_t>& buffer,
+                             StreamConsumerFunc consumer_fn) {
+    uint64_t total = 0;
     bool has_more = !in.end_of_data();
     while( has_more ) {
         buffer.resize(buffer.capacity());
 
-        const size_t got = in.read(buffer.data(), buffer.capacity());
+        const uint64_t got = in.read(buffer.data(), buffer.capacity());
 
         buffer.resize(got);
         total += got;
@@ -106,8 +106,9 @@ ssize_t IOUtil::read_stream(Botan::DataSource& in, Botan::secure_vector<uint8_t>
 
 struct curl_glue1_t {
     CURL *curl_handle;
-    ssize_t content_length;
-    ssize_t total_read;
+    bool has_content_length;
+    uint64_t content_length;
+    uint64_t total_read;
     Botan::secure_vector<uint8_t>& buffer;
     IOUtil::StreamConsumerFunc consumer_fn;
 };
@@ -115,27 +116,33 @@ struct curl_glue1_t {
 static size_t consume_curl1(void *ptr, size_t size, size_t nmemb, void *stream) noexcept {
     curl_glue1_t * cg = (curl_glue1_t*)stream;
 
-    if( 0 > cg->content_length ) {
+    if( !cg->has_content_length ) {
         curl_off_t v = 0;
         CURLcode r = curl_easy_getinfo(cg->curl_handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &v);
         if( !r ) {
             cg->content_length = v;
+            cg->has_content_length = true;
         }
     }
     const size_t realsize = size * nmemb;
+    DBG_PRINT("consume_curl1.0 realsize %zu", realsize);
     cg->buffer.resize(realsize);
     memcpy(cg->buffer.data(), ptr, realsize);
 
     cg->total_read += realsize;
     const bool is_final = 0 == realsize ||
-                          ( 0 < cg->content_length ) ? cg->total_read >= cg->content_length : false;
+                          cg->has_content_length ? cg->total_read >= cg->content_length : false;
+
+    DBG_PRINT("consume_curl1.X realsize %zu, total %" PRIu64 ", is_final %d",
+           realsize, cg->total_read, is_final );
+
     cg->consumer_fn(cg->buffer, is_final);
 
     return realsize;
 }
 
-ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8_t>& buffer,
-                              StreamConsumerFunc consumer_fn) {
+uint64_t IOUtil::read_url_stream(const std::string& url, Botan::secure_vector<uint8_t>& buffer,
+                                 StreamConsumerFunc consumer_fn) {
     std::vector<char> errorbuffer;
     errorbuffer.reserve(CURL_ERROR_SIZE);
     CURLcode res;
@@ -143,15 +150,15 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
     /* init the curl session */
     CURL *curl_handle = curl_easy_init();
     if( nullptr == curl_handle ) {
-        ERR_PRINT("Error setting up http url %s, null curl handle", url.c_str());
-        return -1;
+        ERR_PRINT("Error setting up url %s, null curl handle", url.c_str());
+        return 0;
     }
 
-    curl_glue1_t cg = { curl_handle, -1, 0, buffer, consumer_fn };
+    curl_glue1_t cg = { curl_handle, false, 0, 0, buffer, consumer_fn };
 
     res = curl_easy_setopt(curl_handle, CURLOPT_ERRORBUFFER, errorbuffer.data());
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url.c_str(), (int)res, curl_easy_strerror(res));
         goto errout;
     }
@@ -159,7 +166,7 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
     /* set URL to get here */
     res = curl_easy_setopt(curl_handle, CURLOPT_URL, url.c_str());
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url.c_str(), (int)res, errorbuffer.data());
         goto errout;
     }
@@ -167,7 +174,7 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
     /* Switch on full protocol/debug output while testing */
     res = curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 0L);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url.c_str(), (int)res, errorbuffer.data());
         goto errout;
     }
@@ -175,7 +182,7 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
     /* disable progress meter, set to 0L to enable it */
     res = curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url.c_str(), (int)res, errorbuffer.data());
         goto errout;
     }
@@ -183,7 +190,7 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
     /* send all data to this function  */
     res = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, consume_curl1);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url.c_str(), (int)res, errorbuffer.data());
         goto errout;
     }
@@ -191,7 +198,7 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
     /* write the page body to this file handle */
     res = curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void*)&cg);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url.c_str(), (int)res, errorbuffer.data());
         goto errout;
     }
@@ -199,7 +206,7 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
     /* performs the tast, blocking! */
     res = curl_easy_perform(curl_handle);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error processing http url %s, error %d %d",
+        ERR_PRINT("Error processing url %s, error %d %d",
                   url.c_str(), (int)res, errorbuffer.data());
         goto errout;
     }
@@ -210,73 +217,69 @@ ssize_t IOUtil::read_http_get(const std::string& url, Botan::secure_vector<uint8
 
 errout:
     curl_easy_cleanup(curl_handle);
-    return -1;
+    return 0;
 }
 
 struct curl_glue2_t {
     curl_glue2_t(CURL *_curl_handle,
-            jau::relaxed_atomic_ssize_t* _content_length,
-            bool _content_length_mine,
-            jau::relaxed_atomic_ssize_t* _total_read,
-            bool _total_read_mine,
-            IOUtil::ByteRingbuffer& _buffer,
-            IOUtil::relaxed_atomic_result_t& _result)
+                 jau::relaxed_atomic_bool& _has_content_length,
+                 jau::relaxed_atomic_uint64& _content_length,
+                 jau::relaxed_atomic_uint64& _total_read,
+                 IOUtil::ByteRingbuffer& _buffer,
+                 IOUtil::relaxed_atomic_result_t& _result)
     : curl_handle(_curl_handle),
+      has_content_length(_has_content_length),
       content_length(_content_length),
-      content_length_mine(_content_length_mine),
       total_read(_total_read),
-      total_read_mine(_total_read_mine),
       buffer(_buffer),
       result(_result)
     {}
 
     CURL *curl_handle;
-    jau::relaxed_atomic_ssize_t* content_length;
-    bool content_length_mine;
-    jau::relaxed_atomic_ssize_t* total_read;
-    bool total_read_mine;
+    jau::relaxed_atomic_bool& has_content_length;
+    jau::relaxed_atomic_uint64& content_length;
+    jau::relaxed_atomic_uint64& total_read;
     IOUtil::ByteRingbuffer& buffer;
     IOUtil::relaxed_atomic_result_t& result;
 };
 
 static size_t consume_curl2(void *ptr, size_t size, size_t nmemb, void *stream) noexcept {
     curl_glue2_t * cg = (curl_glue2_t*)stream;
-    ssize_t total_read = *cg->total_read;
 
     if( IOUtil::result_t::NONE!= cg->result ) {
         // user abort!
         DBG_PRINT("consume_curl2 ABORT by User: total %" PRIi64 ", result %d, rb %s",
-                total_read, cg->result.load(), cg->buffer.toString().c_str() );
+                cg->total_read.load(), cg->result.load(), cg->buffer.toString().c_str() );
         return 0;
     }
 
-    if( 0 > *cg->content_length ) {
+    if( !cg->has_content_length ) {
         curl_off_t v = 0;
         const CURLcode r = curl_easy_getinfo(cg->curl_handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &v);
         if( CURLE_OK == r ) {
-            *cg->content_length = v;
+            cg->content_length = v;
+            cg->has_content_length = true;
         }
     }
     const size_t realsize = size * nmemb;
-    DBG_PRINT("consume_curl2.0 realsize % " PRIu64 ", rb %s", realsize, cg->buffer.toString().c_str() );
+    DBG_PRINT("consume_curl2.0 realsize %zu, rb %s", realsize, cg->buffer.toString().c_str() );
     cg->buffer.putBlocking(reinterpret_cast<uint8_t*>(ptr),
                            reinterpret_cast<uint8_t*>(ptr)+realsize, 0 /* timeoutMS */);
 
-    total_read += realsize;
-    *cg->total_read = total_read;
+    cg->total_read = cg->total_read + realsize;
     const bool is_final = 0 == realsize ||
-                          ( 0 < *cg->content_length ) ? total_read >= *cg->content_length : false;
+                          cg->has_content_length ? cg->total_read >= cg->content_length : false;
     if( is_final ) {
         cg->result = IOUtil::result_t::SUCCESS;
     }
 
-    DBG_PRINT("consume_curl2.X realsize % " PRIu64 ", total %" PRIi64 ", result %d, rb %s",
-           realsize, total_read, cg->result.load(), cg->buffer.toString().c_str() );
+    DBG_PRINT("consume_curl2.X realsize %zu, total %" PRIu64 ", result %d, rb %s",
+           realsize, cg->total_read.load(), cg->result.load(), cg->buffer.toString().c_str() );
 
     return realsize;
 }
 
-static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> && cg) noexcept {
+static void read_url_stream_thread(const char *url, std::unique_ptr<curl_glue2_t> && cg) noexcept {
     std::vector<char> errorbuffer;
     errorbuffer.reserve(CURL_ERROR_SIZE);
     CURLcode res;
@@ -284,14 +287,14 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     /* init the curl session */
     CURL *curl_handle = curl_easy_init();
     if( nullptr == curl_handle ) {
-        ERR_PRINT("Error setting up http url %s, null curl handle", url);
+        ERR_PRINT("Error setting up url %s, null curl handle", url);
         goto errout;
     }
     cg->curl_handle = curl_handle;
 
     res = curl_easy_setopt(curl_handle, CURLOPT_ERRORBUFFER, errorbuffer.data());
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url, (int)res, curl_easy_strerror(res));
         goto errout;
     }
@@ -299,7 +302,7 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     /* set URL to get here */
     res = curl_easy_setopt(curl_handle, CURLOPT_URL, url);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url, (int)res, errorbuffer.data());
         goto errout;
     }
@@ -307,7 +310,7 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     /* Switch on full protocol/debug output while testing */
     res = curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 0L);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url, (int)res, errorbuffer.data());
         goto errout;
     }
@@ -315,7 +318,7 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     /* disable progress meter, set to 0L to enable it */
     res = curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url, (int)res, errorbuffer.data());
         goto errout;
     }
@@ -323,7 +326,7 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     /* send all data to this function  */
     res = curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, consume_curl2);
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url, (int)res, errorbuffer.data());
         goto errout;
     }
@@ -331,7 +334,7 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     /* write the page body to this file handle */
     res = curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void*)cg.get());
     if( CURLE_OK != res ) {
-        ERR_PRINT("Error setting up http url %s, error %d %d",
+        ERR_PRINT("Error setting up url %s, error %d %d",
                   url, (int)res, errorbuffer.data());
         goto errout;
     }
@@ -341,11 +344,11 @@ static void read_http_get_thread(const char *url, std::unique_ptr<curl_glue2_t> 
     if( CURLE_OK != res ) {
         if( IOUtil::result_t::NONE == cg->result ) {
             // Error during normal processing
-            ERR_PRINT("Error processing http url %s, error %d %d",
+            ERR_PRINT("Error processing url %s, error %d %d",
                       url, (int)res, errorbuffer.data());
         } else {
             // User aborted
-            DBG_PRINT("Processing aborted http url %s, error %d %d",
+            DBG_PRINT("Processing aborted url %s, error %d %d",
                       url, (int)res, errorbuffer.data());
         }
         goto errout;
@@ -362,55 +365,29 @@ cleanup:
     if( nullptr != curl_handle ) {
         curl_easy_cleanup(curl_handle);
     }
-
-    if( cg->content_length_mine ) {
-        delete cg->content_length;
-        cg->content_length = nullptr;
-    }
-    if( cg->total_read_mine ) {
-        delete cg->total_read;
-        cg->total_read = nullptr;
-    }
     return;
 }
 
-const size_t IOUtil::BEST_HTTP_RINGBUFFER_SIZE = 2*CURL_MAX_WRITE_SIZE;
+const size_t IOUtil::BEST_URLSTREAM_RINGBUFFER_SIZE = 2*CURL_MAX_WRITE_SIZE;
 
-void IOUtil::read_http_get(const std::string& url, ByteRingbuffer& buffer,
-                           jau::relaxed_atomic_ssize_t& content_length,
-                           jau::relaxed_atomic_ssize_t& total_read,
-                           relaxed_atomic_result_t& result) noexcept {
+std::thread IOUtil::read_url_stream(const std::string& url, ByteRingbuffer& buffer,
+                                    jau::relaxed_atomic_bool& has_content_length,
+                                    jau::relaxed_atomic_uint64& content_length,
+                                    jau::relaxed_atomic_uint64& total_read,
+                                    relaxed_atomic_result_t& result) noexcept {
     /* init user referenced values */
-    content_length = -1;
+    has_content_length = false;
+    content_length = 0;
     total_read = 0;
     result = IOUtil::result_t::NONE;
 
-    if( buffer.capacity() < BEST_HTTP_RINGBUFFER_SIZE ) {
-        buffer.recapacity( BEST_HTTP_RINGBUFFER_SIZE );
+    if( buffer.capacity() < BEST_URLSTREAM_RINGBUFFER_SIZE ) {
+        buffer.recapacity( BEST_URLSTREAM_RINGBUFFER_SIZE );
     }
 
-    std::unique_ptr<curl_glue2_t> cg ( std::make_unique<curl_glue2_t>(nullptr, &content_length, false, &total_read, false, buffer, result ) );
+    std::unique_ptr<curl_glue2_t> cg ( std::make_unique<curl_glue2_t>(nullptr, has_content_length, content_length, total_read, buffer, result ) );
 
-    std::thread http_thread00(&::read_http_get_thread, url.c_str(), std::move(cg)); // @suppress("Invalid arguments")
-    http_thread00.detach();
-}
-
-void IOUtil::read_http_get(const std::string& url, ByteRingbuffer& buffer,
-                           relaxed_atomic_result_t& result) noexcept {
-
-    /* init user referenced values */
-    result = IOUtil::result_t::NONE;
-
-    if( buffer.capacity() < BEST_HTTP_RINGBUFFER_SIZE ) {
-        buffer.recapacity( BEST_HTTP_RINGBUFFER_SIZE );
-    }
-
-    jau::relaxed_atomic_ssize_t* content_length = new jau::relaxed_atomic_ssize_t(-1);
-    jau::relaxed_atomic_ssize_t* total_read = new jau::relaxed_atomic_ssize_t(0);
-    std::unique_ptr<curl_glue2_t> cg ( std::make_unique<curl_glue2_t>(nullptr, content_length, true, total_read, true, buffer, result ) );
-
-    std::thread http_thread00(&::read_http_get_thread, url.c_str(), std::move(cg)); // @suppress("Invalid arguments")
-    http_thread00.detach();
+    return std::thread(&::read_url_stream_thread, url.c_str(), std::move(cg)); // @suppress("Invalid arguments")
 }
 
 void IOUtil::print_stats(const std::string &prefix, const uint64_t out_bytes_total, uint64_t td_ms) noexcept {
@@ -451,23 +428,13 @@ void IOUtil::print_stats(const std::string &prefix, const uint64_t out_bytes_tot
 
 
 
-DataSource_Http::DataSource_Http(const std::string& url)
-: m_url(url), m_buffer(0x00, IOUtil::BEST_HTTP_RINGBUFFER_SIZE), m_bytes_consumed(0)
+DataSource_URL::DataSource_URL(const std::string& url)
+: m_url(url), m_buffer(0x00, IOUtil::BEST_URLSTREAM_RINGBUFFER_SIZE), m_bytes_consumed(0)
 {
-    /* init user referenced values */
-    m_http_content_length = -1;
-    m_http_total_bytes = 0;
-    m_http_result = IOUtil::result_t::NONE;
-
-    std::unique_ptr<curl_glue2_t> cg ( std::make_unique<curl_glue2_t>(nullptr, &m_http_content_length, false, &m_http_total_bytes, false,
-                                                                      m_buffer, m_http_result ) );
-
-    m_http_thread = std::move( std::thread( &::read_http_get_thread, url.c_str(), std::move(cg) ) ); // @suppress("Invalid arguments")
-
-    // IOUtil::read_http_get(m_url, m_buffer, m_http_content_length, m_http_total_bytes, m_http_result);
+    m_http_thread = IOUtil::read_url_stream(m_url, m_buffer, m_url_has_content_length, m_url_content_length, m_url_total_read, m_http_result);
 }
 
-DataSource_Http::~DataSource_Http() {
+DataSource_URL::~DataSource_URL() {
     DBG_PRINT("DataSource_Http: dtor.0 %s, %s", id().c_str(), m_buffer.toString().c_str());
 
     m_http_result = IOUtil::result_t::FAILED; // signal end of curl thread!
@@ -480,9 +447,9 @@ DataSource_Http::~DataSource_Http() {
     DBG_PRINT("DataSource_Http: dtor.X %s, %s", id().c_str(), m_buffer.toString().c_str());
 }
 
-size_t DataSource_Http::read(uint8_t out[], size_t length) {
+size_t DataSource_URL::read(uint8_t out[], size_t length) {
     if( !check_available( 1 ) ) {
-        DBG_PRINT("DataSource_Http::read(.., length %" PRIu64 "): !avail, abort: %s", length, to_string().c_str());
+        DBG_PRINT("DataSource_Http::read(.., length %zu): !avail, abort: %s", length, to_string().c_str());
         return 0;
     }
     const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, 0 /* timeoutMS */);
@@ -490,7 +457,7 @@ size_t DataSource_Http::read(uint8_t out[], size_t length) {
     return consumed_bytes;
 }
 
-size_t DataSource_Http::peek(uint8_t out[], size_t length, size_t peek_offset) const {
+size_t DataSource_URL::peek(uint8_t out[], size_t length, size_t peek_offset) const {
     (void)out;
     (void)length;
     (void)peek_offset;
@@ -498,9 +465,10 @@ size_t DataSource_Http::peek(uint8_t out[], size_t length, size_t peek_offset) c
     return 0;
 }
 
-std::string DataSource_Http::to_string() const {
-    return "DataSource_Http["+m_url+", http[content_length "+std::to_string(m_http_content_length.load())+
-                                                   ", read "+std::to_string(m_http_total_bytes.load())+
+std::string DataSource_URL::to_string() const {
+    return "DataSource_Http["+m_url+", http[content_length "+std::to_string(m_url_has_content_length.load())+
+                                                   " "+std::to_string(m_url_content_length.load())+
+                                                   ", read "+std::to_string(m_url_total_read.load())+
                                                    ", result "+std::to_string((int8_t)m_http_result.load())+
                             "], consumed "+std::to_string(m_bytes_consumed)+
                             ", available "+std::to_string(get_available())+
@@ -517,7 +485,7 @@ void DataSource_Recorder::start_recording() noexcept {
     if( is_recording() ) {
         m_buffer.resize(0);
     }
-    m_rec_offset = get_bytes_read();
+    m_rec_offset = m_bytes_consumed;
     m_is_recording = true;
 }
 
@@ -532,11 +500,10 @@ void DataSource_Recorder::clear_recording() noexcept {
 }
 
 size_t DataSource_Recorder::read(uint8_t out[], size_t length) {
+    const size_t consumed_bytes = m_parent.read(out, length);
+    m_bytes_consumed += consumed_bytes;
     if( is_recording() ) {
-        size_t got = m_parent.read(out, length);
-        m_buffer.insert(m_buffer.end(), out, out+got);
-        return got;
-    } else {
-        return m_parent.read(out, length);
+        m_buffer.insert(m_buffer.end(), out, out+consumed_bytes);
     }
+    return consumed_bytes;
 }
