@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
         std::unique_ptr<Botan::DataSource> enc_stream;
         const std::string proto = source.substr(0, 5);
         if( proto == "http:" ) {
-            enc_stream = std::make_unique<DataSource_Http>(source);
+            enc_stream = std::make_unique<DataSource_URL>(source);
         } else {
             enc_stream = std::make_unique<Botan::DataSource_Stream>(source, true /* use_binary */);
         }

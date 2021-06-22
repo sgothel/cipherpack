@@ -125,12 +125,12 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
             }
             outfile.write((char*)header_buffer.data(), header_buffer.size());
             out_bytes_header = header_buffer.size();
-            DBG_PRINT("Encrypt: DER Header1 written + %" PRIu64 " bytes -> %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
+            DBG_PRINT("Encrypt: DER Header1 written + %zu bytes -> %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
 
             // DER-Header-2 (signature)
             Botan::PK_Signer signer(*sign_sec_key, rng, rsa_sign_algo);
             std::vector<uint8_t> signature = signer.sign_message(header_buffer, rng);
-            DBG_PRINT("Encrypt: Signature for %" PRIu64 " bytes: %s",
+            DBG_PRINT("Encrypt: Signature for %zu bytes: %s",
                     header_buffer.size(),
                     jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str());
             header_buffer.clear();
@@ -142,7 +142,7 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
             }
             outfile.write((char*)header_buffer.data(), header_buffer.size());
             out_bytes_header += header_buffer.size();
-            DBG_PRINT("Encrypt: DER Header2 written + %" PRIu64 " bytes -> %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
+            DBG_PRINT("Encrypt: DER Header2 written + %zu bytes -> %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
         }
 
         uint64_t out_bytes_total = outfile.tellp();
@@ -160,19 +160,19 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Encrypt: EncPayload written0 + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
             } else {
                 aead->finish(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Encrypt: EncPayload writtenF + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
             }
         };
         Botan::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(buffer_size);
-        const ssize_t in_bytes_total = IOUtil::read_file(input_fname, io_buffer, consume_data);
+        const uint64_t in_bytes_total = IOUtil::read_file(input_fname, io_buffer, consume_data);
 
-        if ( 0>in_bytes_total || outfile.fail() ) {
+        if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT("Encrypt failed: Output file write failed %s", output_fname.c_str());
             IOUtil::remove(output_fname);
             return PackInfo(ts_creation_sec, input_fname, false);
@@ -295,7 +295,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
             }
             Botan::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
             input.clear_recording(); // implies stop_recording()
-            DBG_PRINT("Decrypt: DER Header1 Size %" PRIu32 " bytes", header1_buffer.size());
+            DBG_PRINT("Decrypt: DER Header1 Size %zu bytes", header1_buffer.size());
 
             std::vector<uint8_t> signature;
             {
@@ -305,14 +305,14 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
                    // .end_cons() // encrypted data follows ..
                    ;
             }
-            DBG_PRINT("Decrypt: Signature for %" PRIu64 " bytes: %s",
+            DBG_PRINT("Decrypt: Signature for %zu bytes: %s",
                     header1_buffer.size(),
                     jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str());
 
             Botan::PK_Verifier verifier(*sign_pub_key, rsa_sign_algo);
             verifier.update(header1_buffer);
             if( !verifier.check_signature(signature) ) {
-                ERR_PRINT("Decrypt failed: Signature mismatch on %" PRIu64 " bytes, received signature %s in %s",
+                ERR_PRINT("Decrypt failed: Signature mismatch on %zu bytes, received signature %s in %s",
                         header1_buffer.size(),
                         jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str(),
                         source.id().c_str());
@@ -433,25 +433,25 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: DecPayload written0 + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
             } else {
-                // DBG_PRINT("Decrypt: p111a size %" PRIu64 ", capacity %" PRIu64 "", data.size(), data.capacity());
+                // DBG_PRINT("Decrypt: p111a size %zu, capacity %zu", data.size(), data.capacity());
                 // DBG_PRINT("Decrypt: p111a data %s",
                 //           jau::bytesHexString(data.data(), 0, data.size(), true /* lsbFirst */).c_str());
                 aead->finish(data);
-                // DBG_PRINT("Decrypt: p111b size %" PRIu64 ", capacity %" PRIu64 "", data.size(), data.capacity());
+                // DBG_PRINT("Decrypt: p111b size %zu, capacity %zu", data.size(), data.capacity());
                 // DBG_PRINT("Decrypt: p111b data %s",
                 //           jau::bytesHexString(data.data(), 0, data.size(), true /* lsbFirst */).c_str());
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: DecPayload writtenF + %" PRIu64 " bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
             }
         };
         Botan::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(buffer_size);
-        const ssize_t in_bytes_total = IOUtil::read_stream(input, io_buffer, consume_data);
+        const uint64_t in_bytes_total = IOUtil::read_stream(input, io_buffer, consume_data);
 
-        if ( 0>in_bytes_total || outfile.fail() ) {
+        if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT("Decrypt failed: Output file write failed %s", output_fname.c_str());
             IOUtil::remove(output_fname);
             return PackInfo(ts_creation_sec, source.id(), true);
