@@ -65,7 +65,15 @@ class Test01Cipherpack : public TestData {
         }
 
         static void test02() {
-            REQUIRE( true );
+            const std::string uri_encrypted = url_input_root + basename_64kB + ".enc";
+            const std::string file_decrypted = basename_64kB+".enc.dec";
+
+            DataSource_URL enc_stream(uri_encrypted);
+            Cipherpack::PackInfo pinfo2 = Cipherpack::checkSignThenDecrypt_RSA1(sign_pub_key_fname, dec_sec_key_fname, dec_sec_key_passphrase,
+                                                                                enc_stream, file_decrypted, overwrite);
+            jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+            jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString().c_str());
+            REQUIRE( pinfo2.isValid() == true );
         }
 };
 

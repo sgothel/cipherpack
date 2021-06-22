@@ -11,3 +11,31 @@ Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.p
 
 [   80,613] Unpack: PackInfo[source http://jordan/deployment/elevator/data-1GB.mkv.enc (E), filename[header data-1GB.mkv, stored a.out], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
 
+
+sven@raspi03:~/projects/zafena/elevator/dist-armhf $ ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" http://localhost:8080/test_data/data-1GB.mkv.enc a.out
+COMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://localhost:8080/test_data/data-1GB.mkv.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" http://localhost:8080/test_data/data-1GB.mkv.enc a.out 
+[   75,899] Wordy: Decrypt: Writing done, 1,055,354,367 total bytes from 1,055,354,383 bytes input, ratio 1.000000 in/out
+[   75,915] Decrypt: Duration 76 s, 75,900 ms
+[   75,915] Decrypt: Size 1,055 MB
+[   75,915] Decrypt: Bitrate 111 Mbit/s, 14 MB/s
+[   76,207] Unpack: Decypted http://localhost:8080/test_data/data-1GB.mkv.enc to a.out
+
+[   76,211] Unpack: PackInfo[source http://localhost:8080/test_data/data-1GB.mkv.enc (E), filename[header data-1GB.mkv, stored a.out], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
+
+
+
+sven@raspi03:~/projects/zafena/elevator/dist-armhf $ ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa \"\" ../test_data/data-1GB.mkv.enc a.outCOMMANDLINE ../scripts/run_cipherpack.sh unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" ../test_data/data-1GB.mkv.enc a.out
+elevator_debug
+elevator_verbose true
+Called bin/cipherpack with 6 arguments: bin/cipherpack unpack ../keys/host_rsa.pub.pem ../keys/terminal_rsa "" ../test_data/data-1GB.mkv.enc a.out 
+[   77,311] Wordy: Decrypt: Writing done, 1,055,354,367 total bytes from 1,055,354,383 bytes input, ratio 1.000000 in/out
+[   77,334] Decrypt: Duration 77 s, 77,307 ms
+[   77,334] Decrypt: Size 1,055 MB
+[   77,334] Decrypt: Bitrate 109 Mbit/s, 14 MB/s
+[   78,414] Unpack: Decypted ../test_data/data-1GB.mkv.enc to a.out
+
+[   78,416] Unpack: PackInfo[source ../test_data/data-1GB.mkv.enc (E), filename[header data-1GB.mkv, stored a.out], creation 2021-06-20 19:01:15 UTC, version[1, parent 0], valid 1]
+

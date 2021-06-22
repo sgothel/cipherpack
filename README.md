@@ -16,7 +16,7 @@ Building Binaries
 
 This project uses the following git submodules
 - [Jau Library](https://jausoft.com/cgit/jaulib.git/about/)
-- lala
+- [Botan](https://github.com/randombit/botan.git)
 
 Installing build dependencies on Debian (10 or 11):
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
@@ -25,7 +25,17 @@ apt install build-essential g++ gcc libc-dev libpthread-stubs0-dev
 apt install libunwind8 libunwind-dev
 apt install cmake cmake-extras extra-cmake-modules pkg-config
 apt install doxygen graphviz
+apt install libcurl4 libcurl4-gnutls-dev
+apt install mini-httpd
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before building and testing start mini-httpd:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+killall mini_httpd
+echo launch minihttpd
+/usr/sbin/mini_httpd -p 8080 -l `pwd`/mini_httpd-platform.log
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+or use `./scripts/run_mini_httpd.sh`
 
 For a generic build use:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
