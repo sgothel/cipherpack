@@ -50,6 +50,10 @@ class Cipherpack {
         /**
          * Simple package information POD, capturing an invalid or valid
          * processed package creation (encryption) or un-packaging (decryption).
+         * <pre>
+         * VENDOR_VERSION: major-version . minor.version - client . client-build
+         * Example: '1.0-0.5'
+         * </pre>
          */
         class PackInfo {
             private:
@@ -59,8 +63,8 @@ class Cipherpack {
                 std::string stored_filename;
                 bool stored_enc;
                 std::string header_filename;
-                uint32_t payload_version;
-                uint32_t payload_version_parent;
+                uint32_t payload_version; // FIXME: std::string  VENDOR_VERSION
+                uint32_t payload_version_parent; // FIXME: std::string VENDOR_VERSION
                 bool valid;
 
             public:
