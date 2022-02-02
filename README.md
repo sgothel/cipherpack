@@ -1,22 +1,22 @@
-Elevator - An Update Process (C++, ...)
-========================================
+# Elevator - An Update Process (C++, ...)
 
-Goals
-============
+[Original document location](https://jausoft.com/cgit/elevator.git/about/).
+
+## Goals
 This project aims to provide a secure update process, 
 elevating your installed firm- and software.
 
-Supported Platforms
-===================
+## Supported Platforms
 
 C++17 and better.
 
-Building Binaries
-=========================
+## Building Binaries
 
 This project uses the following git submodules
 - [Jau Library](https://jausoft.com/cgit/jaulib.git/about/)
 - [Botan](https://github.com/randombit/botan.git)
+
+### Build Dependencies
 
 Installing build dependencies on Debian (10 or 11):
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
@@ -28,6 +28,8 @@ apt install doxygen graphviz
 apt install libcurl4 libcurl4-gnutls-dev
 apt install mini-httpd
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+### Build Procedure
 
 To fetch the source tree use:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
@@ -92,8 +94,15 @@ make doc
 ~~~~~~~~~~~~~
 
 
-Changes
-============
+## Support
+
+*Elevator* is provided by [Gothel Software](https://jausoft.com/) and [Zafena ICT](https://ict.zafena.se).
+
+If you like to utilize *Elevator* in a commercial setting, 
+please contact [Gothel Software](https://jausoft.com/) to setup a potential support contract.
+
+
+## Changes
 
 **1.0.0**
 
