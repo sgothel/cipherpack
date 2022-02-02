@@ -32,7 +32,7 @@ class IOUtil {
 
         typedef std::function<void (Botan::secure_vector<uint8_t>& /* data */, bool /* is_final */)> StreamConsumerFunc;
 
-        typedef jau::ringbuffer<uint8_t, uint8_t, size_t> ByteRingbuffer;
+        typedef jau::ringbuffer<uint8_t, size_t> ByteRingbuffer;
 
         /**
          * Operation result value
@@ -150,7 +150,7 @@ class DataSource_URL final : public Botan::DataSource {
         uint64_t get_available() const noexcept {
             if( IOUtil::result_t::NONE != m_http_result ) {
                 // http thread ended, only remaining bytes in buffer available left
-                return m_buffer.getSize();
+                return m_buffer.size();
             }
             if( m_url_has_content_length ) {
                 return m_url_content_length - m_bytes_consumed;

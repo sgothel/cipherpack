@@ -439,7 +439,7 @@ DataSource_URL::~DataSource_URL() {
 
     m_http_result = IOUtil::result_t::FAILED; // signal end of curl thread!
 
-    m_buffer.drop(m_buffer.getSize()); // unblock putBlocking(..)
+    m_buffer.drop(m_buffer.size()); // unblock putBlocking(..)
     if( m_http_thread.joinable() ) {
         DBG_PRINT("DataSource_Http: dtor.1 %s, %s", id().c_str(), m_buffer.toString().c_str());
         m_http_thread.join();
