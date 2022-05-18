@@ -50,6 +50,7 @@ extern "C" {
 }
 
 using namespace elevator;
+using namespace jau::fractions_i64_literals;
 
 class Test02IOStream : public TestData {
     public:
@@ -101,7 +102,7 @@ class Test02IOStream : public TestData {
             while( IOUtil::result_t::NONE == result || !rb.isEmpty() ) {
                 consumed_loops++;
                 // const size_t consumed_bytes = content_length >= 0 ? std::min(buffer_size, content_length - consumed_total_bytes) : rb.getSize();
-                const size_t consumed_bytes = rb.getBlocking(buffer.data(), buffer_size, 1, 0 /* timeoutMS */);
+                const size_t consumed_bytes = rb.getBlocking(buffer.data(), buffer_size, 1, 0_s);
                 consumed_total_bytes += consumed_bytes;
                 jau::PLAIN_PRINT(true, "test02io02.0 #%zu: consumed[this %zu, total %" PRIu64 ", result %d, rb %s",
                         consumed_loops, consumed_bytes, consumed_total_bytes, result.load(), rb.toString().c_str() );

@@ -45,6 +45,7 @@
 #endif
 
 using namespace elevator;
+using namespace jau::fractions_i64_literals;
 
 std::string IOUtil::getTimestampString(const uint64_t timestamp_sec, const bool local) noexcept {
     std::time_t t0 = static_cast<std::time_t>(timestamp_sec);
@@ -284,7 +285,7 @@ static size_t consume_curl2(void *ptr, size_t size, size_t nmemb, void *stream) 
     const size_t realsize = size * nmemb;
     DBG_PRINT("consume_curl2.0 realsize %zu, rb %s", realsize, cg->buffer.toString().c_str() );
     cg->buffer.putBlocking(reinterpret_cast<uint8_t*>(ptr),
-                           reinterpret_cast<uint8_t*>(ptr)+realsize, 0 /* timeoutMS */);
+                           reinterpret_cast<uint8_t*>(ptr)+realsize, 0_s);
 
     cg->total_read = cg->total_read + realsize;
     const bool is_final = 0 == realsize ||
@@ -472,7 +473,7 @@ size_t DataSource_URL::read(uint8_t out[], size_t length) {
         DBG_PRINT("DataSource_Http::read(.., length %zu): !avail, abort: %s", length, to_string().c_str());
         return 0;
     }
-    const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, 0 /* timeoutMS */);
+    const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, 0_s);
     m_bytes_consumed += consumed_bytes;
     return consumed_bytes;
 }
