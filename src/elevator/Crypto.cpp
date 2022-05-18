@@ -77,17 +77,13 @@ std::shared_ptr<Botan::Private_Key> Cipherpack::load_private_key(const std::stri
     return key;
 }
 
-std::string Cipherpack::PackInfo::getCreationTimeString(const bool local) const noexcept {
-    return IOUtil::getTimestampString(ts_creation_sec, local);
-}
-
 std::string Cipherpack::PackInfo::toString() const noexcept {
     std::string source_enc_s = source_enc ? " (E)" : "";
     std::string stored_enc_s = stored_enc ? " (E)" : "";
     std::string res = "PackInfo[";
     res += "source "+source+source_enc_s+
            ", filename[header "+header_filename+", stored "+stored_filename+stored_enc_s+
-           "], creation "+getCreationTimeString(false)+
+           "], creation "+ts_creation.to_iso8601_string(true)+
            " UTC, version["+std::to_string(payload_version)+
            ", parent "+std::to_string(payload_version_parent)+
            "], valid "+std::to_string( isValid() )+"]";

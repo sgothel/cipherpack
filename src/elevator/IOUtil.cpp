@@ -38,40 +38,11 @@
 #include <thread>
 #include <pthread.h>
 
-// #define USE_CXX17lib_FS 1
-#if USE_CXX17lib_FS
-    #include <filesystem>
-    namespace fs = std::filesystem;
-#endif
-
 using namespace elevator;
 using namespace jau::fractions_i64_literals;
 
-std::string IOUtil::getTimestampString(const uint64_t timestamp_sec, const bool local) noexcept {
-    std::time_t t0 = static_cast<std::time_t>(timestamp_sec);
-    struct std::tm tm_0;
-    struct std::tm * res = local ? ::localtime_r( &t0, &tm_0 ) : ::gmtime_r( &t0, &tm_0 );
-    if( nullptr == res ) {
-        return "1970-01-01 00:00:00"; // 19 + 1
-    } else {
-        char b[20];
-        strftime(b, sizeof(b), "%Y-%m-%d %H:%M:%S", &tm_0);
-        return std::string(b);
-    }
-}
-
-bool IOUtil::file_exists(const std::string& name) noexcept {
-    std::ifstream f(name);
-    return f.good() && f.is_open();
-}
-
 bool IOUtil::remove(const std::string& fname) noexcept {
-#if USE_CXX17lib_FS
-    const fs::path fname2 = fname;
-    return fs::remove(fname);
-#else
     return 0 == std::remove( fname.c_str() );
-#endif
 }
 
 uint64_t IOUtil::read_file(const std::string& input_file, Botan::secure_vector<uint8_t>& buffer,

@@ -57,7 +57,7 @@ class Cipherpack {
          */
         class PackInfo {
             private:
-                uint64_t ts_creation_sec;
+                jau::fraction_timespec ts_creation;
                 std::string source;
                 bool source_enc;
                 std::string stored_filename;
@@ -70,7 +70,7 @@ class Cipherpack {
             public:
                 /** default ctor, denoting an invalid package information */
                 PackInfo()
-                : ts_creation_sec( jau::getWallClockSeconds() ),
+                : ts_creation( jau::getWallClockTime() ),
                   source("none"), source_enc(false),
                   stored_filename("none"), stored_enc(false),
                   header_filename("none"),
@@ -79,8 +79,8 @@ class Cipherpack {
                 { }
 
                 /** Source ctor, denoting an invalid package information */
-                PackInfo(const uint64_t ts_creation_sec_, const std::string& source_, const bool source_enc_)
-                : ts_creation_sec(ts_creation_sec_),
+                PackInfo(const jau::fraction_timespec ts_creation_, const std::string& source_, const bool source_enc_)
+                : ts_creation(ts_creation_),
                   source(source_), source_enc(source_enc_),
                   stored_filename("none"), stored_enc(false),
                   header_filename("none"),
@@ -89,12 +89,12 @@ class Cipherpack {
                 { }
 
                 /** Complete ctor, denoting a valid package information */
-                PackInfo(const uint64_t ts_creation_sec_,
+                PackInfo(const jau::fraction_timespec ts_creation_,
                          const std::string& source_, const bool source_enc_,
                          const std::string& stored_fname, bool stored_enc_,
                          const std::string& header_fname,
                          const uint32_t pversion, const uint32_t pversion_parent)
-                : ts_creation_sec(ts_creation_sec_),
+                : ts_creation(ts_creation_),
                   source(source_), source_enc(source_enc_),
                   stored_filename(stored_fname), stored_enc(stored_enc_),
                   header_filename(header_fname),
@@ -113,14 +113,8 @@ class Cipherpack {
                 constexpr uint32_t getPayloadVersion() const noexcept { return payload_version;}
                 constexpr uint32_t getPayloadVersionParent() const noexcept { return payload_version_parent;}
 
-                /** Returns the creation time in seconds since Unix epoch */
-                constexpr uint64_t getCreationTime() const noexcept { return ts_creation_sec; }
-
-                /**
-                 * Return the creation time as a timestring `YYYY-MM-DD HH:MM:SS`
-                 * @param local if true, returns the time in local time, otherwise UTC
-                 */
-                std::string getCreationTimeString(const bool local) const noexcept;
+                /** Returns the creation time since Unix epoch */
+                constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
 
                 std::string toString() const noexcept;
 
