@@ -54,7 +54,7 @@ static uint64_t to_uint64_t(const Botan::BigInt& v) {
     return out;
 }
 
-Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
+Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::string> &enc_pub_keys,
                                                       const std::string &sign_sec_key_fname, const std::string &passphrase,
                                                       const std::string &input_fname,
                                                       const std::string &designated_fname,
@@ -88,16 +88,12 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
     try {
         Botan::RandomNumberGenerator& rng = Botan::system_rng();
 
-        std::unique_ptr<Botan::Public_Key> enc_pub_key = load_public_key(enc_pub_key_fname);
-        if( !enc_pub_key ) {
-            return PackInfo(ts_creation_sec, input_fname, false);
-        }
-        std::unique_ptr<Botan::Private_Key> sign_sec_key = load_private_key(sign_sec_key_fname, passphrase);
+        std::shared_ptr<Botan::Private_Key> sign_sec_key = load_private_key(sign_sec_key_fname, passphrase);
         if( !sign_sec_key ) {
             return PackInfo(ts_creation_sec, input_fname, false);
         }
 
-        std::unique_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create(aead_cipher_algo, Botan::ENCRYPTION);
+        std::shared_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create(aead_cipher_algo, Botan::ENCRYPTION);
         if(!aead) {
            ERR_PRINT("Encrypt failed: AEAD algo %s not available", aead_cipher_algo.c_str());
            return PackInfo(ts_creation_sec, input_fname, false);
@@ -111,17 +107,29 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
         const Botan::AlgorithmIdentifier hash_id(rsa_hash_algo, Botan::AlgorithmIdentifier::USE_EMPTY_PARAM);
         const Botan::AlgorithmIdentifier pk_alg_id("RSA/"+rsa_padding_algo, hash_id.BER_encode());
 
-        Botan::PK_Encryptor_EME enc(*enc_pub_key, rng, rsa_padding_algo+"(" + rsa_hash_algo + ")");
+        Botan::secure_vector<uint8_t> plain_file_key = rng.random_vec(aead->key_spec().maximum_keylength());
+        Botan::secure_vector<uint8_t> nonce = rng.random_vec(ChaCha_Nonce_Size);
 
-        const Botan::secure_vector<uint8_t> file_key = rng.random_vec(aead->key_spec().maximum_keylength());
+        struct enc_key_data_t {
+            std::shared_ptr<Botan::Public_Key> pub_key;
+            std::vector<uint8_t> encrypted_file_key;
+        };
+        std::vector<enc_key_data_t> enc_key_data_list;
 
-        const std::vector<uint8_t> encrypted_key = enc.encrypt(file_key, rng);
+        for( std::string enc_pub_key_fname : enc_pub_keys ) {
+            enc_key_data_t enc_key_data;
 
-        const Botan::secure_vector<uint8_t> nonce = rng.random_vec(ChaCha_Nonce_Size);
-        aead->set_key(file_key);
-        aead->set_associated_data_vec(encrypted_key);
-        aead->start(nonce);
+            enc_key_data.pub_key = load_public_key(enc_pub_key_fname);
+            if( !enc_key_data.pub_key ) {
+                return PackInfo(ts_creation_sec, input_fname, false);
+            }
+            Botan::PK_Encryptor_EME enc(*enc_key_data.pub_key, rng, rsa_padding_algo+"(" + rsa_hash_algo + ")");
 
+            enc_key_data.encrypted_file_key = enc.encrypt(plain_file_key, rng);
+            enc_key_data_list.push_back(enc_key_data);
+        }
+
+        std::vector<uint8_t> signature;
         {
             Botan::secure_vector<uint8_t> header_buffer;
             header_buffer.reserve(buffer_size);
@@ -139,17 +147,25 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
                    .encode(std::vector<uint8_t>(rsa_sign_algo.begin(), rsa_sign_algo.end()), Botan::ASN1_Type::OctetString)
                    .encode(pk_alg_id)
                    .encode(cipher_algo_oid)
-                   .encode(encrypted_key, Botan::ASN1_Type::OctetString)
-                   .encode(nonce, Botan::ASN1_Type::OctetString)
+                   .encode(enc_key_data_list.size(), Botan::ASN1_Type::Integer);
+
+                for(const enc_key_data_t& enc_key_data : enc_key_data_list) {
+                    const std::string fingerprint = enc_key_data.pub_key->fingerprint_public(fingerprint_hash_algo);
+                    der.encode(std::vector<uint8_t>(fingerprint.begin(), fingerprint.end()), Botan::ASN1_Type::OctetString)
+                       .encode(enc_key_data.encrypted_file_key, Botan::ASN1_Type::OctetString);
+                }
+
+                der.encode(nonce, Botan::ASN1_Type::OctetString)
                    .end_cons(); // data push
             }
             outfile.write((char*)header_buffer.data(), header_buffer.size());
             out_bytes_header = header_buffer.size();
-            DBG_PRINT("Encrypt: DER Header1 written + %zu bytes -> %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
+            DBG_PRINT("Encrypt: DER Header1 written + %zu bytes -> %" PRIu64 " bytes, enc_keys %zu",
+                    header_buffer.size(), out_bytes_header, enc_key_data_list.size());
 
             // DER-Header-2 (signature)
             Botan::PK_Signer signer(*sign_sec_key, rng, rsa_sign_algo);
-            std::vector<uint8_t> signature = signer.sign_message(header_buffer, rng);
+            signature = signer.sign_message(header_buffer, rng);
             DBG_PRINT("Encrypt: Signature for %zu bytes: %s",
                     header_buffer.size(),
                     jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str());
@@ -173,6 +189,10 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::string &enc_pub
         } else {
             DBG_PRINT("Encrypt: DER Header done, %" PRIu64 " header == %" PRIu64 " total bytes", out_bytes_header, out_bytes_total);
         }
+
+        aead->set_key(plain_file_key);
+        aead->set_associated_data_vec(signature);
+        aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;
         IOUtil::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> void {
@@ -254,14 +274,15 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
     try {
         Botan::RandomNumberGenerator& rng = Botan::system_rng();
 
-        std::unique_ptr<Botan::Public_Key> sign_pub_key = load_public_key(sign_pub_key_fname);
+        std::shared_ptr<Botan::Public_Key> sign_pub_key = load_public_key(sign_pub_key_fname);
         if( !sign_pub_key ) {
             return PackInfo(ts_creation_sec, source.id(), true);
         }
-        std::unique_ptr<Botan::Private_Key> dec_sec_key = load_private_key(dec_sec_key_fname, passphrase);
+        std::shared_ptr<Botan::Private_Key> dec_sec_key = load_private_key(dec_sec_key_fname, passphrase);
         if( !dec_sec_key ) {
             return PackInfo(ts_creation_sec, source.id(), true);
         }
+        const std::string dec_sec_key_fingerprint = dec_sec_key->fingerprint_public(fingerprint_hash_algo);
 
         std::vector<uint8_t> package_magic_charvec;
         std::vector<uint8_t> designated_fame_charvec;
@@ -270,8 +291,12 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
         std::vector<uint8_t> sign_algo_charvec;
         Botan::AlgorithmIdentifier pk_alg_id;
         Botan::OID cipher_algo_oid;
-        std::vector<uint8_t> encrypted_key;
+        size_t encrypted_key_count;
+        size_t encrypted_key_idx;
+        std::vector<uint8_t> encrypted_file_key;
         std::vector<uint8_t> nonce;
+
+        std::vector<uint8_t> signature;
 
         Botan::secure_vector<uint8_t> input_buffer;
         DataSource_Recorder input(source, input_buffer);
@@ -296,6 +321,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
                 Botan::BigInt bi_ts_creation_sec;
                 Botan::BigInt bi_payload_version;
                 Botan::BigInt bi_payload_version_parent;
+                Botan::BigInt bi_encrypted_key_count;
 
                 ber.decode(designated_fame_charvec, Botan::ASN1_Type::OctetString)
                    .decode(bi_ts_creation_sec, Botan::ASN1_Type::Integer)
@@ -304,8 +330,35 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
                    .decode(sign_algo_charvec, Botan::ASN1_Type::OctetString)
                    .decode(pk_alg_id)
                    .decode(cipher_algo_oid)
-                   .decode(encrypted_key, Botan::ASN1_Type::OctetString)
-                   .decode(nonce, Botan::ASN1_Type::OctetString)
+                   .decode(bi_encrypted_key_count, Botan::ASN1_Type::Integer);
+
+                encrypted_key_count = to_uint64_t(bi_encrypted_key_count);
+                encrypted_key_idx = encrypted_key_count; // not found yet
+
+                std::vector<uint8_t> fingerprint_charvec;
+                std::vector<uint8_t> encrypted_file_key_temp;
+
+                for(size_t idx=0; idx < encrypted_key_count; idx++) {
+                    ber.decode(fingerprint_charvec, Botan::ASN1_Type::OctetString)
+                       .decode(encrypted_file_key_temp, Botan::ASN1_Type::OctetString);
+
+                    if( encrypted_key_idx >= encrypted_key_count ) {
+                        const std::string fingerprint(reinterpret_cast<char*>(fingerprint_charvec.data()), fingerprint_charvec.size());
+                        if( !fingerprint.empty() && fingerprint == dec_sec_key_fingerprint ) {
+                            // match, we found our entry
+                            encrypted_key_idx = idx;
+                            encrypted_file_key = encrypted_file_key_temp; // pick the encrypted key
+                        }
+                    }
+                }
+
+                if( encrypted_key_idx >= encrypted_key_count || 0 == encrypted_key_count ) {
+                    ERR_PRINT("Decrypt failed: No enc_key found %zu/%zu", encrypted_key_idx, encrypted_key_count);
+                    IOUtil::remove(output_fname);
+                    return PackInfo(ts_creation_sec, source.id(), true);
+                }
+
+                ber.decode(nonce, Botan::ASN1_Type::OctetString)
                    // .end_cons() // header2 + encrypted data follows ...
                    ;
 
@@ -315,9 +368,9 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
             }
             Botan::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
             input.clear_recording(); // implies stop_recording()
-            DBG_PRINT("Decrypt: DER Header1 Size %zu bytes", header1_buffer.size());
+            DBG_PRINT("Decrypt: DER Header1 Size %zu bytes, enc_key %zu/%zu",
+                    header1_buffer.size(), encrypted_key_idx, encrypted_key_count);
 
-            std::vector<uint8_t> signature;
             {
                 Botan::BER_Decoder ber(input);
                 ber.start_sequence()
@@ -430,7 +483,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
             }
         }
 
-        std::unique_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create_or_throw(cipher_algo, Botan::DECRYPTION);
+        std::shared_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create_or_throw(cipher_algo, Botan::DECRYPTION);
         if(!aead) {
            ERR_PRINT("Decrypt failed: Cipher algo %s not available", cipher_algo.c_str());
            return PackInfo(ts_creation_sec, source.id(), true);
@@ -440,11 +493,11 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::string &si
 
         Botan::PK_Decryptor_EME dec(*dec_sec_key, rng, rsa_padding_algo+"(" + rsa_hash_algo + ")");
 
-        const Botan::secure_vector<uint8_t> file_key =
-                dec.decrypt_or_random(encrypted_key.data(), encrypted_key.size(), expected_keylen, rng);
+        const Botan::secure_vector<uint8_t> plain_file_key =
+                dec.decrypt_or_random(encrypted_file_key.data(), encrypted_file_key.size(), expected_keylen, rng);
 
-        aead->set_key(file_key);
-        aead->set_associated_data_vec(encrypted_key);
+        aead->set_key(plain_file_key);
+        aead->set_associated_data_vec(signature);
         aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;

@@ -139,13 +139,18 @@ class Cipherpack {
          */
         constexpr static const size_t ChaCha_Nonce_Size = 64 / 8;
 
-        static std::unique_ptr<Botan::Public_Key> load_public_key(const std::string& pubkey_fname);
-        static std::unique_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
+        static std::shared_ptr<Botan::Public_Key> load_public_key(const std::string& pubkey_fname);
+        static std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
 
         /**
-         * Package magic {@code ZAF_ELEVATOR_0003}.
+         * Package magic {@code ZAF_ELEVATOR_0004}.
          */
         static const std::string package_magic;
+
+        /**
+         * Public key fingerprint hash algorithm is {@code SHA-256}.
+         */
+        static const std::string fingerprint_hash_algo;
 
         /**
          * RSA padding algorithm is {@code OAEP}.
@@ -205,7 +210,12 @@ class Cipherpack {
          *     ASN1_Type::[ObjectId|OctetString]    sign_algo_[oid|name] = "EMSA1(SHA-256)",
          *     ASN1_Type::ObjectId                  pk_alg_id 'AlgorithmIdentifier' = ( "RSA/OAEP" + "SHA-256" ),
          *     ASN1_Type::ObjectId                  cipher_algo_oid = "ChaCha20Poly1305",
-         *     ASN1_Type::OctetString               encrypted_key,
+         *     ASN1_Type::Integer                   encrypted_key_count,
+         *     ASN1_Type::OctetString               fingerprt_key_1_sha256, // of public key_1 used for encrypted_key_1
+         *     ASN1_Type::OctetString               encrypted_key_1,
+         *     ASN1_Type::OctetString               fingerprt_key_2_sha256, // of public key_1 used for encrypted_key_2
+         *     ASN1_Type::OctetString               encrypted_key_2,
+         *     ....
          *     ASN1_Type::OctetString               nonce,
          * },
          * DER Header 2 {
@@ -214,7 +224,7 @@ class Cipherpack {
          * uint8_t encrypted_data[]
          * </pre>
          *
-         * @param enc_pub_key_fname      The public key of the receiver (terminal device), used to encrypt the symmetric key.
+         * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the symmetric key for multiple parties.
          * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted symmetric key for authenticity.
          * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
          * @param input_fname            The filename of the plaintext payload.
@@ -227,7 +237,7 @@ class Cipherpack {
          *
          * @see #checkSignThenDecrypt_RSA1()
          */
-        static PackInfo encryptThenSign_RSA1(const std::string &enc_pub_key_fname,
+        static PackInfo encryptThenSign_RSA1(const std::vector<std::string> &enc_pub_keys,
                                              const std::string &sign_sec_key_fname, const std::string &passphrase,
                                              const std::string &input_fname,
                                              const std::string &designated_fname,
@@ -241,6 +251,7 @@ class Cipherpack {
          * @param sign_pub_key_fname The public key of the host (pack provider), used to verify the DER-Header-1 signature
          *                           and hence the encrypted symmetric key. Proves authenticity of the file.
          * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the symmetric key.
+         *                           It shall match one of the keys used to encrypt.
          * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
          * @param source             The Botan::DataSource of the ciphertext pack file source, containing the payload.
          * @param output_fname       The filename of the resulting plaintext target.

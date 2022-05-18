@@ -34,9 +34,17 @@
 class TestData {
     public:
         static constexpr const bool overwrite = true;
-        static const std::string enc_pub_key_fname;
-        static const std::string dec_sec_key_fname;
+        static const std::string enc_pub_key1_fname;
+        static const std::string dec_sec_key1_fname;
+
+        static const std::string enc_pub_key2_fname;
+        static const std::string dec_sec_key2_fname;
+
+        static const std::string enc_pub_key3_fname;
+        static const std::string dec_sec_key3_fname;
+
         static const std::string dec_sec_key_passphrase;
+
         static const std::string sign_pub_key_fname;
         static const std::string sign_sec_key_fname;
         static const std::string sign_sec_key_passphrase;

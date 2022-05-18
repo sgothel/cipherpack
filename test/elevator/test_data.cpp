@@ -25,9 +25,17 @@
 
 #include "test_data.hpp"
 
-const std::string TestData::enc_pub_key_fname = "../../../keys/terminal_rsa.pub.pem";
-const std::string TestData::dec_sec_key_fname = "../../../keys/terminal_rsa";
+const std::string TestData::enc_pub_key1_fname = "../../../keys/terminal_rsa1.pub.pem";
+const std::string TestData::dec_sec_key1_fname = "../../../keys/terminal_rsa1";
+
+const std::string TestData::enc_pub_key2_fname = "../../../keys/terminal_rsa2.pub.pem";
+const std::string TestData::dec_sec_key2_fname = "../../../keys/terminal_rsa2";
+
+const std::string TestData::enc_pub_key3_fname = "../../../keys/terminal_rsa3.pub.pem";
+const std::string TestData::dec_sec_key3_fname = "../../../keys/terminal_rsa3";
+
 const std::string TestData::dec_sec_key_passphrase = "";
+
 const std::string TestData::sign_pub_key_fname = "../../../keys/host_rsa.pub.pem";
 const std::string TestData::sign_sec_key_fname = "../../../keys/host_rsa";
 const std::string TestData::sign_sec_key_passphrase = "";
