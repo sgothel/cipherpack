@@ -67,27 +67,43 @@ Changing install path from /usr/local to /usr
 ~~~~~~~~~~~~~
 -DCMAKE_INSTALL_PREFIX=/usr
 ~~~~~~~~~~~~~
+
 Building debug build:
 ~~~~~~~~~~~~~
 -DDEBUG=ON
 ~~~~~~~~~~~~~
+
 Disable stripping native lib even in non debug build:
 ~~~~~~~~~~~~~
 -DUSE_STRIP=OFF
 ~~~~~~~~~~~~~
+
+Disable using `libunwind` (default: enabled for all but `arm32`, `armhf`)
+~~~~~~~~~~~~~
+-DUSE_LIBUNWIND=OFF
+~~~~~~~~~~~~~
+
+Disable using `C++ Runtime Type Information` (*RTTI*) (default: enabled)
+~~~~~~~~~~~~~
+-DDONT_USE_RTTI=ON
+~~~~~~~~~~~~~
+
 Building debug and instrumentation (sanitizer) build:
 ~~~~~~~~~~~~~
 -DDEBUG=ON -DINSTRUMENTATION=ON
 ~~~~~~~~~~~~~
+
 Using clang instead of gcc:
 ~~~~~~~~~~~~~
 -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 ~~~~~~~~~~~~~
+
 Cross-compiling on a different system:
 ~~~~~~~~~~~~~
 -DCMAKE_CXX_FLAGS:STRING=-m32 -march=i586
 -DCMAKE_C_FLAGS:STRING=-m32 -march=i586
 ~~~~~~~~~~~~~
+
 To build documentation run: 
 ~~~~~~~~~~~~~
 make doc

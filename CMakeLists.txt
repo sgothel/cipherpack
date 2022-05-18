@@ -9,6 +9,13 @@ endif()
 
 FIND_PACKAGE (Threads REQUIRED)
 
+if(NOT DEFINED DONT_USE_RTTI)
+    set(DONT_USE_RTTI OFF)
+    message(STATUS "${PROJECT_NAME} DONT_USE_RTTI ${DONT_USE_RTTI} (elevator default)")
+else()
+    message(STATUS "${PROJECT_NAME} DONT_USE_RTTI ${DONT_USE_RTTI} (user)")
+endif()
+
 include(jaulib/JaulibSetup.cmake)
 JaulibSetup()
 
@@ -35,8 +42,7 @@ set (elevator_DOCS_DIR documentation)
 find_path (SYSTEM_USR_DIR "stdlib.h")
 include_directories (${SYSTEM_USR_DIR})
 
-# add_subdirectory (jaulib EXCLUDE_FROM_ALL)
-# add_subdirectory (jaulib)
+add_subdirectory (jaulib)
 
 add_subdirectory (src/elevator)
 
