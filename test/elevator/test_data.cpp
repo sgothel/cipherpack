@@ -34,10 +34,23 @@ const std::string TestData::dec_sec_key2_fname = "../../../keys/terminal_rsa2";
 const std::string TestData::enc_pub_key3_fname = "../../../keys/terminal_rsa3.pub.pem";
 const std::string TestData::dec_sec_key3_fname = "../../../keys/terminal_rsa3";
 
+const std::string TestData::enc_pub_key4_fname = "../../../keys/terminal_rsa4.pub.pem";
+const std::string TestData::dec_sec_key4_fname = "../../../keys/terminal_rsa4";
+
 const std::string TestData::dec_sec_key_passphrase = "";
 
-const std::string TestData::sign_pub_key_fname = "../../../keys/host_rsa.pub.pem";
-const std::string TestData::sign_sec_key_fname = "../../../keys/host_rsa";
+const std::string TestData::sign_pub_key1_fname = "../../../keys/host_rsa1.pub.pem";
+const std::string TestData::sign_sec_key1_fname = "../../../keys/host_rsa1";
+
+const std::string TestData::sign_pub_key2_fname = "../../../keys/host_rsa2.pub.pem";
+const std::string TestData::sign_sec_key2_fname = "../../../keys/host_rsa2";
+
+const std::string TestData::sign_pub_key3_fname = "../../../keys/host_rsa3.pub.pem";
+const std::string TestData::sign_sec_key3_fname = "../../../keys/host_rsa3";
+
+const std::string TestData::sign_pub_key4_fname = "../../../keys/host_rsa4.pub.pem";
+const std::string TestData::sign_sec_key4_fname = "../../../keys/host_rsa4";
+
 const std::string TestData::sign_sec_key_passphrase = "";
 
 const std::string TestData::url_input_root = "http://localhost:8080/test_data/";

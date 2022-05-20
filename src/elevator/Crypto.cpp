@@ -33,7 +33,7 @@
 
 using namespace elevator;
 
-const std::string Cipherpack::package_magic      = "ZAF_ELEVATOR_0004";
+const std::string Cipherpack::package_magic      = "ZAF_ELEVATOR_0005";
 
 const std::string Cipherpack::fingerprint_hash_algo = "SHA-256";
 
@@ -82,10 +82,12 @@ std::string Cipherpack::PackInfo::toString() const noexcept {
     std::string stored_enc_s = stored_enc ? " (E)" : "";
     std::string res = "PackInfo[";
     res += "source "+source+source_enc_s+
-           ", filename[header "+header_filename+", stored "+stored_filename+stored_enc_s+
-           "], creation "+ts_creation.to_iso8601_string(true)+
+           ", file[target_path "+target_path+", stored "+stored_file_stats.to_string(true)+stored_enc_s+
+           "intention "+intention+"], creation "+ts_creation.to_iso8601_string(true)+
            " UTC, version["+std::to_string(payload_version)+
            ", parent "+std::to_string(payload_version_parent)+
-           "], valid "+std::to_string( isValid() )+"]";
+           ", fingerprints[sign/host '"+host_key_fingerprint+
+           "', decrypt/term '"+term_key_fingerprint+
+           "'], valid "+std::to_string( isValid() )+"]";
     return res;
 }

@@ -31,6 +31,7 @@
 #include <functional>
 
 #include <jau/basic_types.hpp>
+#include <jau/file_util.hpp>
 
 #include <botan_all.h>
 
@@ -60,11 +61,14 @@ class Cipherpack {
                 jau::fraction_timespec ts_creation;
                 std::string source;
                 bool source_enc;
-                std::string stored_filename;
+                jau::fs::file_stats stored_file_stats;
                 bool stored_enc;
-                std::string header_filename;
+                std::string target_path;
+                std::string intention;
                 uint32_t payload_version; // FIXME: std::string  VENDOR_VERSION
                 uint32_t payload_version_parent; // FIXME: std::string VENDOR_VERSION
+                std::string host_key_fingerprint;
+                std::string term_key_fingerprint;
                 bool valid;
 
             public:
@@ -72,9 +76,11 @@ class Cipherpack {
                 PackInfo()
                 : ts_creation( jau::getWallClockTime() ),
                   source("none"), source_enc(false),
-                  stored_filename("none"), stored_enc(false),
-                  header_filename("none"),
+                  stored_file_stats(), stored_enc(false),
+                  target_path("none"),
+                  intention("none"),
                   payload_version(0), payload_version_parent(0),
+                  host_key_fingerprint(), term_key_fingerprint(),
                   valid(false)
                 { }
 
@@ -82,39 +88,58 @@ class Cipherpack {
                 PackInfo(const jau::fraction_timespec ts_creation_, const std::string& source_, const bool source_enc_)
                 : ts_creation(ts_creation_),
                   source(source_), source_enc(source_enc_),
-                  stored_filename("none"), stored_enc(false),
-                  header_filename("none"),
+                  stored_file_stats(), stored_enc(false),
+                  target_path("none"),
+                  intention("none"),
                   payload_version(0), payload_version_parent(0),
+                  host_key_fingerprint(), term_key_fingerprint(),
                   valid(false)
                 { }
 
                 /** Complete ctor, denoting a valid package information */
                 PackInfo(const jau::fraction_timespec ts_creation_,
                          const std::string& source_, const bool source_enc_,
-                         const std::string& stored_fname, bool stored_enc_,
-                         const std::string& header_fname,
-                         const uint32_t pversion, const uint32_t pversion_parent)
+                         const jau::fs::file_stats& stored_file_stats_, bool stored_enc_,
+                         const std::string& target_path_,
+                         const std::string& intention_,
+                         const uint32_t pversion, const uint32_t pversion_parent,
+                         const std::string& host_key_fingerprint_,
+                         const std::string& term_key_fingerprint_ )
                 : ts_creation(ts_creation_),
                   source(source_), source_enc(source_enc_),
-                  stored_filename(stored_fname), stored_enc(stored_enc_),
-                  header_filename(header_fname),
+                  stored_file_stats(stored_file_stats_), stored_enc(stored_enc_),
+                  target_path(target_path_),
+                  intention(intention_),
                   payload_version(pversion), payload_version_parent(pversion_parent),
+                  host_key_fingerprint(host_key_fingerprint_), term_key_fingerprint(term_key_fingerprint_),
                   valid(true)
                 { }
 
+                /** Returns the creation time since Unix epoch */
+                constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
+
                 const std::string& getSource() const noexcept { return source; }
                 bool isSourceEncrypted() const noexcept { return source_enc; }
-                const std::string& getStoredFilename() const noexcept { return stored_filename; }
+
+                /** Returns the full file_stats for the stored target file, incl. validated size etc. */
+                const jau::fs::file_stats& getStoredFileStats() const noexcept { return stored_file_stats; }
+                /** Returns the stored file's size in bytes. */
+                size_t getStoredFileSize() const noexcept { return stored_file_stats.size(); }
+                /** Returns the stored file's path. */
+                std::string getStoredFilePath() const noexcept { return stored_file_stats.path(); }
                 bool isStoredFileEncrypted() const noexcept { return stored_enc; }
 
-                /** Returns the designated decrypted filename from DER-Header-1. */
-                const std::string& getDesignatedFilename() const noexcept { return header_filename; }
+                /** Returns the designated decrypted target path of the file from DER-Header-1. */
+                const std::string& getTargetPath() const noexcept { return target_path; }
 
                 constexpr uint32_t getPayloadVersion() const noexcept { return payload_version;}
                 constexpr uint32_t getPayloadVersionParent() const noexcept { return payload_version_parent;}
 
-                /** Returns the creation time since Unix epoch */
-                constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
+                /** Return the used host key fingerprint used to sign. If decrypting indicates the matching host key. */
+                const std::string& getHostKeyFingerprint() const noexcept { return host_key_fingerprint; }
+
+                /** If decrypting, return the used terminal key fingerprint used to decrypt. Otherwise empty. */
+                const std::string& getTermKeyFingerprint()  const noexcept { return term_key_fingerprint; }
 
                 std::string toString() const noexcept;
 
@@ -137,7 +162,7 @@ class Cipherpack {
         static std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
 
         /**
-         * Package magic {@code ZAF_ELEVATOR_0004}.
+         * Package magic {@code ZAF_ELEVATOR_0005}.
          */
         static const std::string package_magic;
 
@@ -197,29 +222,32 @@ class Cipherpack {
          * <pre>
          * DER Header 1 {
          *     ASN1_Type::OctetString               package_magic
-         *     ASN1_Type::OctetString               filename
+         *     ASN1_Type::OctetString               target_path            // designated target path for file
+         *     ASN1_Type::OctetString               intention              // designated intention of payload for application
+         *     ASN1_Type::Integer                   net_file_size          // file size of decrypted payload
          *     ASN1_Type::Integer                   creation_timestamp_sec
          *     ASN1_Type::Integer                   payload_version
          *     ASN1_Type::Integer                   payload_version_parent
          *     ASN1_Type::[ObjectId|OctetString]    sign_algo_[oid|name] = "EMSA1(SHA-256)",
          *     ASN1_Type::ObjectId                  pk_alg_id 'AlgorithmIdentifier' = ( "RSA/OAEP" + "SHA-256" ),
          *     ASN1_Type::ObjectId                  cipher_algo_oid = "ChaCha20Poly1305",
-         *     ASN1_Type::Integer                   encrypted_key_count,
-         *     ASN1_Type::OctetString               fingerprt_key_1_sha256, // of public key_1 used for encrypted_key_1
-         *     ASN1_Type::OctetString               encrypted_key_1,
-         *     ASN1_Type::OctetString               fingerprt_key_2_sha256, // of public key_1 used for encrypted_key_2
-         *     ASN1_Type::OctetString               encrypted_key_2,
+         *     ASN1_Type::OctetString               fingerprt_host,        // fingerprint of public host key used for header signature
+         *     ASN1_Type::Integer                   encrypted_fkey_count,  // number of encrypted file-keys
+         *     ASN1_Type::OctetString               fingerprt_term_1,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_1
+         *     ASN1_Type::OctetString               encrypted_fkey_term_1, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
+         *     ASN1_Type::OctetString               fingerprt_term_2,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_2
+         *     ASN1_Type::OctetString               encrypted_fkey_term_2, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
          *     ....
          *     ASN1_Type::OctetString               nonce,
          * },
          * DER Header 2 {
-         *     ASN1_Type::OctetString               header_signature (of wired DER encoded data)
+         *     ASN1_Type::OctetString               header_sign_host       // signed with secret host key and using public host key to verify, matching fingerprt_host
          * },
          * uint8_t encrypted_data[]
          * </pre>
          *
-         * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the symmetric key for multiple parties.
-         * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted symmetric key for authenticity.
+         * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the file-key for multiple parties.
+         * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted file-key for authenticity.
          * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
          * @param input_fname            The filename of the plaintext payload.
          * @param designated_fname           The designated filename for the decrypted file as written in the DER-Header-1
@@ -234,7 +262,7 @@ class Cipherpack {
         static PackInfo encryptThenSign_RSA1(const std::vector<std::string> &enc_pub_keys,
                                              const std::string &sign_sec_key_fname, const std::string &passphrase,
                                              const std::string &input_fname,
-                                             const std::string &designated_fname,
+                                             const std::string &target_path, const std::string &intention,
                                              const uint64_t payload_version,
                                              const uint64_t payload_version_parent,
                                              const std::string &output_fname, const bool overwrite);
@@ -242,9 +270,9 @@ class Cipherpack {
         /**
          * See {@link #encryptThenSign_RSA1()} for details.
          *
-         * @param sign_pub_key_fname The public key of the host (pack provider), used to verify the DER-Header-1 signature
-         *                           and hence the encrypted symmetric key. Proves authenticity of the file.
-         * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the symmetric key.
+         * @param sign_pub_keys      The potential public keys used by the host (pack provider) to verify the DER-Header-1 signature
+         *                           and hence the authenticity of the encrypted file-key. Proves authenticity of the file.
+         * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the file-key.
          *                           It shall match one of the keys used to encrypt.
          * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
          * @param source             The Botan::DataSource of the ciphertext pack file source, containing the payload.
@@ -252,7 +280,7 @@ class Cipherpack {
          * @param overwrite If true, overwrite a potentially existing `outfilename`.
          * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
          */
-        static PackInfo checkSignThenDecrypt_RSA1(const std::string &sign_pub_key_fname,
+        static PackInfo checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                                   const std::string &dec_sec_key_fname, const std::string &passphrase,
                                                   Botan::DataSource &source,
                                                   const std::string &output_fname, const bool overwrite);
