@@ -42,7 +42,13 @@ class IOUtil {
     public:
         static bool remove(const std::string& fname) noexcept;
 
-        typedef std::function<void (Botan::secure_vector<uint8_t>& /* data */, bool /* is_final */)> StreamConsumerFunc;
+        /**
+         * Stream consumer function
+         * - `bool consumer(Botan::secure_vector<uint8_t>& data, bool is_final)`
+         *
+         * Returns true to signal continuation, false to end streaming.
+         */
+        typedef std::function<bool (Botan::secure_vector<uint8_t>& /* data */, bool /* is_final */)> StreamConsumerFunc;
 
         typedef jau::ringbuffer<uint8_t, size_t> ByteRingbuffer;
 
@@ -64,40 +70,48 @@ class IOUtil {
         /**
          *
          * @param input_file
+         * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only.
          * @param buf_size
          * @param consumer_fn
          * @return total bytes read or 0 if error
          */
-        static uint64_t read_file(const std::string& input_file, Botan::secure_vector<uint8_t>& buffer,
+        static uint64_t read_file(const std::string& input_file, const uint64_t exp_size,
+                                  Botan::secure_vector<uint8_t>& buffer,
                                   StreamConsumerFunc consumer_fn);
 
         /**
          *
          * @param in
+         * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only.
          * @param buf_size
          * @param consumer_fn
          * @return total bytes read
          */
-        static uint64_t read_stream(std::istream& in, Botan::secure_vector<uint8_t>& buffer,
+        static uint64_t read_stream(std::istream& in, const uint64_t exp_size,
+                                    Botan::secure_vector<uint8_t>& buffer,
                                     StreamConsumerFunc consumer_fn);
 
         /**
          * @param in
+         * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only.
          * @param buf_size
          * @param consumer_fn
          * @return total bytes read
          */
-        static uint64_t read_stream(Botan::DataSource& in, Botan::secure_vector<uint8_t>& buffer,
+        static uint64_t read_stream(Botan::DataSource& in, const uint64_t exp_size,
+                                    Botan::secure_vector<uint8_t>& buffer,
                                     StreamConsumerFunc consumer_fn);
 
         /**
          *
          * @param url
+         * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only.
          * @param buffer
          * @param consumer_fn
          * @return total bytes read or 0 if error
          */
-        static uint64_t read_url_stream(const std::string& url, Botan::secure_vector<uint8_t>& buffer,
+        static uint64_t read_url_stream(const std::string& url, const uint64_t exp_size,
+                                        Botan::secure_vector<uint8_t>& buffer,
                                         StreamConsumerFunc consumer_fn);
 
         static const size_t BEST_URLSTREAM_RINGBUFFER_SIZE;
@@ -107,20 +121,22 @@ class IOUtil {
          * allowing parallel reading.
          *
          * @param url the URL of the content to read
+         * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only.
          * @param buffer the ringbuffer destination to write into
          * @param has_content_length indicating whether content_length is known from server
          * @param content_length tracking the content_length
          * @param total_read tracking the total_read
          * @param result tracking the result_t
-         * @return the http background reading thread
+         * @return the url background reading thread
          */
-        static std::thread read_url_stream(const std::string& url, ByteRingbuffer& buffer,
+        static std::thread read_url_stream(const std::string& url, const uint64_t& exp_size,
+                                           ByteRingbuffer& buffer,
                                            jau::relaxed_atomic_bool& has_content_length,
                                            jau::relaxed_atomic_uint64& content_length,
                                            jau::relaxed_atomic_uint64& total_read,
                                            relaxed_atomic_result_t& result) noexcept;
 
-        static void print_stats(const std::string &prefix, const uint64_t out_bytes_total, uint64_t td_ms) noexcept;
+        static void print_stats(const std::string& prefix, const uint64_t& out_bytes_total, const jau::fraction_i64& td) noexcept;
 };
 
 /**
@@ -131,21 +147,24 @@ class DataSource_URL final : public Botan::DataSource {
         size_t read(uint8_t out[], size_t length) override;
         size_t peek(uint8_t out[], size_t length, size_t peek_offset) const override;
         bool check_available(size_t n) override { return get_available() >= n; }
-        bool end_of_data() const override { return IOUtil::result_t::NONE != m_http_result && m_buffer.isEmpty(); }
+        bool end_of_data() const override { return IOUtil::result_t::NONE != m_url_result && m_buffer.isEmpty(); }
 
         std::string id() const override { return m_url; }
 
         /**
          * Construct a ringbuffer backed Http DataSource
          * @param url the URL of the data to read
+         * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only (default).
          */
-        DataSource_URL(const std::string& url);
+        DataSource_URL(const std::string& url, const uint64_t exp_size=0);
 
         DataSource_URL(const DataSource_URL&) = delete;
 
         DataSource_URL& operator=(const DataSource_URL&) = delete;
 
         ~DataSource_URL() override;
+
+        void close() noexcept;
 
         bool get_url_has_content_length() const { return m_url_has_content_length; }
         uint64_t get_url_content_length() const { return m_url_content_length; }
@@ -160,8 +179,8 @@ class DataSource_URL final : public Botan::DataSource {
         uint64_t get_bytes_read_u64() const { return m_bytes_consumed; }
 
         uint64_t get_available() const noexcept {
-            if( IOUtil::result_t::NONE != m_http_result ) {
-                // http thread ended, only remaining bytes in buffer available left
+            if( IOUtil::result_t::NONE != m_url_result ) {
+                // url thread ended, only remaining bytes in buffer available left
                 return m_buffer.size();
             }
             if( m_url_has_content_length ) {
@@ -175,12 +194,13 @@ class DataSource_URL final : public Botan::DataSource {
 
     private:
         const std::string m_url;
+        const uint64_t m_exp_size;
         IOUtil::ByteRingbuffer m_buffer;
         jau::relaxed_atomic_bool m_url_has_content_length;
         jau::relaxed_atomic_uint64 m_url_content_length;
         jau::relaxed_atomic_uint64 m_url_total_read;
-        IOUtil::relaxed_atomic_result_t m_http_result;
-        std::thread m_http_thread;
+        IOUtil::relaxed_atomic_result_t m_url_result;
+        std::thread m_url_thread;
         uint64_t m_bytes_consumed;
 };
 
@@ -223,6 +243,8 @@ class DataSource_Recorder final : public Botan::DataSource {
         DataSource_Recorder& operator=(const DataSource_Recorder&) = delete;
 
         ~DataSource_Recorder() override;
+
+        void close() noexcept;
 
         size_t get_bytes_read() const override { return m_parent.get_bytes_read(); }
 

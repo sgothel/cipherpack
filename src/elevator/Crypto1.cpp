@@ -224,22 +224,23 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::str
         aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;
-        IOUtil::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> void {
+        IOUtil::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> bool {
             if( !is_final ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, input_stats.size());
             } else {
                 aead->finish(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, input_stats.size());
             }
+            return true;
         };
         Botan::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(buffer_size);
-        const uint64_t in_bytes_total = IOUtil::read_file(input_fname, io_buffer, consume_data);
+        const uint64_t in_bytes_total = IOUtil::read_file(input_fname, input_stats.size(), io_buffer, consume_data);
 
         if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT2("Encrypt failed: Output file write failed %s", output_fname.c_str());
@@ -595,12 +596,13 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
         aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;
-        auto consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) {
+        IOUtil::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> bool {
             if( !is_final ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, file_size);
+                return out_bytes_payload < file_size; // end streaming if done
             } else {
                 // DBG_PRINT("Decrypt: p111a size %zu, capacity %zu", data.size(), data.capacity());
                 // DBG_PRINT("Decrypt: p111a data %s",
@@ -611,12 +613,13 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
                 //           jau::bytesHexString(data.data(), 0, data.size(), true /* lsbFirst */).c_str());
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes", data.size(), out_bytes_payload);
+                DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, file_size);
+                return true;
             }
         };
         Botan::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(buffer_size);
-        const uint64_t in_bytes_total = IOUtil::read_stream(input, io_buffer, consume_data);
+        const uint64_t in_bytes_total = IOUtil::read_stream(input, 0, io_buffer, consume_data);
 
         if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT2("Decrypt failed: Output file write failed %s", output_fname.c_str());

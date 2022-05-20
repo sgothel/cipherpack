@@ -64,14 +64,15 @@ class Test02IOStream : public TestData {
             Botan::secure_vector<uint8_t> buffer(4096);
             size_t consumed_calls = 0;
             uint64_t consumed_total_bytes = 0;
-            auto consume = [&](Botan::secure_vector<uint8_t>& data, bool is_final) noexcept {
+            IOUtil::StreamConsumerFunc consume = [&](Botan::secure_vector<uint8_t>& data, bool is_final) noexcept -> bool {
                 consumed_calls++;
                 consumed_total_bytes += data.size();
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 jau::PLAIN_PRINT(true, "test02io01 #%zu: consumed size %zu, total %" PRIu64 ", capacity %zu, final %d",
                         consumed_calls, data.size(), consumed_total_bytes, data.capacity(), is_final );
+                return true;
             };
-            uint64_t http_total_bytes = IOUtil::read_url_stream(url_input, buffer, consume);
+            uint64_t http_total_bytes = IOUtil::read_url_stream(url_input, 0, buffer, consume);
             const uint64_t out_bytes_total = outfile.tellp();
             jau::PLAIN_PRINT(true, "test02io01 Done: total %" PRIu64 ", capacity %zu", consumed_total_bytes, buffer.capacity());
 
@@ -93,7 +94,7 @@ class Test02IOStream : public TestData {
             jau::relaxed_atomic_uint64 url_total_read;
             IOUtil::relaxed_atomic_result_t result;
 
-            std::thread http_thread = IOUtil::read_url_stream(url_input, rb, url_has_content_length, url_content_length, url_total_read, result);
+            std::thread http_thread = IOUtil::read_url_stream(url_input, 0, rb, url_has_content_length, url_content_length, url_total_read, result);
 
             Botan::secure_vector<uint8_t> buffer(buffer_size);
             size_t consumed_loops = 0;
