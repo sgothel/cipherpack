@@ -33,6 +33,8 @@
 #include <jau/basic_types.hpp>
 #include <jau/file_util.hpp>
 
+#include <elevator/data_source.hpp>
+
 #include <botan_all.h>
 
 namespace elevator {
@@ -275,14 +277,14 @@ class Cipherpack {
          * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the file-key.
          *                           It shall match one of the keys used to encrypt.
          * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
-         * @param source             The Botan::DataSource of the ciphertext pack file source, containing the payload.
+         * @param source             The DataSource_Closeable of the ciphertext pack file source, containing the payload.
          * @param output_fname       The filename of the resulting plaintext target.
          * @param overwrite If true, overwrite a potentially existing `outfilename`.
          * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
          */
         static PackInfo checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                                   const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                                  Botan::DataSource &source,
+                                                  io::DataSource_Closeable &source,
                                                   const std::string &output_fname, const bool overwrite);
 };
 

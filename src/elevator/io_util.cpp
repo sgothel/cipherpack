@@ -38,16 +38,16 @@
 #include <thread>
 #include <pthread.h>
 
-using namespace elevator;
+using namespace elevator::io;
 using namespace jau::fractions_i64_literals;
 
-bool IOUtil::remove(const std::string& fname) noexcept {
+bool elevator::io::remove(const std::string& fname) noexcept {
     return 0 == std::remove( fname.c_str() );
 }
 
-uint64_t IOUtil::read_file(const std::string& input_file, const uint64_t exp_size,
-                           Botan::secure_vector<uint8_t>& buffer,
-                           StreamConsumerFunc consumer_fn)
+uint64_t elevator::io::read_file(const std::string& input_file, const uint64_t exp_size,
+                                 Botan::secure_vector<uint8_t>& buffer,
+                                 StreamConsumerFunc consumer_fn)
 {
     if(input_file == "-") {
         return read_stream(std::cin, exp_size, buffer, consumer_fn);
@@ -61,9 +61,9 @@ uint64_t IOUtil::read_file(const std::string& input_file, const uint64_t exp_siz
     }
 }
 
-uint64_t IOUtil::read_stream(std::istream& in, const uint64_t exp_size,
-                             Botan::secure_vector<uint8_t>& buffer,
-                             StreamConsumerFunc consumer_fn)
+uint64_t elevator::io::read_stream(std::istream& in, const uint64_t exp_size,
+                                   Botan::secure_vector<uint8_t>& buffer,
+                                   StreamConsumerFunc consumer_fn)
 {
     uint64_t total = 0;
     bool has_more = in.good();
@@ -83,9 +83,9 @@ uint64_t IOUtil::read_stream(std::istream& in, const uint64_t exp_size,
    return total;
 }
 
-uint64_t IOUtil::read_stream(Botan::DataSource& in, const uint64_t exp_size,
-                             Botan::secure_vector<uint8_t>& buffer,
-                             StreamConsumerFunc consumer_fn) {
+uint64_t elevator::io::read_stream(DataSource_Closeable& in, const uint64_t exp_size,
+                                   Botan::secure_vector<uint8_t>& buffer,
+                                   StreamConsumerFunc consumer_fn) {
     uint64_t total = 0;
     bool has_more = !in.end_of_data();
     while( has_more ) {
@@ -110,7 +110,7 @@ struct curl_glue1_t {
     uint64_t content_length;
     uint64_t total_read;
     Botan::secure_vector<uint8_t>& buffer;
-    IOUtil::StreamConsumerFunc consumer_fn;
+    StreamConsumerFunc consumer_fn;
 };
 
 static size_t consume_curl1(void *ptr, size_t size, size_t nmemb, void *stream) noexcept {
@@ -150,9 +150,9 @@ static size_t consume_curl1(void *ptr, size_t size, size_t nmemb, void *stream) 
     return realsize;
 }
 
-uint64_t IOUtil::read_url_stream(const std::string& url, const uint64_t exp_size,
-                                 Botan::secure_vector<uint8_t>& buffer,
-                                 StreamConsumerFunc consumer_fn) {
+uint64_t elevator::io::read_url_stream(const std::string& url, const uint64_t exp_size,
+                                       Botan::secure_vector<uint8_t>& buffer,
+                                       StreamConsumerFunc consumer_fn) {
     std::vector<char> errorbuffer;
     errorbuffer.reserve(CURL_ERROR_SIZE);
     CURLcode res;
@@ -235,8 +235,8 @@ struct curl_glue2_t {
                  jau::relaxed_atomic_bool& _has_content_length,
                  jau::relaxed_atomic_uint64& _content_length,
                  jau::relaxed_atomic_uint64& _total_read,
-                 IOUtil::ByteRingbuffer& _buffer,
-                 IOUtil::relaxed_atomic_result_t& _result)
+                 ByteRingbuffer& _buffer,
+                 relaxed_atomic_result_t& _result)
     : curl_handle(_curl_handle),
       exp_size(_exp_size),
       has_content_length(_has_content_length),
@@ -251,14 +251,14 @@ struct curl_glue2_t {
     jau::relaxed_atomic_bool& has_content_length;
     jau::relaxed_atomic_uint64& content_length;
     jau::relaxed_atomic_uint64& total_read;
-    IOUtil::ByteRingbuffer& buffer;
-    IOUtil::relaxed_atomic_result_t& result;
+    ByteRingbuffer& buffer;
+    relaxed_atomic_result_t& result;
 };
 
 static size_t consume_curl2(void *ptr, size_t size, size_t nmemb, void *stream) noexcept {
     curl_glue2_t * cg = (curl_glue2_t*)stream;
 
-    if( IOUtil::result_t::NONE!= cg->result ) {
+    if( result_t::NONE!= cg->result ) {
         // user abort!
         DBG_PRINT("consume_curl2 ABORT by User: total %" PRIi64 ", result %d, rb %s",
                 cg->total_read.load(), cg->result.load(), cg->buffer.toString().c_str() );
@@ -289,7 +289,7 @@ static size_t consume_curl2(void *ptr, size_t size, size_t nmemb, void *stream) 
                           cg->has_content_length ? cg->total_read >= cg->content_length : false ||
                           ( 0 < cg->exp_size || cg->total_read >= cg->exp_size );
     if( is_final ) {
-        cg->result = IOUtil::result_t::SUCCESS;
+        cg->result = result_t::SUCCESS;
     }
 
     DBG_PRINT("consume_curl2.X realsize %zu, total %" PRIu64 " / ( exp_size %" PRIu64 " or content_len %" PRIu64 " ), is_final %d, result %d, rb %s",
@@ -361,7 +361,7 @@ static void read_url_stream_thread(const char *url, std::unique_ptr<curl_glue2_t
     /* performs the tast, blocking! */
     res = curl_easy_perform(curl_handle);
     if( CURLE_OK != res ) {
-        if( IOUtil::result_t::NONE == cg->result ) {
+        if( result_t::NONE == cg->result ) {
             // Error during normal processing
             ERR_PRINT("Error processing url %s, error %d %d",
                       url, (int)res, errorbuffer.data());
@@ -374,11 +374,11 @@ static void read_url_stream_thread(const char *url, std::unique_ptr<curl_glue2_t
     }
 
     /* cleanup curl stuff */
-    cg->result = IOUtil::result_t::SUCCESS;
+    cg->result = result_t::SUCCESS;
     goto cleanup;
 
 errout:
-    cg->result = IOUtil::result_t::FAILED;
+    cg->result = result_t::FAILED;
 
 cleanup:
     if( nullptr != curl_handle ) {
@@ -387,19 +387,17 @@ cleanup:
     return;
 }
 
-const size_t IOUtil::BEST_URLSTREAM_RINGBUFFER_SIZE = 2*CURL_MAX_WRITE_SIZE;
-
-std::thread IOUtil::read_url_stream(const std::string& url, const uint64_t& exp_size,
-                                    ByteRingbuffer& buffer,
-                                    jau::relaxed_atomic_bool& has_content_length,
-                                    jau::relaxed_atomic_uint64& content_length,
-                                    jau::relaxed_atomic_uint64& total_read,
-                                    relaxed_atomic_result_t& result) noexcept {
+std::thread elevator::io::read_url_stream(const std::string& url, const uint64_t& exp_size,
+                                          ByteRingbuffer& buffer,
+                                          jau::relaxed_atomic_bool& has_content_length,
+                                          jau::relaxed_atomic_uint64& content_length,
+                                          jau::relaxed_atomic_uint64& total_read,
+                                          relaxed_atomic_result_t& result) noexcept {
     /* init user referenced values */
     has_content_length = false;
     content_length = 0;
     total_read = 0;
-    result = IOUtil::result_t::NONE;
+    result = io::result_t::NONE;
 
     if( buffer.capacity() < BEST_URLSTREAM_RINGBUFFER_SIZE ) {
         buffer.recapacity( BEST_URLSTREAM_RINGBUFFER_SIZE );
@@ -410,7 +408,7 @@ std::thread IOUtil::read_url_stream(const std::string& url, const uint64_t& exp_
     return std::thread(&::read_url_stream_thread, url.c_str(), std::move(cg)); // @suppress("Invalid arguments")
 }
 
-void IOUtil::print_stats(const std::string& prefix, const uint64_t& out_bytes_total, const jau::fraction_i64& td) noexcept {
+void elevator::io::print_stats(const std::string& prefix, const uint64_t& out_bytes_total, const jau::fraction_i64& td) noexcept {
     if( jau::environment::get().verbose ) {
 
 
@@ -447,96 +445,3 @@ void IOUtil::print_stats(const std::string& prefix, const uint64_t& out_bytes_to
     }
 }
 
-
-
-DataSource_URL::DataSource_URL(const std::string& url, const uint64_t exp_size)
-: m_url(url), m_exp_size(exp_size), m_buffer(0x00, IOUtil::BEST_URLSTREAM_RINGBUFFER_SIZE), m_bytes_consumed(0)
-{
-    m_url_thread = IOUtil::read_url_stream(m_url, m_exp_size, m_buffer, m_url_has_content_length, m_url_content_length, m_url_total_read, m_url_result);
-}
-
-DataSource_URL::~DataSource_URL() {
-    DBG_PRINT("DataSource_Url: dtor.0 %s, %s", id().c_str(), m_buffer.toString().c_str());
-    close();
-    DBG_PRINT("DataSource_Url: dtor.X %s, %s", id().c_str(), m_buffer.toString().c_str());
-}
-
-void DataSource_URL::close() noexcept {
-    DBG_PRINT("DataSource_Url: close.0 %s, %s", id().c_str(), m_buffer.toString().c_str());
-
-    m_url_result = IOUtil::result_t::FAILED; // signal end of curl thread!
-
-    m_buffer.drop(m_buffer.size()); // unblock putBlocking(..)
-    if( m_url_thread.joinable() ) {
-        DBG_PRINT("DataSource_Url: close.1 %s, %s", id().c_str(), m_buffer.toString().c_str());
-        m_url_thread.join();
-    }
-    DBG_PRINT("DataSource_Url: close.X %s, %s", id().c_str(), m_buffer.toString().c_str());
-}
-
-size_t DataSource_URL::read(uint8_t out[], size_t length) {
-    if( !check_available( 1 ) ) {
-        DBG_PRINT("DataSource_Url::read(.., length %zu): !avail, abort: %s", length, to_string().c_str());
-        return 0;
-    }
-    const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, 0_s);
-    m_bytes_consumed += consumed_bytes;
-    return consumed_bytes;
-}
-
-size_t DataSource_URL::peek(uint8_t out[], size_t length, size_t peek_offset) const {
-    (void)out;
-    (void)length;
-    (void)peek_offset;
-    throw Botan::Not_Implemented("DataSource_Url::peek not implemented");
-    return 0;
-}
-
-std::string DataSource_URL::to_string() const {
-    return "DataSource_Url["+m_url+", Url[content_length "+std::to_string(m_url_has_content_length.load())+
-                                                   " "+std::to_string(m_url_content_length.load())+
-                                                   ", read "+std::to_string(m_url_total_read.load())+
-                                                   ", result "+std::to_string((int8_t)m_url_result.load())+
-                            "], consumed "+std::to_string(m_bytes_consumed)+
-                            ", available "+std::to_string(get_available())+
-                            ", eod "+std::to_string(end_of_data())+", "+m_buffer.toString()+"]";
-}
-
-
-
-DataSource_Recorder::~DataSource_Recorder() {
-    DBG_PRINT("DataSource_Recorder: dtor.0 %s", id().c_str());
-    close();
-    DBG_PRINT("DataSource_Recorder: dtor.X %s", id().c_str());
-}
-
-void DataSource_Recorder::close() noexcept {
-    DBG_PRINT("DataSource_Recorder: close.X %s", id().c_str());
-}
-
-void DataSource_Recorder::start_recording() noexcept {
-    if( is_recording() ) {
-        m_buffer.resize(0);
-    }
-    m_rec_offset = m_bytes_consumed;
-    m_is_recording = true;
-}
-
-void DataSource_Recorder::stop_recording() noexcept {
-    m_is_recording = false;
-}
-
-void DataSource_Recorder::clear_recording() noexcept {
-    m_is_recording = false;
-    m_buffer.clear();
-    m_rec_offset = 0;
-}
-
-size_t DataSource_Recorder::read(uint8_t out[], size_t length) {
-    const size_t consumed_bytes = m_parent.read(out, length);
-    m_bytes_consumed += consumed_bytes;
-    if( is_recording() ) {
-        m_buffer.insert(m_buffer.end(), out, out+consumed_bytes);
-    }
-    return consumed_bytes;
-}

@@ -26,7 +26,9 @@
 #ifndef ELEVATOR_HPP_
 #define ELEVATOR_HPP_
 
-#include <elevator/IOUtil.hpp>
+#include <elevator/data_source.hpp>
+#include <elevator/io_util.hpp>
+
 #include <elevator/Cipherpack.hpp>
 
 #include <jau/environment.hpp>

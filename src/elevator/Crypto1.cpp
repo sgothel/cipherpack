@@ -93,7 +93,7 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::str
         const jau::fs::file_stats output_stats(output_fname);
         if( output_stats.exists() ) {
             if( overwrite && output_stats.is_file() ) {
-                if( !IOUtil::remove(output_fname) ) {
+                if( !io::remove(output_fname) ) {
                     ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
                     return PackInfo(ts_creation, input_fname, false);
                 }
@@ -213,7 +213,7 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::str
         uint64_t out_bytes_total = outfile.tellp();
         if( out_bytes_header != out_bytes_total ) {
             ERR_PRINT2("Encrypt: DER Header done, %" PRIu64 " header != %" PRIu64 " total bytes", out_bytes_header, out_bytes_total);
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, input_fname, false);
         } else {
             DBG_PRINT("Encrypt: DER Header done, %" PRIu64 " header == %" PRIu64 " total bytes", out_bytes_header, out_bytes_total);
@@ -224,7 +224,7 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::str
         aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;
-        IOUtil::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        io::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> bool {
             if( !is_final ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
@@ -240,11 +240,11 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::str
         };
         Botan::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(buffer_size);
-        const uint64_t in_bytes_total = IOUtil::read_file(input_fname, input_stats.size(), io_buffer, consume_data);
+        const uint64_t in_bytes_total = io::read_file(input_fname, input_stats.size(), io_buffer, consume_data);
 
         if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT2("Encrypt failed: Output file write failed %s", output_fname.c_str());
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, input_fname, false);
         }
 
@@ -257,19 +257,19 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::str
                     jau::to_decstring(out_bytes_payload).c_str(),
                     jau::to_decstring(out_bytes_total).c_str(),
                     jau::to_decstring(in_bytes_total).c_str());
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, input_fname, false);
         } else if( output_stats.size() != out_bytes_total ) {
             ERR_PRINT2("Encrypt: Writing done, %s total bytes != %s",
                     jau::to_decstring(out_bytes_payload).c_str(),
                     output_stats.to_string(true).c_str() );
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, input_fname, false);
         } else if( input_stats.size() != in_bytes_total ) {
             ERR_PRINT2("Encrypt: Writing done, %s != %s bytes input",
                     input_stats.to_string(true).c_str(),
                     jau::to_decstring(in_bytes_total).c_str());
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, input_fname, false);
         } else if( jau::environment::get().verbose ) {
             jau::PLAIN_PRINT(true, "Encrypt: Writing done, %s header + %s payload == %s total bytes for %s bytes input, ratio %lf out/in",
@@ -282,20 +282,20 @@ Cipherpack::PackInfo Cipherpack::encryptThenSign_RSA1(const std::vector<std::str
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-        IOUtil::print_stats("Encrypt", out_bytes_total, _td);
+        io::print_stats("Encrypt", out_bytes_total, _td);
         return PackInfo(ts_creation, input_fname, false, output_stats, true, target_path, intention,
                         payload_version, payload_version_parent,
                         fingerprt_host, "");
     } catch (std::exception &e) {
         ERR_PRINT2("Encrypt failed: Caught exception: %s", e.what());
-        IOUtil::remove(output_fname);
+        io::remove(output_fname);
         return PackInfo(ts_creation, input_fname, false);
     }
 }
 
 Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                                            const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                                           Botan::DataSource &source,
+                                                           io::DataSource_Closeable &source,
                                                            const std::string &output_fname, const bool overwrite) {
     Elevator::env_init();
 
@@ -306,7 +306,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
         const jau::fs::file_stats output_stats(output_fname);
         if( output_stats.exists() ) {
             if( overwrite && output_stats.is_file() ) {
-                if( !IOUtil::remove(output_fname) ) {
+                if( !io::remove(output_fname) ) {
                     ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_fname.c_str());
                     return PackInfo(ts_creation, source.id(), true);
                 }
@@ -367,7 +367,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
         std::vector<uint8_t> signature;
 
         Botan::secure_vector<uint8_t> input_buffer;
-        DataSource_Recorder input(source, input_buffer);
+        io::DataSource_Recorder input(source, input_buffer);
 
         try {
             // DER-Header-1
@@ -383,7 +383,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
 
                 if( package_magic != package_magic_in ) {
                     ERR_PRINT2("Decrypt failed: Expected Magic %s, but got %s in %s", package_magic.c_str(), package_magic_in.c_str(), source.id().c_str());
-                    IOUtil::remove(output_fname);
+                    io::remove(output_fname);
                     return PackInfo(ts_creation, source.id(), true);
                 }
                 DBG_PRINT("Decrypt: Magic is %s", package_magic_in.c_str());
@@ -422,24 +422,24 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
 
                 if( target_path.empty() ) {
                    ERR_PRINT2("Decrypt failed: Unknown target_path in %s", source.id().c_str());
-                   IOUtil::remove(output_fname);
+                   io::remove(output_fname);
                    return PackInfo(ts_creation, source.id(), true);
                 }
                 if( 0 == file_size ) {
                    ERR_PRINT2("Decrypt failed: Zero file-size in %s", source.id().c_str());
-                   IOUtil::remove(output_fname);
+                   io::remove(output_fname);
                    return PackInfo(ts_creation, source.id(), true);
                 }
                 if( sign_algo.empty() ) {
                    ERR_PRINT2("Decrypt failed: Unknown signing algo in %s", source.id().c_str());
-                   IOUtil::remove(output_fname);
+                   io::remove(output_fname);
                    return PackInfo(ts_creation, source.id(), true);
                 }
                 DBG_PRINT("Decrypt: sign algo is %s", sign_algo.c_str());
                 if( sign_algo != rsa_sign_algo) {
                    ERR_PRINT2("Decrypt failed: Expected signing algo %s, but got %s in %s",
                            rsa_sign_algo.c_str(), sign_algo.c_str(), source.id().c_str());
-                   IOUtil::remove(output_fname);
+                   io::remove(output_fname);
                    return PackInfo(ts_creation, source.id(), true);
                 }
                 for( sign_key_data_t sign_key_data : sign_key_data_list ) {
@@ -451,7 +451,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
                 if( nullptr == sign_pub_key ) {
                     jau::INFO_PRINT("Decrypt failed: No matching host fingerprint, received `%s` in %s",
                             fingerprt_host.c_str(), source.id().c_str());
-                    IOUtil::remove(output_fname);
+                    io::remove(output_fname);
                     return PackInfo(ts_creation, source.id(), true);
                 }
 
@@ -475,7 +475,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
 
                 if( encrypted_key_idx >= encrypted_key_count || 0 == encrypted_key_count ) {
                     jau::INFO_PRINT("Decrypt failed: No matching enc_key found %zu/%zu in %s", encrypted_key_idx, encrypted_key_count, source.id().c_str());
-                    IOUtil::remove(output_fname);
+                    io::remove(output_fname);
                     return PackInfo(ts_creation, source.id(), true);
                 }
 
@@ -506,14 +506,14 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
                         header1_buffer.size(),
                         jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str(),
                         source.id().c_str());
-                IOUtil::remove(output_fname);
+                io::remove(output_fname);
                 return PackInfo(ts_creation, source.id(), true);
             } else {
                 DBG_PRINT("Decrypt: Signature OK");
             }
         } catch (Botan::Decoding_Error &e) {
             ERR_PRINT2("Decrypt failed: Invalid input file format: source %s, %s", source.id().c_str(), e.what());
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, source.id(), true);
         }
 
@@ -532,7 +532,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
             if( pk_algo_str != padding_combo ) {
                 ERR_PRINT2("Decrypt failed: Expected ciphertext encryption/padding algo %s, but got %s in %s",
                         padding_combo.c_str(), pk_algo_str.c_str(), source.id().c_str());
-                IOUtil::remove(output_fname);
+                io::remove(output_fname);
                 return PackInfo(ts_creation, source.id(), true);
             }
         }
@@ -543,20 +543,20 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
             if( hash_algo.empty() ) {
                 ERR_PRINT2("Decrypt failed: Unknown hash function used with %s padding, OID is %s in %s",
                         rsa_padding_algo.c_str(), hash_algo_id.get_oid().to_string().c_str(), source.id().c_str());
-                IOUtil::remove(output_fname);
+                io::remove(output_fname);
                 return PackInfo(ts_creation, source.id(), true);
             }
             DBG_PRINT("Decrypt: hash function for %s padding is %s", rsa_padding_algo.c_str(), hash_algo.c_str());
             if( hash_algo != rsa_hash_algo ) {
                ERR_PRINT2("Decrypt failed: Expected hash function for % padding is %s, but got %s in %s",
                        rsa_padding_algo.c_str(), rsa_hash_algo.c_str(), hash_algo.c_str(), source.id().c_str());
-               IOUtil::remove(output_fname);
+               io::remove(output_fname);
                return PackInfo(ts_creation, source.id(), true);
             }
             if( !hash_algo_id.get_parameters().empty() ) {
                 ERR_PRINT2("Decrypt failed: Unknown %s padding - %s hash function parameter used in %s",
                         rsa_padding_algo.c_str(), hash_algo.c_str(), source.id().c_str());
-                IOUtil::remove(output_fname);
+                io::remove(output_fname);
                 return PackInfo(ts_creation, source.id(), true);
             }
         }
@@ -566,14 +566,14 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
         {
             if( cipher_algo.empty() ) {
                ERR_PRINT2("Decrypt failed: Unknown ciphertext encryption algo in %s", source.id().c_str());
-               IOUtil::remove(output_fname);
+               io::remove(output_fname);
                return PackInfo(ts_creation, source.id(), true);
             }
             DBG_PRINT("Decrypt: ciphertext encryption algo is %s", cipher_algo.c_str());
             if( cipher_algo != aead_cipher_algo) {
                ERR_PRINT2("Decrypt failed: Expected ciphertext encryption algo %s, but got %s in %s",
                        aead_cipher_algo.c_str(), cipher_algo.c_str(), source.id().c_str());
-               IOUtil::remove(output_fname);
+               io::remove(output_fname);
                return PackInfo(ts_creation, source.id(), true);
             }
         }
@@ -596,7 +596,7 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
         aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;
-        IOUtil::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        io::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> bool {
             if( !is_final ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
@@ -619,11 +619,12 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
         };
         Botan::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(buffer_size);
-        const uint64_t in_bytes_total = IOUtil::read_stream(input, 0, io_buffer, consume_data);
+        const uint64_t in_bytes_total = io::read_stream(input, 0, io_buffer, consume_data);
+        input.close();
 
         if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT2("Decrypt failed: Output file write failed %s", output_fname.c_str());
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, source.id(), true);
         }
 
@@ -634,19 +635,19 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
             ERR_PRINT2("Decrypt: Writing done, %s payload != %s total bytes for %s bytes input",
                     jau::to_decstring(out_bytes_payload).c_str(), jau::to_decstring(out_bytes_total).c_str(),
                     jau::to_decstring(in_bytes_total).c_str());
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, source.id(), true);
         } else if( output_stats.size() != out_bytes_payload ) {
             ERR_PRINT2("Descrypt: Writing done, %s payload bytes != %s",
                     jau::to_decstring(out_bytes_payload).c_str(),
                     output_stats.to_string(true).c_str() );
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, source.id(), true);
         } else if( output_stats.size() != file_size ) {
             ERR_PRINT2("Descrypt: Writing done, %s payload bytes != %s header file_size",
                     jau::to_decstring(out_bytes_payload).c_str(),
                     jau::to_decstring(file_size).c_str() );
-            IOUtil::remove(output_fname);
+            io::remove(output_fname);
             return PackInfo(ts_creation, source.id(), true);
         } else {
             WORDY_PRINT("Decrypt: Writing done, %s total bytes from %s bytes input, ratio %lf in/out",
@@ -655,14 +656,14 @@ Cipherpack::PackInfo Cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-        IOUtil::print_stats("Decrypt", out_bytes_total, _td);
+        io::print_stats("Decrypt", out_bytes_total, _td);
 
         return PackInfo(ts_creation, source.id(), true, output_stats, false, target_path, intention,
                         payload_version, payload_version_parent,
                         fingerprt_host, dec_key_fingerprint);
     } catch (std::exception &e) {
         ERR_PRINT2("Decrypt failed: Caught exception: %s", e.what());
-        IOUtil::remove(output_fname);
+        io::remove(output_fname);
         return PackInfo(ts_creation, source.id(), true);
     }
 }

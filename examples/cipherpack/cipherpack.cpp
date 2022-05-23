@@ -119,12 +119,12 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        std::unique_ptr<Botan::DataSource> enc_stream;
+        std::unique_ptr<io::DataSource_Closeable> enc_stream;
         const std::string proto = source.substr(0, 5);
         if( proto == "http:" ) {
-            enc_stream = std::make_unique<DataSource_URL>(source);
+            enc_stream = std::make_unique<io::DataSource_URL>(source);
         } else {
-            enc_stream = std::make_unique<Botan::DataSource_Stream>(source, true /* use_binary */);
+            enc_stream = std::make_unique<io::DataSource_File>(source, true /* use_binary */);
         }
         Cipherpack::PackInfo pinfo = Cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                                                            *enc_stream, fname_output, overwrite);

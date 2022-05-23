@@ -64,7 +64,7 @@ class Test02IOStream : public TestData {
             Botan::secure_vector<uint8_t> buffer(4096);
             size_t consumed_calls = 0;
             uint64_t consumed_total_bytes = 0;
-            IOUtil::StreamConsumerFunc consume = [&](Botan::secure_vector<uint8_t>& data, bool is_final) noexcept -> bool {
+            io::StreamConsumerFunc consume = [&](Botan::secure_vector<uint8_t>& data, bool is_final) noexcept -> bool {
                 consumed_calls++;
                 consumed_total_bytes += data.size();
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
@@ -72,7 +72,7 @@ class Test02IOStream : public TestData {
                         consumed_calls, data.size(), consumed_total_bytes, data.capacity(), is_final );
                 return true;
             };
-            uint64_t http_total_bytes = IOUtil::read_url_stream(url_input, 0, buffer, consume);
+            uint64_t http_total_bytes = io::read_url_stream(url_input, 0, buffer, consume);
             const uint64_t out_bytes_total = outfile.tellp();
             jau::PLAIN_PRINT(true, "test02io01 Done: total %" PRIu64 ", capacity %zu", consumed_total_bytes, buffer.capacity());
 
@@ -88,19 +88,19 @@ class Test02IOStream : public TestData {
             REQUIRE( outfile.is_open() );
 
             constexpr const size_t buffer_size = 4096;
-            IOUtil::ByteRingbuffer rb(0x00, IOUtil::BEST_URLSTREAM_RINGBUFFER_SIZE);
+            io::ByteRingbuffer rb(0x00, io::BEST_URLSTREAM_RINGBUFFER_SIZE);
             jau::relaxed_atomic_bool url_has_content_length;
             jau::relaxed_atomic_uint64 url_content_length;
             jau::relaxed_atomic_uint64 url_total_read;
-            IOUtil::relaxed_atomic_result_t result;
+            io::relaxed_atomic_result_t result;
 
-            std::thread http_thread = IOUtil::read_url_stream(url_input, 0, rb, url_has_content_length, url_content_length, url_total_read, result);
+            std::thread http_thread = io::read_url_stream(url_input, 0, rb, url_has_content_length, url_content_length, url_total_read, result);
 
             Botan::secure_vector<uint8_t> buffer(buffer_size);
             size_t consumed_loops = 0;
             uint64_t consumed_total_bytes = 0;
 
-            while( IOUtil::result_t::NONE == result || !rb.isEmpty() ) {
+            while( io::result_t::NONE == result || !rb.isEmpty() ) {
                 consumed_loops++;
                 // const size_t consumed_bytes = content_length >= 0 ? std::min(buffer_size, content_length - consumed_total_bytes) : rb.getSize();
                 const size_t consumed_bytes = rb.getBlocking(buffer.data(), buffer_size, 1, 0_s);
@@ -119,7 +119,7 @@ class Test02IOStream : public TestData {
             REQUIRE( url_content_length == consumed_total_bytes );
             REQUIRE( url_content_length == url_total_read );
             REQUIRE( url_content_length == out_bytes_total );
-            REQUIRE( IOUtil::result_t::SUCCESS == result );
+            REQUIRE( io::result_t::SUCCESS == result );
         }
 
         static void test03() {
