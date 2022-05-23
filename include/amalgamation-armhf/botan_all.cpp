@@ -17,6 +17,7 @@
 #include <set>
 #include <string>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 
@@ -444,14 +445,14 @@ class ChaCha final : public StreamCipher
 
       void initialize_state();
 
-      void chacha_x8(uint8_t output[64*8], uint32_t state[16], size_t rounds);
+      static void chacha_x8(uint8_t output[64*8], uint32_t state[16], size_t rounds);
 
 #if defined(BOTAN_HAS_CHACHA_SIMD32)
-      void chacha_simd32_x4(uint8_t output[64*4], uint32_t state[16], size_t rounds);
+      static void chacha_simd32_x4(uint8_t output[64*4], uint32_t state[16], size_t rounds);
 #endif
 
 #if defined(BOTAN_HAS_CHACHA_AVX2)
-      void chacha_avx2_x8(uint8_t output[64*8], uint32_t state[16], size_t rounds);
+      static void chacha_avx2_x8(uint8_t output[64*8], uint32_t state[16], size_t rounds);
 #endif
 
       size_t m_rounds;
@@ -1613,8 +1614,8 @@ inline void conditional_swap_ptr(bool cnd, T& x, T& y)
    }
 
 /**
-* If bad_mask is unset, return input[offset:input_length] copied to new
-* buffer. If bad_mask is set, return an empty vector. In all cases, the capacity
+* If bad_input is unset, return input[offset:input_length] copied to new
+* buffer. If bad_input is set, return an empty vector. In all cases, the capacity
 * of the vector is equal to input_length
 *
 * This function attempts to avoid leaking the following:
@@ -1643,7 +1644,7 @@ inline secure_vector<uint8_t> strip_leading_zeros(const secure_vector<uint8_t>& 
 
 namespace Botan {
 
-/**
+/*
 * NIST Prime reduction functions.
 *
 * Reduces the value in place
@@ -1651,19 +1652,65 @@ namespace Botan {
 * ws is a workspace function which is used as a temporary,
 * and will be resized as needed.
 */
+
+/**
+* Return the P-521 prime
+*/
 BOTAN_TEST_API const BigInt& prime_p521();
+
+/**
+* Reduce an input modulo P-521
+*
+* Input value x must be between 0 and p**2
+*/
 BOTAN_TEST_API void redc_p521(BigInt& x, secure_vector<word>& ws);
 
+/**
+* Return the P-384 prime
+*/
 BOTAN_TEST_API const BigInt& prime_p384();
+
+/**
+* Reduce an input modulo P-384
+*
+* Input value x must be between 0 and p**2
+*/
 BOTAN_TEST_API void redc_p384(BigInt& x, secure_vector<word>& ws);
 
+/**
+* Return the P-256 prime
+*/
 BOTAN_TEST_API const BigInt& prime_p256();
+
+/**
+* Reduce an input modulo P-256
+*
+* Input value x must be between 0 and p**2
+*/
 BOTAN_TEST_API void redc_p256(BigInt& x, secure_vector<word>& ws);
 
+/**
+* Return the P-224 prime
+*/
 BOTAN_TEST_API const BigInt& prime_p224();
+
+/**
+* Reduce an input modulo P-224
+*
+* Input value x must be between 0 and p**2
+*/
 BOTAN_TEST_API void redc_p224(BigInt& x, secure_vector<word>& ws);
 
+/**
+* Return the P-192 prime
+*/
 BOTAN_TEST_API const BigInt& prime_p192();
+
+/**
+* Reduce an input modulo P-192
+*
+* Input value x must be between 0 and p**2
+*/
 BOTAN_TEST_API void redc_p192(BigInt& x, secure_vector<word>& ws);
 
 }
@@ -1682,19 +1729,6 @@ void vartime_divide(const BigInt& x,
                     const BigInt& y,
                     BigInt& q,
                     BigInt& r);
-
-/**
-* BigInt/word Division
-* @param x an integer
-* @param y a non-zero integer
-* @param q will be set to x / y
-* @param r will be set to x % y
-*/
-BOTAN_TEST_API
-void vartime_divide_word(const BigInt& x,
-                         word y,
-                         BigInt& q,
-                         BigInt& r);
 
 /**
 * BigInt division, const time variant
@@ -1734,7 +1768,7 @@ inline BigInt ct_divide(const BigInt& x, const BigInt& y)
 * BigInt division, const time variant
 *
 * This runs with control flow independent of the values of x/y.
-* Warning: the loop bounds still leak the sizes of x and y.
+* Warning: the loop bounds still leaks the size of x.
 *
 * @param x an integer
 * @param y a non-zero integer
@@ -1742,10 +1776,10 @@ inline BigInt ct_divide(const BigInt& x, const BigInt& y)
 * @param r will be set to x % y
 */
 BOTAN_TEST_API
-void ct_divide_u8(const BigInt& x,
-                  uint8_t y,
-                  BigInt& q,
-                  uint8_t& r);
+void ct_divide_word(const BigInt& x,
+                    word y,
+                    BigInt& q,
+                    word& r);
 
 /**
 * BigInt modulo, const time variant
@@ -2343,9 +2377,8 @@ template<typename T> inline constexpr uint8_t get_byte_var(size_t byte_num, T in
 
 /**
 * Byte extraction
-* @param byte_num which byte to extract, 0 == highest byte
 * @param input the value to extract from
-* @return byte byte_num of input
+* @return byte byte number B of input
 */
 template<size_t B, typename T> inline constexpr uint8_t get_byte(T input)
    {
@@ -3069,7 +3102,7 @@ class HashFunction;
 * @param hash hash function to use
 * @param in input buffer
 * @param in_len size of the input buffer in bytes
-* @param out output buffer
+* @param out output buffer. The buffer is XORed with the output of MGF1.
 * @param out_len size of the output buffer in bytes
 */
 void mgf1_mask(HashFunction& hash,
@@ -3105,14 +3138,14 @@ class BOTAN_TEST_API Montgomery_Int final
       /**
       * Create a Montgomery_Int
       */
-      Montgomery_Int(std::shared_ptr<const Montgomery_Params> params,
+      Montgomery_Int(const std::shared_ptr<const Montgomery_Params>& params,
                      const BigInt& v,
                      bool redc_needed = true);
 
       /**
       * Create a Montgomery_Int
       */
-      Montgomery_Int(std::shared_ptr<const Montgomery_Params> params,
+      Montgomery_Int(const std::shared_ptr<const Montgomery_Params>& params,
                      const uint8_t bits[], size_t len,
                      bool redc_needed = true);
 
@@ -3277,7 +3310,7 @@ class Montgomery_Exponentation_State;
 * Precompute for calculating values g^x mod p
 */
 std::shared_ptr<const Montgomery_Exponentation_State>
-monty_precompute(std::shared_ptr<const Montgomery_Params> params_p,
+monty_precompute(const std::shared_ptr<const Montgomery_Params>& params_p,
                  const BigInt& g,
                  size_t window_bits,
                  bool const_time = true);
@@ -3314,7 +3347,7 @@ BigInt monty_exp_vartime(std::shared_ptr<const Montgomery_Params> params_p,
 /**
 * Return (x^z1 * y^z2) % p
 */
-BigInt monty_multi_exp(std::shared_ptr<const Montgomery_Params> params_p,
+BigInt monty_multi_exp(const std::shared_ptr<const Montgomery_Params>& params_p,
                        const BigInt& x,
                        const BigInt& z1,
                        const BigInt& y,
@@ -4873,7 +4906,7 @@ namespace Botan {
 
 /**
 * OAEP (called EME1 in IEEE 1363 and in earlier versions of the library)
-* as specified in PKCS#1 v2.0 (RFC 2437)
+* as specified in PKCS#1 v2.0 (RFC 2437) or PKCS#1 v2.1 (RFC 3447)
 */
 class OAEP final : public EME
    {
@@ -4952,7 +4985,6 @@ bool running_in_privileged_state();
 */
 uint64_t BOTAN_TEST_API get_cpu_cycle_counter();
 
-size_t BOTAN_TEST_API get_cpu_total();
 size_t BOTAN_TEST_API get_cpu_available();
 
 /**
@@ -5052,6 +5084,11 @@ void page_prohibit_access(void* page);
 */
 void page_allow_access(void* page);
 
+/**
+* Set a ID to a page's range expressed by size bytes
+*/
+void page_named(void* page, size_t size);
+
 
 /**
 * Run a probe instruction to test for support for a CPU instruction.
@@ -5074,7 +5111,7 @@ void page_allow_access(void* page);
 * Return codes:
 * -1 illegal instruction detected
 */
-int BOTAN_TEST_API run_cpu_instruction_probe(std::function<int ()> probe_fn);
+int BOTAN_TEST_API run_cpu_instruction_probe(const std::function<int ()>& probe_fn);
 
 /**
 * Represents a terminal state
@@ -5114,7 +5151,7 @@ namespace Botan {
 * @param algo the algorithm for which to look up supported padding schemes
 * @return a vector of supported padding schemes
 */
-BOTAN_TEST_API const std::vector<std::string> get_sig_paddings(const std::string algo);
+BOTAN_TEST_API std::vector<std::string> get_sig_paddings(const std::string& algo);
 
 /**
 * Returns true iff the given padding scheme is valid for the given
@@ -5123,7 +5160,8 @@ BOTAN_TEST_API const std::vector<std::string> get_sig_paddings(const std::string
 * @param algo the signature algorithm to be used
 * @param padding the padding scheme to be used
 */
-bool sig_algo_and_pad_ok(const std::string algo, const std::string padding);
+bool sig_algo_and_pad_ok(const std::string& algo,
+                         const std::string& padding);
 
 }
 
@@ -5410,13 +5448,10 @@ class Verification_with_EMSA : public Verification
       void update(const uint8_t msg[], size_t msg_len) override;
       bool is_valid_signature(const uint8_t sig[], size_t sig_len) override;
 
-      bool do_check(const secure_vector<uint8_t>& msg,
-                    const uint8_t sig[], size_t sig_len);
-
-      std::string hash_for_signature() { return m_hash; }
-
    protected:
       explicit Verification_with_EMSA(const std::string& emsa, bool has_message_recovery = false);
+
+      std::string hash_for_signature() { return m_hash; }
 
       /**
       * Get the maximum message size in bits supported by this public key.
@@ -5511,9 +5546,6 @@ class Signature_with_EMSA : public Signature
       */
       virtual size_t max_input_bits() const = 0;
 
-      bool self_test_signature(const std::vector<uint8_t>& msg,
-                               const std::vector<uint8_t>& sig) const;
-
       virtual secure_vector<uint8_t> raw_sign(const uint8_t msg[], size_t msg_len,
                                            RandomNumberGenerator& rng) = 0;
 
@@ -5603,6 +5635,7 @@ class Poly1305 final : public MessageAuthenticationCode
          return Key_Length_Specification(32);
          }
 
+      bool fresh_key_required_per_message() const override { return true; }
    private:
       void add_data(const uint8_t[], size_t) override;
       void final_result(uint8_t[]) override;
@@ -5991,7 +6024,7 @@ class SCAN_Name final
       * Create a SCAN_Name
       * @param algo_spec A SCAN-format name
       */
-      explicit SCAN_Name(std::string algo_spec);
+      explicit SCAN_Name(const std::string& algo_spec);
 
       /**
       * @return original input string
@@ -6064,7 +6097,7 @@ class SCAN_Name final
 // This is unrelated but it is convenient to stash it here
 template<typename T>
 std::vector<std::string> probe_providers_of(const std::string& algo_spec,
-                                            const std::vector<std::string>& possible)
+                                            const std::vector<std::string>& possible = { "base" })
    {
    std::vector<std::string> providers;
    for(auto&& prov : possible)
@@ -6308,6 +6341,20 @@ void map_remove_if(Pred pred, T& assoc)
          i++;
       }
    }
+
+template <typename T> T concat(T buffer) { return buffer; }
+template <typename T, typename... Ts>
+T concat(const T& buffer, const Ts& ...buffers)
+   {
+   auto result = concat(buffers...);
+   result.insert(result.begin(), buffer.begin(), buffer.end());
+   return result;
+   }
+
+template<typename... Alts, typename... Ts>
+constexpr bool holds_any_of(const std::variant<Ts...>& v) noexcept {
+    return (std::holds_alternative<Alts>(v) || ...);
+}
 
 }
 
@@ -7144,13 +7191,13 @@ OID OID::from_string(const std::string& str)
    if(str.empty())
       throw Invalid_Argument("OID::from_string argument must be non-empty");
 
-   const OID o = OIDS::str2oid_or_empty(str);
+   OID o = OIDS::str2oid_or_empty(str);
    if(o.has_value())
       return o;
 
    std::vector<uint32_t> raw = parse_oid_str(str);
 
-   if(raw.size() > 0)
+   if(!raw.empty())
       return OID(std::move(raw));
 
    throw Lookup_Error("No OID associated with name " + str);
@@ -7189,7 +7236,7 @@ std::string OID::to_string() const
 
 std::string OID::to_formatted_string() const
    {
-   const std::string s = OIDS::oid2str_or_empty(*this);
+   std::string s = OIDS::oid2str_or_empty(*this);
    if(!s.empty())
       return s;
    return this->to_string();
@@ -7460,11 +7507,7 @@ void ASN1_Formatter::decode(std::ostream& output,
             data.decode(number, ASN1_Type::Enumerated, class_tag);
             }
 
-         std::vector<uint8_t> rep = BigInt::encode(number);
-         if(rep.empty()) // if zero
-            rep.resize(1);
-
-         output << format(type_tag, class_tag, level, length, hex_encode(rep));
+         output << format(type_tag, class_tag, level, length, format_bn(number));
          }
       else if(type_tag == ASN1_Type::Boolean)
          {
@@ -7586,7 +7629,7 @@ std::string ASN1_Pretty_Printer::format(ASN1_Type type_tag,
        << ", l=" << std::setw(4) << length << ":"
        << std::string(level + 1, ' ') << format_type(type_tag, class_tag);
 
-   if(value != "" && !should_skip)
+   if(!value.empty() && !should_skip)
       {
       const size_t current_pos = static_cast<size_t>(oss.tellp());
       const size_t spaces_to_align =
@@ -7610,6 +7653,14 @@ std::string ASN1_Pretty_Printer::format_bin(ASN1_Type /*type_tag*/,
       }
    else
       return hex_encode(vec);
+   }
+
+std::string ASN1_Pretty_Printer::format_bn(const BigInt& bn) const
+   {
+   if(bn.bits() < 16)
+      return bn.to_dec_string();
+   else
+      return bn.to_hex_string();
    }
 
 }
@@ -7641,7 +7692,7 @@ ASN1_Type choose_encoding(const std::string& str)
       auto is_decimal = CT::Mask<uint8_t>::is_within_range(c, '0', '9');
 
       auto is_print_punc = CT::Mask<uint8_t>::is_any_of(c, {
-            ' ', '(', ')', '+', ',', '=', ',', '-', '.', '/',
+            ' ', '(', ')', '+', ',', '-', '.', '/',
             ':', '=', '?'});
 
       auto is_printable = is_alpha_lower | is_alpha_upper | is_decimal | is_print_punc;
@@ -8385,7 +8436,7 @@ BER_Decoder::BER_Decoder(const BER_Decoder& other)
 * Request for an object to decode itself
 */
 BER_Decoder& BER_Decoder::decode(ASN1_Object& obj,
-                                 ASN1_Type, ASN1_Class)
+                                 ASN1_Type /*unused*/, ASN1_Class /*unused*/)
    {
    obj.decode_from(*this);
    return (*this);
@@ -8659,8 +8710,8 @@ void DER_Encoder::DER_Sequence::push_contents(DER_Encoder& der)
    if(m_type_tag == ASN1_Type::Set)
       {
       std::sort(m_set_contents.begin(), m_set_contents.end());
-      for(size_t i = 0; i != m_set_contents.size(); ++i)
-         m_contents += m_set_contents[i];
+      for(const auto& set_elem : m_set_contents)
+         m_contents += set_elem;
       m_set_contents.clear();
       }
 
@@ -8718,7 +8769,7 @@ DER_Encoder::DER_Sequence::DER_Sequence(ASN1_Type t1, ASN1_Class t2) :
 */
 secure_vector<uint8_t> DER_Encoder::get_contents()
    {
-   if(m_subsequences.size() != 0)
+   if(!m_subsequences.empty())
       throw Invalid_State("DER_Encoder: Sequence hasn't been marked done");
 
    if(m_append_output)
@@ -8731,7 +8782,7 @@ secure_vector<uint8_t> DER_Encoder::get_contents()
 
 std::vector<uint8_t> DER_Encoder::get_contents_unlocked()
    {
-   if(m_subsequences.size() != 0)
+   if(!m_subsequences.empty())
       throw Invalid_State("DER_Encoder: Sequence hasn't been marked done");
 
    if(m_append_output)
@@ -8794,7 +8845,7 @@ DER_Encoder& DER_Encoder::end_explicit()
 */
 DER_Encoder& DER_Encoder::raw_bytes(const uint8_t bytes[], size_t length)
    {
-   if(m_subsequences.size())
+   if(!m_subsequences.empty())
       {
       m_subsequences[m_subsequences.size()-1].add_bytes(bytes, length);
       }
@@ -8820,7 +8871,7 @@ DER_Encoder& DER_Encoder::add_object(ASN1_Type type_tag, ASN1_Class class_tag,
    encode_tag(hdr, type_tag, class_tag);
    encode_length(hdr, length);
 
-   if(m_subsequences.size())
+   if(!m_subsequences.empty())
       {
       m_subsequences[m_subsequences.size()-1].add_bytes(hdr.data(), hdr.size(), rep, length);
       }
@@ -8912,8 +8963,8 @@ DER_Encoder& DER_Encoder::encode(const BigInt& n,
    n.binary_encode(&contents[extra_zero]);
    if(n < 0)
       {
-      for(size_t i = 0; i != contents.size(); ++i)
-         contents[i] = ~contents[i];
+      for(unsigned char & content : contents)
+         content = ~content;
       for(size_t i = contents.size(); i > 0; --i)
          if(++contents[i-1])
             break;
@@ -8973,7 +9024,7 @@ DER_Encoder& DER_Encoder::add_object(ASN1_Type type_tag,
 /*
 * OID maps
 *
-* This file was automatically generated by ./src/scripts/oids.py on 2020-09-26
+* This file was automatically generated by src/scripts/oids.py on 2022-01-10
 *
 * All manual edits to this file will be lost. Edit the script
 * then regenerate this source file.
@@ -9109,6 +9160,12 @@ std::unordered_map<std::string, std::string> OIDS::load_oid2str_map()
       { "1.3.36.3.3.2.8.1.1.9", "brainpool320r1" },
       { "1.3.6.1.4.1.11591.15.1", "OpenPGP.Ed25519" },
       { "1.3.6.1.4.1.11591.4.11", "Scrypt" },
+      { "1.3.6.1.4.1.2.267.10.2.2", "Kyber-512-90s-r3" },
+      { "1.3.6.1.4.1.2.267.10.3.3", "Kyber-768-90s-r3" },
+      { "1.3.6.1.4.1.2.267.10.4.4", "Kyber-1024-90s-r3" },
+      { "1.3.6.1.4.1.2.267.8.2.2", "Kyber-512-r3" },
+      { "1.3.6.1.4.1.2.267.8.3.3", "Kyber-768-r3" },
+      { "1.3.6.1.4.1.2.267.8.4.4", "Kyber-1024-r3" },
       { "1.3.6.1.4.1.25258.1.3", "McEliece" },
       { "1.3.6.1.4.1.25258.1.5", "XMSS-draft6" },
       { "1.3.6.1.4.1.25258.1.6.1", "GOST-34.10-2012-256/EMSA1(SHA-256)" },
@@ -9324,6 +9381,12 @@ std::unordered_map<std::string, OID> OIDS::load_str2oid_map()
       { "KeyWrap.AES-256", OID({2,16,840,1,101,3,4,1,45}) },
       { "KeyWrap.CAST-128", OID({1,2,840,113533,7,66,15}) },
       { "KeyWrap.TripleDES", OID({1,2,840,113549,1,9,16,3,6}) },
+      { "Kyber-1024-90s-r3", OID({1,3,6,1,4,1,2,267,10,4,4}) },
+      { "Kyber-1024-r3", OID({1,3,6,1,4,1,2,267,8,4,4}) },
+      { "Kyber-512-90s-r3", OID({1,3,6,1,4,1,2,267,10,2,2}) },
+      { "Kyber-512-r3", OID({1,3,6,1,4,1,2,267,8,2,2}) },
+      { "Kyber-768-90s-r3", OID({1,3,6,1,4,1,2,267,10,3,3}) },
+      { "Kyber-768-r3", OID({1,3,6,1,4,1,2,267,8,3,3}) },
       { "MD5", OID({1,2,840,113549,2,5}) },
       { "MGF1", OID({1,2,840,113549,1,1,8}) },
       { "McEliece", OID({1,3,6,1,4,1,25258,1,3}) },
@@ -9591,7 +9654,7 @@ OID OIDS::str2oid_or_empty(const std::string& name)
 
 std::string OIDS::oid2str_or_throw(const OID& oid)
    {
-   const std::string s = OIDS::oid2str_or_empty(oid);
+   std::string s = OIDS::oid2str_or_empty(oid);
    if(s.empty())
       throw Lookup_Error("No name associated with OID " + oid.to_string());
    return s;
@@ -10037,7 +10100,7 @@ size_t base64_decode_max_output(size_t input_length)
 }
 /*
 * BigInt Encoding/Decoding
-* (C) 1999-2010,2012,2019 Jack Lloyd
+* (C) 1999-2010,2012,2019,2021 Jack Lloyd
 *
 * Botan is released under the Simplified BSD License (see license.txt)
 */
@@ -10047,29 +10110,70 @@ namespace Botan {
 
 std::string BigInt::to_dec_string() const
    {
-   BigInt copy = *this;
-   copy.set_sign(Positive);
+   // Use the largest power of 10 that fits in a word
+#if (BOTAN_MP_WORD_BITS == 64)
+   const word conversion_radix = 10000000000000000000U;
+   const word radix_digits = 19;
+#else
+   const word conversion_radix = 1000000000U;
+   const word radix_digits = 9;
+#endif
 
-   uint8_t remainder;
-   std::vector<uint8_t> digits;
+   // (over-)estimate of the number of digits needed; log2(10) ~ 3.3219
+   const size_t digit_estimate = static_cast<size_t>(1 + (this->bits() / 3.32));
 
-   while(copy > 0)
+   // (over-)estimate of db such that conversion_radix^db > *this
+   const size_t digit_blocks = (digit_estimate + radix_digits - 1) / radix_digits;
+
+   BigInt value = *this;
+   value.set_sign(Positive);
+
+   // Extract groups of digits into words
+   std::vector<word> digit_groups(digit_blocks);
+
+   for(size_t i = 0; i != digit_blocks; ++i)
       {
-      ct_divide_u8(copy, 100, copy, remainder);
-
-      const uint8_t ld = remainder % 10;
-      const uint8_t td = (remainder - ld) / 10;
-      digits.push_back(ld);
-
-      if(copy > 0 || td > 0)
-         digits.push_back(td);
+      word remainder = 0;
+      ct_divide_word(value, conversion_radix, value, remainder);
+      digit_groups[i] = remainder;
       }
 
-   std::string s;
+   BOTAN_ASSERT_NOMSG(value.is_zero());
 
+   // Extract digits from the groups
+   std::vector<uint8_t> digits(digit_blocks * radix_digits);
+
+   for(size_t i = 0; i != digit_blocks; ++i)
+      {
+      word remainder = digit_groups[i];
+      for(size_t j = 0; j != radix_digits; ++j)
+         {
+         // Compiler should convert div/mod by 10 into mul by magic constant
+         const word digit = remainder % 10;
+         remainder /= 10;
+         digits[radix_digits*i + j] = static_cast<uint8_t>(digit);
+         }
+      }
+
+   // remove leading zeros
+   while(!digits.empty() && digits.back() == 0)
+      {
+      digits.pop_back();
+      }
+
+   BOTAN_ASSERT_NOMSG(digit_estimate >= digits.size());
+
+   // Reverse the digits to big-endian and format to text
+   std::string s;
+   s.reserve(1 + digits.size());
+
+   if(is_negative())
+      s += "-";
+
+   // Reverse and convert to textual digits
    for(auto i = digits.rbegin(); i != digits.rend(); ++i)
       {
-      s.push_back(*i + '0');
+      s.push_back(*i + '0'); // assumes ASCII
       }
 
    if(s.empty())
@@ -10080,11 +10184,17 @@ std::string BigInt::to_dec_string() const
 
 std::string BigInt::to_hex_string() const
    {
-   const std::vector<uint8_t> bits = BigInt::encode(*this);
+   std::vector<uint8_t> bits = BigInt::encode(*this);
+
    if(bits.empty())
-      return "00";
-   else
-      return hex_encode(bits);
+      bits.push_back(0);
+
+   std::string hrep;
+   if(is_negative())
+      hrep += "-";
+   hrep += "0x";
+   hrep += hex_encode(bits);
+   return hrep;
    }
 
 /*
@@ -10114,6 +10224,8 @@ void BigInt::encode_1363(uint8_t output[], size_t bytes, const BigInt& n)
 */
 secure_vector<uint8_t> BigInt::encode_fixed_length_int_pair(const BigInt& n1, const BigInt& n2, size_t bytes)
    {
+   if(n1.is_negative() || n2.is_negative())
+      throw Encoding_Error("encode_fixed_length_int_pair: values must be positive");
    if(n1.bytes() > bytes || n2.bytes() > bytes)
       throw Encoding_Error("encode_fixed_length_int_pair: values too large to encode properly");
    secure_vector<uint8_t> output(2 * bytes);
@@ -10156,6 +10268,7 @@ BigInt BigInt::decode(const uint8_t buf[], size_t length, Base base)
       }
    else if(base == Decimal)
       {
+      // This could be made faster using the same trick as to_dec_string
       for(size_t i = 0; i != length; ++i)
          {
          const char c = buf[i];
@@ -10193,17 +10306,17 @@ namespace Botan {
 */
 std::ostream& operator<<(std::ostream& stream, const BigInt& n)
    {
-   size_t base = 10;
-   if(stream.flags() & std::ios::hex)
-      base = 16;
-   if(stream.flags() & std::ios::oct)
+   const auto stream_flags = stream.flags();
+   if(stream_flags & std::ios::oct)
       throw Invalid_Argument("Octal output of BigInt not supported");
 
-   if(n == 0)
+   const size_t base = (stream_flags & std::ios::hex) ? 16 : 10;
+
+   if(n.is_zero())
       stream.write("0", 1);
    else
       {
-      if(n < 0)
+      if(n.is_negative())
          stream.write("-", 1);
 
       std::string enc;
@@ -10213,10 +10326,7 @@ std::ostream& operator<<(std::ostream& stream, const BigInt& n)
       else
          enc = n.to_hex_string();
 
-      size_t skip = 0;
-      while(skip < enc.size() && enc[skip] == '0')
-         ++skip;
-      stream.write(&enc[skip], enc.size() - skip);
+      stream.write(enc.data(), enc.size());
       }
    if(!stream.good())
       throw Stream_IO_Error("BigInt output operator has failed");
@@ -10312,6 +10422,7 @@ BigInt& BigInt::mod_add(const BigInt& s, const BigInt& mod, secure_vector<word>&
 
    word borrow = bigint_sub3(&ws[0], mod.data(), mod_sw, s.data(), mod_sw);
    BOTAN_DEBUG_ASSERT(borrow == 0);
+   BOTAN_UNUSED(borrow);
 
    // Compute t - ws
    borrow = bigint_sub3(&ws[mod_sw], this->data(), mod_sw, &ws[0], mod_sw);
@@ -10655,20 +10766,10 @@ BigInt operator/(const BigInt& x, word y)
    {
    if(y == 0)
       throw Invalid_Argument("BigInt::operator/ divide by zero");
-   else if(y == 1)
-      return x;
-   else if(y == 2)
-      return (x >> 1);
-   else if(y <= 255)
-      {
-      BigInt q;
-      uint8_t r;
-      ct_divide_u8(x, static_cast<uint8_t>(y), q, r);
-      return q;
-      }
 
-   BigInt q, r;
-   vartime_divide_word(x, y, q, r);
+   BigInt q;
+   word r;
+   ct_divide_word(x, y, q, r);
    return q;
    }
 
@@ -11100,16 +11201,6 @@ uint32_t BigInt::to_u32bit() const
    }
 
 /*
-* Set bit number n
-*/
-void BigInt::conditionally_set_bit(size_t n, bool set_it)
-   {
-   const size_t which = n / BOTAN_MP_WORD_BITS;
-   const word mask = static_cast<word>(set_it) << (n % BOTAN_MP_WORD_BITS);
-   m_data.set_word_at(which, word_at(which) | mask);
-   }
-
-/*
 * Clear bit number n
 */
 void BigInt::clear_bit(size_t n)
@@ -11350,8 +11441,8 @@ void BigInt::const_time_unpoison() const
 
 }
 /*
-* Division Algorithm
-* (C) 1999-2007,2012,2018 Jack Lloyd
+* Division Algorithms
+* (C) 1999-2007,2012,2018,2021 Jack Lloyd
 *
 * Botan is released under the Simplified BSD License (see license.txt)
 */
@@ -11397,6 +11488,9 @@ inline bool division_check(word q, word y2, word y1,
 
 void ct_divide(const BigInt& x, const BigInt& y, BigInt& q_out, BigInt& r_out)
    {
+   if(y.is_zero())
+      throw Invalid_Argument("ct_divide: cannot divide by zero");
+
    const size_t x_words = x.sig_words();
    const size_t y_words = y.sig_words();
 
@@ -11425,24 +11519,28 @@ void ct_divide(const BigInt& x, const BigInt& y, BigInt& q_out, BigInt& r_out)
    q_out = q;
    }
 
-void ct_divide_u8(const BigInt& x, uint8_t y, BigInt& q_out, uint8_t& r_out)
+void ct_divide_word(const BigInt& x, word y, BigInt& q_out, word& r_out)
    {
+   if(y == 0)
+      throw Invalid_Argument("ct_divide_word: cannot divide by zero");
+
    const size_t x_words = x.sig_words();
    const size_t x_bits = x.bits();
 
    BigInt q = BigInt::with_capacity(x_words);
-   uint32_t r = 0;
+   word r = 0;
 
    for(size_t i = 0; i != x_bits; ++i)
       {
       const size_t b = x_bits - 1 - i;
       const bool x_b = x.get_bit(b);
 
+      const auto r_carry = CT::Mask<word>::expand(r >> (BOTAN_MP_WORD_BITS - 1));
+
       r *= 2;
       r += x_b;
 
-      const auto r_gte_y = CT::Mask<uint32_t>::is_gte(r, y);
-
+      const auto r_gte_y = CT::Mask<word>::is_gte(r, y) | r_carry;
       q.conditionally_set_bit(b, r_gte_y.is_set());
       r = r_gte_y.select(r - y, r);
       }
@@ -11457,7 +11555,7 @@ void ct_divide_u8(const BigInt& x, uint8_t y, BigInt& q_out, uint8_t& r_out)
          }
       }
 
-   r_out = static_cast<uint8_t>(r);
+   r_out = r;
    q_out = q;
    }
 
@@ -11495,17 +11593,6 @@ BigInt ct_modulo(const BigInt& x, const BigInt& y)
       }
 
    return r;
-   }
-
-void vartime_divide_word(const BigInt& x, const word y, BigInt& q_out, BigInt& r_out)
-   {
-   if(y == 0)
-      throw Invalid_Argument("vartime_divide_word: cannot divide by zero");
-
-   // It might be worthwhile to specialize vartime_divide for y with 1 word
-
-   // until then:
-   vartime_divide(x, BigInt::from_word(y), q_out, r_out);
    }
 
 /*
@@ -11603,13 +11690,16 @@ namespace Botan {
 
 namespace {
 
-#define CHACHA_QUARTER_ROUND(a, b, c, d) \
-      do {                               \
-      a += b; d ^= a; d = rotl<16>(d);   \
-      c += d; b ^= c; b = rotl<12>(b);   \
-      a += b; d ^= a; d = rotl<8>(d);    \
-      c += d; b ^= c; b = rotl<7>(b);    \
-      } while(0)
+inline void chacha_quarter_round(uint32_t& a,
+                                 uint32_t& b,
+                                 uint32_t& c,
+                                 uint32_t& d)
+   {
+   a += b; d ^= a; d = rotl<16>(d);
+   c += d; b ^= c; b = rotl<12>(b);
+   a += b; d ^= a; d = rotl< 8>(d);
+   c += d; b ^= c; b = rotl< 7>(b);
+   }
 
 /*
 * Generate HChaCha cipher stream (for XChaCha IV setup)
@@ -11625,15 +11715,15 @@ void hchacha(uint32_t output[8], const uint32_t input[16], size_t rounds)
 
    for(size_t i = 0; i != rounds / 2; ++i)
       {
-      CHACHA_QUARTER_ROUND(x00, x04, x08, x12);
-      CHACHA_QUARTER_ROUND(x01, x05, x09, x13);
-      CHACHA_QUARTER_ROUND(x02, x06, x10, x14);
-      CHACHA_QUARTER_ROUND(x03, x07, x11, x15);
+      chacha_quarter_round(x00, x04, x08, x12);
+      chacha_quarter_round(x01, x05, x09, x13);
+      chacha_quarter_round(x02, x06, x10, x14);
+      chacha_quarter_round(x03, x07, x11, x15);
 
-      CHACHA_QUARTER_ROUND(x00, x05, x10, x15);
-      CHACHA_QUARTER_ROUND(x01, x06, x11, x12);
-      CHACHA_QUARTER_ROUND(x02, x07, x08, x13);
-      CHACHA_QUARTER_ROUND(x03, x04, x09, x14);
+      chacha_quarter_round(x00, x05, x10, x15);
+      chacha_quarter_round(x01, x06, x11, x12);
+      chacha_quarter_round(x02, x07, x08, x13);
+      chacha_quarter_round(x03, x04, x09, x14);
       }
 
    output[0] = x00;
@@ -11704,15 +11794,15 @@ void ChaCha::chacha_x8(uint8_t output[64*8], uint32_t input[16], size_t rounds)
 
       for(size_t r = 0; r != rounds / 2; ++r)
          {
-         CHACHA_QUARTER_ROUND(x00, x04, x08, x12);
-         CHACHA_QUARTER_ROUND(x01, x05, x09, x13);
-         CHACHA_QUARTER_ROUND(x02, x06, x10, x14);
-         CHACHA_QUARTER_ROUND(x03, x07, x11, x15);
+         chacha_quarter_round(x00, x04, x08, x12);
+         chacha_quarter_round(x01, x05, x09, x13);
+         chacha_quarter_round(x02, x06, x10, x14);
+         chacha_quarter_round(x03, x07, x11, x15);
 
-         CHACHA_QUARTER_ROUND(x00, x05, x10, x15);
-         CHACHA_QUARTER_ROUND(x01, x06, x11, x12);
-         CHACHA_QUARTER_ROUND(x02, x07, x08, x13);
-         CHACHA_QUARTER_ROUND(x03, x04, x09, x14);
+         chacha_quarter_round(x00, x05, x10, x15);
+         chacha_quarter_round(x01, x06, x11, x12);
+         chacha_quarter_round(x02, x07, x08, x13);
+         chacha_quarter_round(x03, x04, x09, x14);
          }
 
       x00 += input[0];
@@ -11753,8 +11843,6 @@ void ChaCha::chacha_x8(uint8_t output[64*8], uint32_t input[16], size_t rounds)
       input[13] += (input[12] == 0);
       }
    }
-
-#undef CHACHA_QUARTER_ROUND
 
 /*
 * Combine cipher stream with message
@@ -12713,6 +12801,7 @@ uint64_t CPUID::CPUID_Data::detect_cpu_features(size_t* cache_line_size)
    {
    uint64_t features_detected = 0;
    uint32_t cpuid[4] = { 0 };
+   bool has_avx = false;
 
    // CPUID 0: vendor identification, max sublevel
    invoke_cpuid(0, cpuid);
@@ -12738,6 +12827,8 @@ uint64_t CPUID::CPUID_Data::detect_cpu_features(size_t* cache_line_size)
          SSE41 = (1ULL << 51),
          SSE42 = (1ULL << 52),
          AESNI = (1ULL << 57),
+         OSXSAVE = (1ULL << 59),
+         AVX = (1ULL << 60),
          RDRAND = (1ULL << 62)
       };
 
@@ -12757,6 +12848,9 @@ uint64_t CPUID::CPUID_Data::detect_cpu_features(size_t* cache_line_size)
          features_detected |= CPUID::CPUID_AESNI_BIT;
       if(flags0 & x86_CPUID_1_bits::RDRAND)
          features_detected |= CPUID::CPUID_RDRAND_BIT;
+      if((flags0 & x86_CPUID_1_bits::AVX) &&
+         (flags0 & x86_CPUID_1_bits::OSXSAVE))
+         has_avx = true;
       }
 
    if(is_intel)
@@ -12797,7 +12891,7 @@ uint64_t CPUID::CPUID_Data::detect_cpu_features(size_t* cache_line_size)
 
       const uint64_t flags7 = (static_cast<uint64_t>(cpuid[2]) << 32) | cpuid[1];
 
-      if(flags7 & x86_CPUID_7_bits::AVX2)
+      if((flags7 & x86_CPUID_7_bits::AVX2) && has_avx)
          features_detected |= CPUID::CPUID_AVX2_BIT;
       if(flags7 & x86_CPUID_7_bits::BMI1)
          {
@@ -12824,7 +12918,7 @@ uint64_t CPUID::CPUID_Data::detect_cpu_features(size_t* cache_line_size)
             }
          }
 
-      if(flags7 & x86_CPUID_7_bits::AVX512_F)
+      if((flags7 & x86_CPUID_7_bits::AVX512_F) && has_avx)
          {
          features_detected |= CPUID::CPUID_AVX512F_BIT;
 
@@ -12937,19 +13031,19 @@ secure_vector<uint8_t> OAEP::unpad(uint8_t& valid_mask,
    Also have to be careful about timing attacks! Pointed out by Falko
    Strenzke.
 
-   According to the standard (Section 7.1.1), the encryptor always
+   According to the standard (RFC 3447 Section 7.1.1), the encryptor always
    creates a message as follows:
       i. Concatenate a single octet with hexadecimal value 0x00,
          maskedSeed, and maskedDB to form an encoded message EM of
          length k octets as
             EM = 0x00 || maskedSeed || maskedDB.
    where k is the length of the modulus N.
-   Therefore, the first byte can always be skipped safely.
+   Therefore, the first byte should always be zero.
    */
 
-   const uint8_t skip_first = CT::Mask<uint8_t>::is_zero(in[0]).if_set_return(1);
+   const auto leading_0 = CT::Mask<uint8_t>::is_zero(in[0]);
 
-   secure_vector<uint8_t> input(in + skip_first, in + in_length);
+   secure_vector<uint8_t> input(in + 1, in + in_length);
 
    const size_t hlen = m_Phash.size();
 
@@ -12961,7 +13055,9 @@ secure_vector<uint8_t> OAEP::unpad(uint8_t& valid_mask,
              input.data(), hlen,
              &input[hlen], input.size() - hlen);
 
-   return oaep_find_delim(valid_mask, input.data(), input.size(), m_Phash);
+   auto unpadded = oaep_find_delim(valid_mask, input.data(), input.size(), m_Phash);
+   valid_mask &= leading_0.unpoisoned_value();
+   return unpadded;
    }
 
 secure_vector<uint8_t>
@@ -13004,7 +13100,7 @@ oaep_find_delim(uint8_t& valid_mask,
    delim_idx += 1;
 
    valid_mask = (~bad_input_m).unpoisoned_value();
-   const secure_vector<uint8_t> output = CT::copy_output(bad_input_m, input, input_len, delim_idx);
+   auto output = CT::copy_output(bad_input_m, input, input_len, delim_idx);
 
    CT::unpoison(input, input_len);
 
@@ -13049,8 +13145,8 @@ OAEP::OAEP(std::unique_ptr<HashFunction> hash,
 namespace Botan {
 
 secure_vector<uint8_t> EME_Raw::pad(const uint8_t in[], size_t in_length,
-                                 size_t,
-                                 RandomNumberGenerator&) const
+                                 size_t /*key_length*/,
+                                 RandomNumberGenerator& /*rng*/) const
    {
    return secure_vector<uint8_t>(in, in + in_length);
    }
@@ -13069,7 +13165,7 @@ size_t EME_Raw::maximum_input_size(size_t keybits) const
 }
 /*
 * EMSA1
-* (C) 1999-2007 Jack Lloyd
+* (C) 1999-2007,2021 Jack Lloyd
 *
 * Botan is released under the Simplified BSD License (see license.txt)
 */
@@ -13082,24 +13178,26 @@ namespace {
 secure_vector<uint8_t> emsa1_encoding(const secure_vector<uint8_t>& msg,
                                   size_t output_bits)
    {
-   if(8*msg.size() <= output_bits)
+   const size_t msg_bits = 8*msg.size();
+   if(msg_bits <= output_bits)
       return msg;
 
-   size_t shift = 8*msg.size() - output_bits;
+   const size_t shift = msg_bits - output_bits;
+   const size_t byte_shift = shift / 8;
+   const size_t bit_shift = shift % 8;
 
-   size_t byte_shift = shift / 8, bit_shift = shift % 8;
    secure_vector<uint8_t> digest(msg.size() - byte_shift);
 
-   for(size_t j = 0; j != msg.size() - byte_shift; ++j)
-      digest[j] = msg[j];
+   for(size_t i = 0; i != msg.size() - byte_shift; ++i)
+      digest[i] = msg[i];
 
    if(bit_shift)
       {
       uint8_t carry = 0;
-      for(size_t j = 0; j != digest.size(); ++j)
+      for(size_t i = 0; i != digest.size(); ++i)
          {
-         uint8_t temp = digest[j];
-         digest[j] = (temp >> bit_shift) | carry;
+         uint8_t temp = digest[i];
+         digest[i] = (temp >> bit_shift) | carry;
          carry = (temp << (8 - bit_shift));
          }
       }
@@ -13130,7 +13228,7 @@ secure_vector<uint8_t> EMSA1::raw_data()
 
 secure_vector<uint8_t> EMSA1::encoding_of(const secure_vector<uint8_t>& msg,
                                        size_t output_bits,
-                                       RandomNumberGenerator&)
+                                       RandomNumberGenerator& /*rng*/)
    {
    if(msg.size() != hash_output_length())
       throw Encoding_Error("EMSA1::encoding_of: Invalid size for input");
@@ -13155,7 +13253,7 @@ bool EMSA1::verify(const secure_vector<uint8_t>& input,
    // If our encoding is longer, all the bytes in it must be zero
    for(size_t i = 0; i != offset; ++i)
       if(our_coding[i] != 0)
-            return false;
+         return false;
 
    return constant_time_compare(input.data(), &our_coding[offset], input.size());
    }
@@ -13616,9 +13714,9 @@ void Entropy_Sources::add_source(std::unique_ptr<Entropy_Source> src)
 std::vector<std::string> Entropy_Sources::enabled_sources() const
    {
    std::vector<std::string> sources;
-   for(size_t i = 0; i != m_srcs.size(); ++i)
+   for(const auto& src : m_srcs)
       {
-      sources.push_back(m_srcs[i]->name());
+      sources.push_back(src->name());
       }
    return sources;
    }
@@ -13633,9 +13731,9 @@ size_t Entropy_Sources::poll(RandomNumberGenerator& rng,
 
    size_t bits_collected = 0;
 
-   for(size_t i = 0; i != m_srcs.size(); ++i)
+   for(auto& src : m_srcs)
       {
-      bits_collected += m_srcs[i]->poll(rng);
+      bits_collected += src->poll(rng);
 
       if (bits_collected >= poll_bits || clock::now() > deadline)
          break;
@@ -13646,11 +13744,11 @@ size_t Entropy_Sources::poll(RandomNumberGenerator& rng,
 
 size_t Entropy_Sources::poll_just(RandomNumberGenerator& rng, const std::string& the_src)
    {
-   for(size_t i = 0; i != m_srcs.size(); ++i)
+   for(auto& src : m_srcs)
       {
-      if(m_srcs[i]->name() == the_src)
+      if(src->name() == the_src)
          {
-         return m_srcs[i]->poll(rng);
+         return src->poll(rng);
          }
       }
 
@@ -13741,9 +13839,6 @@ Entropy_Sources& Entropy_Sources::global_sources()
 #if defined(BOTAN_HAS_BLAKE2B)
 #endif
 
-#if defined(BOTAN_HAS_OPENSSL)
-#endif
-
 #if defined(BOTAN_HAS_COMMONCRYPTO)
 #endif
 
@@ -13757,17 +13852,6 @@ std::unique_ptr<HashFunction> HashFunction::create(const std::string& algo_spec,
    if(provider.empty() || provider == "commoncrypto")
       {
       if(auto hash = make_commoncrypto_hash(algo_spec))
-         return hash;
-
-      if(!provider.empty())
-         return nullptr;
-      }
-#endif
-
-#if defined(BOTAN_HAS_OPENSSL)
-   if(provider.empty() || provider == "openssl")
-      {
-      if(auto hash = make_openssl_hash(algo_spec))
          return hash;
 
       if(!provider.empty())
@@ -13916,11 +14000,11 @@ std::unique_ptr<HashFunction> HashFunction::create(const std::string& algo_spec,
 #if defined(BOTAN_HAS_STREEBOG)
    if(algo_spec == "Streebog-256")
       {
-      return std::make_unique<Streebog_256>();
+      return std::make_unique<Streebog>(256);
       }
    if(algo_spec == "Streebog-512")
       {
-      return std::make_unique<Streebog_512>();
+      return std::make_unique<Streebog>(512);
       }
 #endif
 
@@ -13986,7 +14070,7 @@ HashFunction::create_or_throw(const std::string& algo,
 
 std::vector<std::string> HashFunction::providers(const std::string& algo_spec)
    {
-   return probe_providers_of<HashFunction>(algo_spec, {"base", "openssl", "commoncrypto"});
+   return probe_providers_of<HashFunction>(algo_spec, {"base", "commoncrypto"});
    }
 
 }
@@ -14406,7 +14490,7 @@ KDF::create_or_throw(const std::string& algo,
 
 std::vector<std::string> KDF::providers(const std::string& algo_spec)
    {
-   return probe_providers_of<KDF>(algo_spec, { "base" });
+   return probe_providers_of<KDF>(algo_spec);
    }
 
 }
@@ -14418,9 +14502,7 @@ std::vector<std::string> KDF::providers(const std::string& algo_spec)
 */
 
 
-namespace Botan {
-
-namespace KeyPair {
+namespace Botan::KeyPair {
 
 /*
 * Check an encryption key pair for consistency
@@ -14490,8 +14572,6 @@ bool signature_consistency_check(RandomNumberGenerator& rng,
    }
 
 }
-
-}
 /*
 * Message Authentication Code base class
 * (C) 1999-2008 Jack Lloyd
@@ -14550,7 +14630,6 @@ MessageAuthenticationCode::create(const std::string& algo_spec,
 #if defined(BOTAN_HAS_HMAC)
    if(req.algo_name() == "HMAC" && req.arg_count() == 1)
       {
-      // TODO OpenSSL
       if(provider.empty() || provider == "base")
          {
          if(auto hash = HashFunction::create(req.arg(0)))
@@ -14580,7 +14659,6 @@ MessageAuthenticationCode::create(const std::string& algo_spec,
 #if defined(BOTAN_HAS_CMAC)
    if((req.algo_name() == "CMAC" || req.algo_name() == "OMAC") && req.arg_count() == 1)
       {
-      // TODO: OpenSSL CMAC
       if(provider.empty() || provider == "base")
          {
          if(auto bc = BlockCipher::create(req.arg(0)))
@@ -14609,7 +14687,7 @@ MessageAuthenticationCode::create(const std::string& algo_spec,
 std::vector<std::string>
 MessageAuthenticationCode::providers(const std::string& algo_spec)
    {
-   return probe_providers_of<MessageAuthenticationCode>(algo_spec, {"base", "openssl"});
+   return probe_providers_of<MessageAuthenticationCode>(algo_spec);
    }
 
 //static
@@ -14810,9 +14888,6 @@ void mgf1_mask(HashFunction& hash,
 #if defined(BOTAN_HAS_MODE_XTS)
 #endif
 
-#if defined(BOTAN_HAS_OPENSSL)
-#endif
-
 #if defined(BOTAN_HAS_COMMONCRYPTO)
 #endif
 
@@ -14839,19 +14914,6 @@ std::unique_ptr<Cipher_Mode> Cipher_Mode::create(const std::string& algo,
 
       if(commoncrypto_cipher)
          return commoncrypto_cipher;
-
-      if(!provider.empty())
-         return std::unique_ptr<Cipher_Mode>();
-      }
-#endif
-
-#if defined(BOTAN_HAS_OPENSSL)
-   if(provider.empty() || provider == "openssl")
-      {
-      std::unique_ptr<Cipher_Mode> openssl_cipher(make_openssl_cipher_mode(algo, direction));
-
-      if(openssl_cipher)
-         return openssl_cipher;
 
       if(!provider.empty())
          return std::unique_ptr<Cipher_Mode>();
@@ -14965,7 +15027,7 @@ std::unique_ptr<Cipher_Mode> Cipher_Mode::create(const std::string& algo,
 //static
 std::vector<std::string> Cipher_Mode::providers(const std::string& algo_spec)
    {
-   const std::vector<std::string>& possible = { "base", "openssl", "commoncrypto" };
+   const std::vector<std::string>& possible = { "base", "commoncrypto" };
    std::vector<std::string> providers;
    for(auto&& prov : possible)
       {
@@ -21009,6 +21071,8 @@ BigInt inverse_mod(const BigInt& n, const BigInt& mod)
 */
 
 
+#include <utility>
+
 namespace Botan {
 
 word monty_inverse(word a)
@@ -21250,7 +21314,7 @@ void Montgomery_Params::square_this(BigInt& x,
    copy_mem(x.mutable_data(), z_data, output_size);
    }
 
-Montgomery_Int::Montgomery_Int(const std::shared_ptr<const Montgomery_Params> params,
+Montgomery_Int::Montgomery_Int(const std::shared_ptr<const Montgomery_Params>& params,
                                const BigInt& v,
                                bool redc_needed) :
    m_params(params)
@@ -21267,7 +21331,7 @@ Montgomery_Int::Montgomery_Int(const std::shared_ptr<const Montgomery_Params> pa
       }
    }
 
-Montgomery_Int::Montgomery_Int(std::shared_ptr<const Montgomery_Params> params,
+Montgomery_Int::Montgomery_Int(const std::shared_ptr<const Montgomery_Params>& params,
                                const uint8_t bits[], size_t len,
                                bool redc_needed) :
    m_params(params),
@@ -21284,7 +21348,7 @@ Montgomery_Int::Montgomery_Int(std::shared_ptr<const Montgomery_Params> params,
 Montgomery_Int::Montgomery_Int(std::shared_ptr<const Montgomery_Params> params,
                                const word words[], size_t len,
                                bool redc_needed) :
-   m_params(params)
+   m_params(std::move(params))
    {
    m_v.set_words(words, len);
 
@@ -21491,7 +21555,7 @@ namespace Botan {
 class Montgomery_Exponentation_State
    {
    public:
-      Montgomery_Exponentation_State(std::shared_ptr<const Montgomery_Params> params,
+      Montgomery_Exponentation_State(const std::shared_ptr<const Montgomery_Params>& params,
                                      const BigInt& g,
                                      size_t window_bits,
                                      bool const_time);
@@ -21505,10 +21569,11 @@ class Montgomery_Exponentation_State
       size_t m_window_bits;
    };
 
-Montgomery_Exponentation_State::Montgomery_Exponentation_State(std::shared_ptr<const Montgomery_Params> params,
-                                                               const BigInt& g,
-                                                               size_t window_bits,
-                                                               bool const_time) :
+Montgomery_Exponentation_State::Montgomery_Exponentation_State(
+   const std::shared_ptr<const Montgomery_Params>& params,
+   const BigInt& g,
+   size_t window_bits,
+   bool const_time) :
    m_params(params),
    m_window_bits(window_bits == 0 ? 4 : window_bits)
    {
@@ -21623,7 +21688,7 @@ BigInt Montgomery_Exponentation_State::exponentiation_vartime(const BigInt& scal
    }
 
 std::shared_ptr<const Montgomery_Exponentation_State>
-monty_precompute(std::shared_ptr<const Montgomery_Params> params,
+monty_precompute(const std::shared_ptr<const Montgomery_Params>& params,
                  const BigInt& g,
                  size_t window_bits,
                  bool const_time)
@@ -21643,7 +21708,7 @@ BigInt monty_execute_vartime(const Montgomery_Exponentation_State& precomputed_s
    return precomputed_state.exponentiation_vartime(k);
    }
 
-BigInt monty_multi_exp(std::shared_ptr<const Montgomery_Params> params_p,
+BigInt monty_multi_exp(const std::shared_ptr<const Montgomery_Params>& params_p,
                        const BigInt& x_bn,
                        const BigInt& z1,
                        const BigInt& y_bn,
@@ -21741,6 +21806,8 @@ const BigInt& prime_p521()
 
 void redc_p521(BigInt& x, secure_vector<word>& ws)
    {
+   BOTAN_DEBUG_ASSERT(x.is_positive());
+
    const size_t p_full_words = 521 / BOTAN_MP_WORD_BITS;
    const size_t p_top_bits = 521 % BOTAN_MP_WORD_BITS;
    const size_t p_words = p_full_words + 1;
@@ -21829,6 +21896,8 @@ const BigInt& prime_p192()
 
 void redc_p192(BigInt& x, secure_vector<word>& ws)
    {
+   BOTAN_DEBUG_ASSERT(x.is_positive());
+
    BOTAN_UNUSED(ws);
 
    static const size_t p192_limbs = 192 / BOTAN_MP_WORD_BITS;
@@ -21924,6 +21993,8 @@ const BigInt& prime_p224()
 
 void redc_p224(BigInt& x, secure_vector<word>& ws)
    {
+   BOTAN_DEBUG_ASSERT(x.is_positive());
+
    static const size_t p224_limbs = (BOTAN_MP_WORD_BITS == 32) ? 7 : 4;
 
    BOTAN_UNUSED(ws);
@@ -22026,6 +22097,8 @@ const BigInt& prime_p256()
 
 void redc_p256(BigInt& x, secure_vector<word>& ws)
    {
+   BOTAN_DEBUG_ASSERT(x.is_positive());
+
    static const size_t p256_limbs = (BOTAN_MP_WORD_BITS == 32) ? 8 : 4;
 
    BOTAN_UNUSED(ws);
@@ -22154,6 +22227,8 @@ const BigInt& prime_p384()
 
 void redc_p384(BigInt& x, secure_vector<word>& ws)
    {
+   BOTAN_DEBUG_ASSERT(x.is_positive());
+
    BOTAN_UNUSED(ws);
 
    static const size_t p384_limbs = (BOTAN_MP_WORD_BITS == 32) ? 12 : 6;
@@ -22575,7 +22650,13 @@ BigInt gcd(const BigInt& a, const BigInt& b)
 */
 BigInt lcm(const BigInt& a, const BigInt& b)
    {
-   return ct_divide(a * b, gcd(a, b));
+   if(a == b)
+      return a;
+
+   auto ab = a * b;
+   ab.set_sign(BigInt::Positive); // ignore the signs of a & b
+   const auto g = gcd(a, b);
+   return ct_divide(ab, g);
    }
 
 /*
@@ -22707,14 +22788,11 @@ namespace Botan {
 
 bool is_lucas_probable_prime(const BigInt& C, const Modular_Reducer& mod_C)
    {
-   if(C <= 1)
-      return false;
-   else if(C == 2)
+   if(C == 2 || C == 3 || C == 5 || C == 7 || C == 11 || C == 13)
       return true;
-   else if(C.is_even())
+
+   if(C <= 1 || C.is_even())
       return false;
-   else if(C == 3 || C == 5 || C == 7 || C == 11 || C == 13)
-      return true;
 
    BigInt D = BigInt::from_word(5);
 
@@ -23631,9 +23709,7 @@ void Modular_Reducer::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& w
 */
 
 
-namespace Botan {
-
-namespace PEM_Code {
+namespace Botan::PEM_Code {
 
 namespace {
 
@@ -23648,7 +23724,7 @@ std::string linewrap(size_t width, const std::string& in)
          }
       out.push_back(in[i]);
       }
-   if(out.size() > 0 && out[out.size()-1] != '\n')
+   if(!out.empty() && out[out.size()-1] != '\n')
       {
       out.push_back('\n');
       }
@@ -23701,7 +23777,7 @@ secure_vector<uint8_t> decode(DataSource& source, std::string& label)
       uint8_t b;
       if(!source.read_byte(b))
          throw Decoding_Error("PEM: No PEM header found");
-      if(b == PEM_HEADER1[position])
+      if(static_cast<char>(b) == PEM_HEADER1[position])
          ++position;
       else if(position >= RANDOM_CHAR_LIMIT)
          throw Decoding_Error("PEM: Malformed PEM header");
@@ -23714,7 +23790,7 @@ secure_vector<uint8_t> decode(DataSource& source, std::string& label)
       uint8_t b;
       if(!source.read_byte(b))
          throw Decoding_Error("PEM: No PEM header found");
-      if(b == PEM_HEADER2[position])
+      if(static_cast<char>(b) == PEM_HEADER2[position])
          ++position;
       else if(position)
          throw Decoding_Error("PEM: Malformed PEM header");
@@ -23732,7 +23808,7 @@ secure_vector<uint8_t> decode(DataSource& source, std::string& label)
       uint8_t b;
       if(!source.read_byte(b))
          throw Decoding_Error("PEM: No PEM trailer found");
-      if(b == PEM_TRAILER[position])
+      if(static_cast<char>(b) == PEM_TRAILER[position])
          ++position;
       else if(position)
          throw Decoding_Error("PEM: Malformed PEM trailer");
@@ -23766,7 +23842,7 @@ bool matches(DataSource& source, const std::string& extra,
    const std::string PEM_HEADER = "-----BEGIN " + extra;
 
    secure_vector<uint8_t> search_buf(search_range);
-   size_t got = source.peek(search_buf.data(), search_buf.size(), 0);
+   const size_t got = source.peek(search_buf.data(), search_buf.size(), 0);
 
    if(got < PEM_HEADER.length())
       return false;
@@ -23775,17 +23851,23 @@ bool matches(DataSource& source, const std::string& extra,
 
    for(size_t j = 0; j != got; ++j)
       {
-      if(search_buf[j] == PEM_HEADER[index])
+      if(static_cast<char>(search_buf[j]) == PEM_HEADER[index])
+         {
          ++index;
+         }
       else
+         {
          index = 0;
+         }
+
       if(index == PEM_HEADER.size())
+         {
          return true;
+         }
       }
+
    return false;
    }
-
-}
 
 }
 /*
@@ -23904,8 +23986,8 @@ secure_vector<uint8_t> EME::encode(const secure_vector<uint8_t>& msg,
 
 namespace Botan {
 
-AlgorithmIdentifier EMSA::config_for_x509(const Private_Key&,
-                                          const std::string&) const
+AlgorithmIdentifier EMSA::config_for_x509(const Private_Key& /*unused*/,
+                                          const std::string& /*unused*/) const
    {
    throw Not_Implemented("Encoding " + name() + " not supported for signing X509 objects");
    }
@@ -24069,8 +24151,7 @@ std::string hash_for_emsa(const std::string& algo_spec)
 
    if(emsa_name.arg_count() > 0)
       {
-      const std::string pos_hash = emsa_name.arg(0);
-      return pos_hash;
+      return emsa_name.arg(0);
       }
 
    // If we don't understand what this is return a safe default
@@ -24111,14 +24192,14 @@ const std::map<const std::string, std::vector<std::string>> allowed_signature_pa
    { "RSA", {"EMSA4", "EMSA3"} },
    };
 
-const std::vector<std::string> get_sig_paddings(const std::string algo)
+std::vector<std::string> get_sig_paddings(const std::string& algo)
    {
    if(allowed_signature_paddings.count(algo) > 0)
       return allowed_signature_paddings.at(algo);
    return {};
    }
 
-bool sig_algo_and_pad_ok(const std::string algo, const std::string padding)
+bool sig_algo_and_pad_ok(const std::string& algo, const std::string& padding)
    {
    std::vector<std::string> pads = get_sig_paddings(algo);
    return std::find(pads.begin(), pads.end(), padding) != pads.end();
@@ -24272,7 +24353,7 @@ void Poly1305::clear()
    m_buf_pos = 0;
    }
 
-void Poly1305::key_schedule(const uint8_t key[], size_t)
+void Poly1305::key_schedule(const uint8_t key[], size_t /*length*/)
    {
    m_buf_pos = 0;
    m_buf.resize(16);
@@ -24346,8 +24427,8 @@ Blinder::Blinder(const BigInt& modulus,
                  std::function<BigInt (const BigInt&)> inv) :
       m_reducer(modulus),
       m_rng(rng),
-      m_fwd_fn(fwd),
-      m_inv_fn(inv),
+      m_fwd_fn(std::move(fwd)),
+      m_inv_fn(std::move(inv)),
       m_modulus_bits(modulus.bits()),
       m_e{},
       m_d{},
@@ -24449,9 +24530,6 @@ BigInt Blinder::unblind(const BigInt& i) const
 #endif
 
 #if defined(BOTAN_HAS_SM2)
-#endif
-
-#if defined(BOTAN_HAS_OPENSSL)
 #endif
 
 namespace Botan {
@@ -24696,16 +24774,6 @@ create_private_key(const std::string& alg_name,
    if(alg_name == "RSA")
       {
       const size_t rsa_bits = (params.empty() ? 3072 : to_u32bit(params));
-#if defined(BOTAN_HAS_OPENSSL)
-      if(provider.empty() || provider == "openssl")
-         {
-         auto pk = make_openssl_rsa_private_key(rng, rsa_bits);
-
-         // Return nullptr if openssl was specifically requested
-         if(pk || !provider.empty())
-            return pk;
-         }
-#endif
       return std::make_unique<RSA_PrivateKey>(rng, rsa_bits);
       }
 #endif
@@ -24790,7 +24858,7 @@ create_private_key(const std::string& alg_name,
 
 std::vector<std::string>
 probe_provider_private_key(const std::string& alg_name,
-                           const std::vector<std::string> possible)
+                           const std::vector<std::string>& possible)
    {
    std::vector<std::string> providers;
 
@@ -24798,11 +24866,6 @@ probe_provider_private_key(const std::string& alg_name,
       {
       if(prov == "base")
          providers.push_back(prov);
-
-#if defined(BOTAN_HAS_OPENSSL)
-      if(prov == "openssl" && alg_name == "RSA")
-         providers.push_back(prov);
-#endif
       }
 
    BOTAN_UNUSED(alg_name);
@@ -24858,7 +24921,7 @@ std::vector<uint8_t> Public_Key::subject_public_key() const
 */
 OID Public_Key::get_oid() const
    {
-   const OID o = OIDS::str2oid_or_empty(algo_name());
+   OID o = OIDS::str2oid_or_empty(algo_name());
    if(o.empty())
       throw Lookup_Error("PK algo " + algo_name() + " has no defined OIDs");
    return o;
@@ -25001,11 +25064,11 @@ secure_vector<uint8_t> PK_Ops::Key_Agreement_with_KDF::agree(size_t key_len,
                                                           const uint8_t w[], size_t w_len,
                                                           const uint8_t salt[], size_t salt_len)
    {
-   const secure_vector<uint8_t> z = raw_agree(w, w_len);
+   secure_vector<uint8_t> z = raw_agree(w, w_len);
    if(m_kdf)
       return m_kdf->derive_key(key_len, z, salt, salt_len);
    return z;
-  }
+   }
 
 PK_Ops::Signature_with_EMSA::Signature_with_EMSA(const std::string& emsa, bool with_message_recovery) :
    Signature(),
@@ -25132,9 +25195,7 @@ PK_Ops::KEM_Decryption_with_KDF::KEM_Decryption_with_KDF(const std::string& kdf)
 #if defined(BOTAN_HAS_PKCS5_PBES2)
 #endif
 
-namespace Botan {
-
-namespace PKCS8 {
+namespace Botan::PKCS8 {
 
 namespace {
 
@@ -25160,7 +25221,7 @@ secure_vector<uint8_t> PKCS8_extract(DataSource& source,
 */
 secure_vector<uint8_t> PKCS8_decode(
    DataSource& source,
-   std::function<std::string ()> get_passphrase,
+   const std::function<std::string ()>& get_passphrase,
    AlgorithmIdentifier& pk_alg_id,
    bool is_encrypted)
    {
@@ -25448,7 +25509,7 @@ namespace {
 */
 std::unique_ptr<Private_Key>
 load_key(DataSource& source,
-         std::function<std::string ()> get_pass,
+         const std::function<std::string ()>& get_pass,
          bool is_encrypted)
    {
    AlgorithmIdentifier alg_id;
@@ -25468,7 +25529,7 @@ load_key(DataSource& source,
 * Extract an encrypted private key and return it
 */
 std::unique_ptr<Private_Key> load_key(DataSource& source,
-                                      std::function<std::string ()> get_pass)
+                                      const std::function<std::string ()>& get_pass)
    {
    return load_key(source, get_pass, true);
    }
@@ -25481,7 +25542,7 @@ std::unique_ptr<Private_Key> load_key(DataSource& source,
    {
    // We need to use bind rather than a lambda capturing `pass` here in order to avoid a Clang 8 bug.
    // See https://github.com/randombit/botan/issues/2255.
-   return load_key(source, std::bind([](const std::string p) { return p; }, pass), true);
+   return load_key(source, std::bind([](const std::string& p) { return p; }, pass), true);
    }
 
 /*
@@ -25495,8 +25556,6 @@ std::unique_ptr<Private_Key> load_key(DataSource& source)
 
    return load_key(source, fail_fn, false);
    }
-
-}
 
 }
 /*
@@ -25679,7 +25738,7 @@ secure_vector<uint8_t> PK_KEM_Decryptor::decrypt(const uint8_t encap_key[],
                             salt, salt_len);
    }
 
-PK_Key_Agreement::PK_Key_Agreement(PK_Key_Agreement&&) = default;
+PK_Key_Agreement::PK_Key_Agreement(PK_Key_Agreement&&) noexcept = default;
 
 PK_Key_Agreement::PK_Key_Agreement(const Private_Key& key,
                                    RandomNumberGenerator& rng,
@@ -25775,7 +25834,7 @@ size_t PK_Signer::signature_length() const
 
 std::vector<uint8_t> PK_Signer::signature(RandomNumberGenerator& rng)
    {
-   const std::vector<uint8_t> sig = unlock(m_op->sign(rng));
+   std::vector<uint8_t> sig = unlock(m_op->sign(rng));
 
    if(m_sig_format == IEEE_1363)
       {
@@ -25908,6 +25967,9 @@ size_t nfs_workfactor(size_t bits, double log2_k)
 
 size_t if_work_factor(size_t bits)
    {
+   if(bits < 512)
+      return 0;
+
    // RFC 3766 estimates k at .02 and o(1) to be effectively zero for sizes of interest
 
    const double log2_k = -5.6438; // log2(.02)
@@ -25946,9 +26008,7 @@ size_t dl_exponent_size(size_t bits)
 */
 
 
-namespace Botan {
-
-namespace X509 {
+namespace Botan::X509 {
 
 /*
 * PEM encode a X.509 public key
@@ -25999,8 +26059,6 @@ Public_Key* load_key(DataSource& source)
       throw Decoding_Error("X.509 public key decoding", e);
       }
    }
-
-}
 
 }
 /*
@@ -26074,9 +26132,6 @@ void RandomNumberGenerator::reseed_from_rng(RandomNumberGenerator& rng, size_t p
 * Botan is released under the Simplified BSD License (see license.txt)
 */
 
-
-#if defined(BOTAN_HAS_OPENSSL)
-#endif
 
 #if defined(BOTAN_HAS_THREAD_UTILS)
 #endif
@@ -26171,7 +26226,7 @@ void RSA_PublicKey::init(BigInt&& n, BigInt&& e)
    m_public = std::make_shared<RSA_Public_Data>(std::move(n), std::move(e));
    }
 
-RSA_PublicKey::RSA_PublicKey(const AlgorithmIdentifier&,
+RSA_PublicKey::RSA_PublicKey(const AlgorithmIdentifier& /*unused*/,
                              const std::vector<uint8_t>& key_bits)
    {
    BigInt n, e;
@@ -26221,7 +26276,7 @@ std::vector<uint8_t> RSA_PublicKey::public_key_bits() const
 /*
 * Check RSA Public Parameters
 */
-bool RSA_PublicKey::check_key(RandomNumberGenerator&, bool) const
+bool RSA_PublicKey::check_key(RandomNumberGenerator& /*rng*/, bool /*strong*/) const
    {
    if(get_n() < 35 || get_n().is_even() || get_e() < 3 || get_e().is_even())
       return false;
@@ -26264,7 +26319,7 @@ void RSA_PrivateKey::init(BigInt&& d, BigInt&& p, BigInt&& q,
       std::move(d), std::move(p), std::move(q), std::move(d1), std::move(d2), std::move(c));
    }
 
-RSA_PrivateKey::RSA_PrivateKey(const AlgorithmIdentifier&,
+RSA_PrivateKey::RSA_PrivateKey(const AlgorithmIdentifier& /*unused*/,
                                const secure_vector<uint8_t>& key_bits)
    {
    BigInt n, e, d, p, q, d1, d2, c;
@@ -26553,7 +26608,7 @@ class RSA_Signature_Operation final : public PK_Ops::Signature_with_EMSA,
          }
 
       secure_vector<uint8_t> raw_sign(const uint8_t input[], size_t input_len,
-                                      RandomNumberGenerator&) override
+                                      RandomNumberGenerator& /*rng*/) override
          {
          return raw_op(input, input_len);
          }
@@ -26570,7 +26625,7 @@ class RSA_Decryption_Operation final : public PK_Ops::Decryption_with_EME,
          {
          }
 
-      size_t plaintext_length(size_t) const override { return public_modulus_bytes(); }
+      size_t plaintext_length(size_t /*ctext_len*/) const override { return public_modulus_bytes(); }
 
       secure_vector<uint8_t> raw_decrypt(const uint8_t input[], size_t input_len) override
          {
@@ -26647,12 +26702,12 @@ class RSA_Encryption_Operation final : public PK_Ops::Encryption_with_EME,
          {
          }
 
-      size_t ciphertext_length(size_t) const override { return public_modulus_bytes(); }
+      size_t ciphertext_length(size_t /*ptext_len*/) const override { return public_modulus_bytes(); }
 
       size_t max_raw_input_bits() const override { return get_max_input_bits(); }
 
       secure_vector<uint8_t> raw_encrypt(const uint8_t input[], size_t input_len,
-                                         RandomNumberGenerator&) override
+                                         RandomNumberGenerator& /*rng*/) override
          {
          BigInt input_bn(input, input_len);
          return BigInt::encode_1363(public_op(input_bn), public_modulus_bytes());
@@ -26711,26 +26766,6 @@ RSA_PublicKey::create_encryption_op(RandomNumberGenerator& /*rng*/,
                                     const std::string& params,
                                     const std::string& provider) const
    {
-#if defined(BOTAN_HAS_OPENSSL)
-   if(provider == "openssl" || provider.empty())
-      {
-      try
-         {
-         return make_openssl_rsa_enc_op(*this, params);
-         }
-      catch(Exception& e)
-         {
-         /*
-         * If OpenSSL for some reason could not handle this (eg due to OAEP params),
-         * throw if openssl was specifically requested but otherwise just fall back
-         * to the normal version.
-         */
-         if(provider == "openssl")
-            throw Lookup_Error("OpenSSL RSA provider rejected key:" + std::string(e.what()));
-         }
-      }
-#endif
-
    if(provider == "base" || provider.empty())
       return std::make_unique<RSA_Encryption_Operation>(*this, params);
    throw Provider_Not_Found(algo_name(), provider);
@@ -26750,15 +26785,6 @@ std::unique_ptr<PK_Ops::Verification>
 RSA_PublicKey::create_verification_op(const std::string& params,
                                       const std::string& provider) const
    {
-#if defined(BOTAN_HAS_OPENSSL)
-   if(provider == "openssl" || provider.empty())
-      {
-      std::unique_ptr<PK_Ops::Verification> res = make_openssl_rsa_ver_op(*this, params);
-      if(res)
-         return res;
-      }
-#endif
-
    if(provider == "base" || provider.empty())
       return std::make_unique<RSA_Verify_Operation>(*this, params);
 
@@ -26770,21 +26796,6 @@ RSA_PrivateKey::create_decryption_op(RandomNumberGenerator& rng,
                                      const std::string& params,
                                      const std::string& provider) const
    {
-#if defined(BOTAN_HAS_OPENSSL)
-   if(provider == "openssl" || provider.empty())
-      {
-      try
-         {
-         return make_openssl_rsa_dec_op(*this, params);
-         }
-      catch(Exception& e)
-         {
-         if(provider == "openssl")
-            throw Lookup_Error("OpenSSL RSA provider rejected key:" + std::string(e.what()));
-         }
-      }
-#endif
-
    if(provider == "base" || provider.empty())
       return std::make_unique<RSA_Decryption_Operation>(*this, params, rng);
 
@@ -26807,15 +26818,6 @@ RSA_PrivateKey::create_signature_op(RandomNumberGenerator& rng,
                                     const std::string& params,
                                     const std::string& provider) const
    {
-#if defined(BOTAN_HAS_OPENSSL)
-   if(provider == "openssl" || provider.empty())
-      {
-      std::unique_ptr<PK_Ops::Signature> res = make_openssl_rsa_sig_op(*this, params);
-      if(res)
-         return res;
-      }
-#endif
-
    if(provider == "base" || provider.empty())
       return std::make_unique<RSA_Signature_Operation>(*this, params, rng);
 
@@ -27309,9 +27311,6 @@ void SHA_256::clear()
 #if defined(BOTAN_HAS_RC4)
 #endif
 
-#if defined(BOTAN_HAS_OPENSSL)
-#endif
-
 namespace Botan {
 
 std::unique_ptr<StreamCipher> StreamCipher::create(const std::string& algo_spec,
@@ -27383,13 +27382,6 @@ std::unique_ptr<StreamCipher> StreamCipher::create(const std::string& algo_spec,
       {
       const size_t skip = (req.algo_name() == "MARK-4") ? 256 : req.arg_as_integer(0, 0);
 
-#if defined(BOTAN_HAS_OPENSSL)
-      if(provider.empty() || provider == "openssl")
-         {
-         return std::unique_ptr<StreamCipher>(make_openssl_rc4(skip));
-         }
-#endif
-
       if(provider.empty() || provider == "base")
          {
          return std::make_unique<RC4>(skip);
@@ -27418,37 +27410,36 @@ StreamCipher::create_or_throw(const std::string& algo,
 
 std::vector<std::string> StreamCipher::providers(const std::string& algo_spec)
    {
-   return probe_providers_of<StreamCipher>(algo_spec, {"base", "openssl"});
+   return probe_providers_of<StreamCipher>(algo_spec);
    }
 
 }
 /*
 * System RNG
-* (C) 2014,2015,2017,2018 Jack Lloyd
+* (C) 2014,2015,2017,2018,2022 Jack Lloyd
 * (C) 2021 Tom Crowley
 *
 * Botan is released under the Simplified BSD License (see license.txt)
 */
 
 
-#if defined(BOTAN_TARGET_OS_HAS_RTLGENRANDOM)
+#if defined(BOTAN_TARGET_OS_HAS_WIN32)
   #define NOMINMAX 1
   #define _WINSOCKAPI_ // stop windows.h including winsock.h
   #include <windows.h>
+#endif
 
+#if defined(BOTAN_TARGET_OS_HAS_RTLGENRANDOM)
 #elif defined(BOTAN_TARGET_OS_HAS_CRYPTO_NG)
   #include <bcrypt.h>
-
+#elif defined(BOTAN_TARGET_OS_HAS_CCRANDOM)
+  #include <CommonCrypto/CommonRandom.h>
 #elif defined(BOTAN_TARGET_OS_HAS_ARC4RANDOM)
   #include <stdlib.h>
-
 #elif defined(BOTAN_TARGET_OS_HAS_GETRANDOM)
   #include <sys/random.h>
   #include <errno.h>
-
 #elif defined(BOTAN_TARGET_OS_HAS_DEV_RANDOM)
-  #include <sys/types.h>
-  #include <sys/stat.h>
   #include <fcntl.h>
   #include <unistd.h>
   #include <errno.h>
@@ -27468,6 +27459,11 @@ class System_RNG_Impl final : public RandomNumberGenerator
          // This throws if the function is not found
          m_rtlgenrandom = m_advapi.resolve<RtlGenRandom_fptr>("SystemFunction036");
          }
+
+      System_RNG_Impl(const System_RNG_Impl& other) = delete;
+      System_RNG_Impl(System_RNG_Impl&& other) = delete;
+      System_RNG_Impl& operator=(const System_RNG_Impl& other) = delete;
+      System_RNG_Impl& operator=(System_RNG_Impl&& other) = delete;
 
       void randomize(uint8_t buf[], size_t len) override
          {
@@ -27510,14 +27506,21 @@ class System_RNG_Impl final : public RandomNumberGenerator
    public:
       System_RNG_Impl()
          {
-         NTSTATUS ret = ::BCryptOpenAlgorithmProvider(&m_prov,
-                                                      BCRYPT_RNG_ALGORITHM,
-                                                      MS_PRIMITIVE_PROVIDER, 0);
-         if(ret != STATUS_SUCCESS)
+         auto ret = ::BCryptOpenAlgorithmProvider(&m_prov,
+                                                  BCRYPT_RNG_ALGORITHM,
+                                                  MS_PRIMITIVE_PROVIDER, 0);
+         if(!BCRYPT_SUCCESS(ret))
+            {
             throw System_Error("System_RNG failed to acquire crypto provider", ret);
+            }
          }
 
-      ~System_RNG_Impl()
+      System_RNG_Impl(const System_RNG_Impl& other) = delete;
+      System_RNG_Impl(System_RNG_Impl&& other) = delete;
+      System_RNG_Impl& operator=(const System_RNG_Impl& other) = delete;
+      System_RNG_Impl& operator=(System_RNG_Impl&& other) = delete;
+
+      ~System_RNG_Impl() override
          {
          ::BCryptCloseAlgorithmProvider(m_prov, 0);
          }
@@ -27532,8 +27535,8 @@ class System_RNG_Impl final : public RandomNumberGenerator
             {
             const ULONG blockSize = static_cast<ULONG>(std::min(bytesLeft, limit));
 
-            const NTSTATUS ret = BCryptGenRandom(m_prov, static_cast<PUCHAR>(pData), blockSize, 0);
-            if (ret != STATUS_SUCCESS)
+            auto ret = BCryptGenRandom(m_prov, static_cast<PUCHAR>(pData), blockSize, 0);
+            if(!BCRYPT_SUCCESS(ret))
                {
                throw System_Error("System_RNG call to BCryptGenRandom failed", ret);
                }
@@ -27560,6 +27563,25 @@ class System_RNG_Impl final : public RandomNumberGenerator
       BCRYPT_ALG_HANDLE m_prov;
    };
 
+#elif defined(BOTAN_TARGET_OS_HAS_CCRANDOM)
+
+class System_RNG_Impl final : public RandomNumberGenerator
+   {
+   public:
+      void randomize(uint8_t buf[], size_t len) override
+         {
+         if (::CCRandomGenerateBytes(buf, len) != kCCSuccess)
+            {
+            throw System_Error("System_RNG CCRandomGenerateBytes failed", errno);
+            }
+         }
+      bool accepts_input() const override { return false; }
+      void add_entropy(const uint8_t[], size_t) override { /* ignored */ }
+      bool is_seeded() const override { return true; }
+      void clear() override { /* not possible */ }
+      std::string name() const override { return "CCRandomGenerateBytes"; }
+   };
+
 #elif defined(BOTAN_TARGET_OS_HAS_ARC4RANDOM)
 
 class System_RNG_Impl final : public RandomNumberGenerator
@@ -27570,6 +27592,8 @@ class System_RNG_Impl final : public RandomNumberGenerator
       void randomize(uint8_t buf[], size_t len) override
          {
          // macOS 10.15 arc4random crashes if called with buf == nullptr && len == 0
+	 // however it uses ccrng_generate internally which returns a status, ignored
+	 // to respect arc4random "no-fail" interface contract
          if(len > 0)
             {
             ::arc4random_buf(buf, len);
@@ -27666,7 +27690,12 @@ class System_RNG_Impl final : public RandomNumberGenerator
             throw System_Error("System_RNG failed to open RNG device", errno);
          }
 
-      ~System_RNG_Impl()
+      System_RNG_Impl(const System_RNG_Impl& other) = delete;
+      System_RNG_Impl(System_RNG_Impl&& other) = delete;
+      System_RNG_Impl& operator=(const System_RNG_Impl& other) = delete;
+      System_RNG_Impl& operator=(System_RNG_Impl&& other) = delete;
+
+      ~System_RNG_Impl() override
          {
          ::close(m_fd);
          m_fd = -1;
@@ -27813,7 +27842,6 @@ void assertion_failure(const char* expr_str,
 */
 
 #include <ctime>
-#include <stdlib.h>
 
 namespace Botan {
 
@@ -28035,9 +28063,7 @@ std::string latin1_to_utf8(const uint8_t chars[], size_t len)
 */
 
 
-namespace Botan {
-
-namespace CT {
+namespace Botan::CT {
 
 secure_vector<uint8_t> copy_output(CT::Mask<uint8_t> bad_input_u8,
                                    const uint8_t input[],
@@ -28129,8 +28155,6 @@ secure_vector<uint8_t> strip_leading_zeros(const uint8_t in[], size_t length)
 
    return copy_output(CT::Mask<uint8_t>::cleared(), in, length, leading_zeros);
    }
-
-}
 
 }
 /*
@@ -28392,8 +28416,6 @@ std::string to_string(ErrorType type)
          return "InvalidTag";
       case ErrorType::RoughtimeError:
          return "RoughtimeError";
-      case ErrorType::OpenSSLError :
-         return "OpenSSLError";
       case ErrorType::CommonCryptoError:
          return "CommonCryptoError";
       case ErrorType::Pkcs11Error:
@@ -28670,12 +28692,22 @@ BOTAN_MALLOC_FN void* allocate_memory(size_t elems, size_t elem_size)
    if(elems == 0 || elem_size == 0)
       return nullptr;
 
+   // Some calloc implementations do not check for overflow (?!?)
+   const size_t total_size = elems * elem_size;
+
+   if(total_size < elems || total_size < elem_size)
+      throw std::bad_alloc();
+
 #if defined(BOTAN_HAS_LOCKING_ALLOCATOR)
    if(void* p = mlock_allocator::instance().allocate(elems, elem_size))
       return p;
 #endif
 
+#if defined(BOTAN_TARGET_OS_HAS_ALLOC_CONCEAL)
+   void *ptr = ::calloc_conceal(elems, elem_size);
+#else
    void* ptr = std::calloc(elems, elem_size);
+#endif
    if(!ptr)
       throw std::bad_alloc();
    return ptr;
@@ -28692,7 +28724,6 @@ void deallocate_memory(void* p, size_t elems, size_t elem_size)
    if(mlock_allocator::instance().deallocate(p, elems, elem_size))
       return;
 #endif
-
    std::free(p);
    }
 
@@ -28710,7 +28741,7 @@ uint8_t ct_compare_u8(const uint8_t x[],
    volatile uint8_t difference = 0;
 
    for(size_t i = 0; i != len; ++i)
-      difference |= (x[i] ^ y[i]);
+      difference = difference | (x[i] ^ y[i]);
 
    return CT::Mask<uint8_t>::is_zero(difference).value();
    }
@@ -28740,6 +28771,7 @@ uint8_t ct_compare_u8(const uint8_t x[],
   #include <sys/resource.h>
   #include <sys/mman.h>
   #include <signal.h>
+  #include <stdlib.h>
   #include <setjmp.h>
   #include <unistd.h>
   #include <errno.h>
@@ -28776,6 +28808,14 @@ uint8_t ct_compare_u8(const uint8_t x[],
   #include <sys/types.h>
   #include <sys/sysctl.h>
   #include <mach/vm_statistics.h>
+#endif
+
+#if defined(BOTAN_TARGET_OS_HAS_PRCTL)
+  #include <sys/prctl.h>
+  #if !defined(PR_SET_VMA)
+    #define PR_SET_VMA 0x53564d41
+    #define PR_SET_VMA_ANON_NAME 0
+  #endif
 #endif
 
 namespace Botan {
@@ -28976,30 +29016,34 @@ uint64_t OS::get_cpu_cycle_counter()
    return rtc;
    }
 
-size_t OS::get_cpu_total()
+size_t OS::get_cpu_available()
    {
-#if defined(BOTAN_TARGET_OS_HAS_POSIX1) && defined(_SC_NPROCESSORS_CONF)
-   const long res = ::sysconf(_SC_NPROCESSORS_CONF);
-   if(res > 0)
-      return static_cast<size_t>(res);
+#if defined(BOTAN_TARGET_OS_HAS_POSIX1)
+
+#if defined(_SC_NPROCESSORS_ONLN)
+   const long cpu_online = ::sysconf(_SC_NPROCESSORS_ONLN);
+   if(cpu_online > 0)
+      return static_cast<size_t>(cpu_online);
+#endif
+
+#if defined(_SC_NPROCESSORS_CONF)
+   const long cpu_conf = ::sysconf(_SC_NPROCESSORS_CONF);
+   if(cpu_conf > 0)
+      return static_cast<size_t>(cpu_conf);
+#endif
+
 #endif
 
 #if defined(BOTAN_TARGET_OS_HAS_THREADS)
-   return static_cast<size_t>(std::thread::hardware_concurrency());
-#else
+   // hardware_concurrency is allowed to return 0 if the value is not
+   // well defined or not computable.
+   const size_t hw_concur = std::thread::hardware_concurrency();
+
+   if(hw_concur > 0)
+      return hw_concur;
+#endif
+
    return 1;
-#endif
-   }
-
-size_t OS::get_cpu_available()
-   {
-#if defined(BOTAN_TARGET_OS_HAS_POSIX1) && defined(_SC_NPROCESSORS_ONLN)
-   const long res = ::sysconf(_SC_NPROCESSORS_ONLN);
-   if(res > 0)
-      return static_cast<size_t>(res);
-#endif
-
-   return OS::get_cpu_total();
    }
 
 uint64_t OS::get_high_resolution_clock()
@@ -29294,6 +29338,8 @@ std::vector<void*> OS::allocate_locked_pages(size_t count)
 
       std::memset(ptr, 0, 3*page_size); // zero data page and both guard pages
 
+      // Attempts to name the data page
+      page_named(ptr, 3*page_size);
       // Make guard page preceeding the data page
       page_prohibit_access(static_cast<uint8_t*>(ptr));
       // Make guard page following the data page
@@ -29362,13 +29408,24 @@ void OS::free_locked_pages(const std::vector<void*>& pages)
       }
    }
 
+void OS::page_named(void* page, size_t size)
+   {
+#if defined(BOTAN_TARGET_OS_HAS_PRCTL)
+   static constexpr char name[] = "Botan mlock pool";
+   int r = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, reinterpret_cast<uintptr_t>(page), size, name);
+   BOTAN_UNUSED(r);
+#else
+   BOTAN_UNUSED(page, size);
+#endif
+   }
+
 #if defined(BOTAN_TARGET_OS_HAS_POSIX1) && !defined(BOTAN_TARGET_OS_IS_EMSCRIPTEN)
 
 namespace {
 
-static ::sigjmp_buf g_sigill_jmp_buf;
+::sigjmp_buf g_sigill_jmp_buf;
 
-void botan_sigill_handler(int)
+void botan_sigill_handler(int /*unused*/)
    {
    siglongjmp(g_sigill_jmp_buf, /*non-zero return value*/1);
    }
@@ -29377,7 +29434,7 @@ void botan_sigill_handler(int)
 
 #endif
 
-int OS::run_cpu_instruction_probe(std::function<int ()> probe_fn)
+int OS::run_cpu_instruction_probe(const std::function<int ()>& probe_fn)
    {
    volatile int probe_result = -3;
 
@@ -29449,7 +29506,7 @@ std::unique_ptr<OS::Echo_Suppression> OS::suppress_echo_on_terminal()
                }
             }
 
-         ~POSIX_Echo_Suppression()
+         ~POSIX_Echo_Suppression() override
             {
             try
                {
@@ -29459,6 +29516,11 @@ std::unique_ptr<OS::Echo_Suppression> OS::suppress_echo_on_terminal()
                {
                }
             }
+
+         POSIX_Echo_Suppression(const POSIX_Echo_Suppression& other) = delete;
+         POSIX_Echo_Suppression(POSIX_Echo_Suppression&& other) = delete;
+         POSIX_Echo_Suppression& operator=(const POSIX_Echo_Suppression& other) = delete;
+         POSIX_Echo_Suppression& operator=(POSIX_Echo_Suppression&& other) = delete;
 
       private:
          int m_stdin_fd;
@@ -29493,7 +29555,7 @@ std::unique_ptr<OS::Echo_Suppression> OS::suppress_echo_on_terminal()
                }
             }
 
-         ~Win32_Echo_Suppression()
+         ~Win32_Echo_Suppression() override
             {
             try
                {
@@ -29503,6 +29565,11 @@ std::unique_ptr<OS::Echo_Suppression> OS::suppress_echo_on_terminal()
                {
                }
             }
+
+         Win32_Echo_Suppression(const Win32_Echo_Suppression& other) = delete;
+         Win32_Echo_Suppression(Win32_Echo_Suppression&& other) = delete;
+         Win32_Echo_Suppression& operator=(const Win32_Echo_Suppression& other) = delete;
+         Win32_Echo_Suppression& operator=(Win32_Echo_Suppression&& other) = delete;
 
       private:
          HANDLE m_input_handle;
@@ -29890,7 +29957,7 @@ std::map<std::string, std::string> read_cfg(std::istream& is)
       if(s.empty())
          continue;
 
-      auto eq = s.find("=");
+      auto eq = s.find('=');
 
       if(eq == std::string::npos || eq == 0 || eq == s.size() - 1)
          throw Decoding_Error("Bad read_cfg input '" + s + "' on line " + std::to_string(line));
@@ -29917,7 +29984,7 @@ namespace Botan {
 std::map<std::string, std::string> read_kv(const std::string& kv)
    {
    std::map<std::string, std::string> m;
-   if(kv == "")
+   if(kv.empty())
       return m;
 
    std::vector<std::string> parts;
@@ -30047,9 +30114,13 @@ SCAN_Name::SCAN_Name(const char* algo_spec) : SCAN_Name(std::string(algo_spec))
    {
    }
 
-SCAN_Name::SCAN_Name(std::string algo_spec) : m_orig_algo_spec(algo_spec), m_alg_name(), m_args(), m_mode_info()
-   { 
-   if(algo_spec.size() == 0)
+SCAN_Name::SCAN_Name(const std::string& algo_spec) :
+   m_orig_algo_spec(algo_spec),
+   m_alg_name(),
+   m_args(),
+   m_mode_info()
+   {
+   if(algo_spec.empty())
       throw Invalid_Argument("Expected algorithm name, got empty string");
 
    std::vector<std::pair<size_t, std::string>> name;
@@ -30058,10 +30129,8 @@ SCAN_Name::SCAN_Name(std::string algo_spec) : m_orig_algo_spec(algo_spec), m_alg
 
    const std::string decoding_error = "Bad SCAN name '" + algo_spec + "': ";
 
-   for(size_t i = 0; i != algo_spec.size(); ++i)
+   for(char c : algo_spec)
       {
-      char c = algo_spec[i];
-
       if(c == '/' || c == ',' || c == '(' || c == ')')
          {
          if(c == '(')
@@ -30077,7 +30146,7 @@ SCAN_Name::SCAN_Name(std::string algo_spec) : m_orig_algo_spec(algo_spec), m_alg
             accum.second.push_back(c);
          else
             {
-            if(accum.second != "")
+            if(!accum.second.empty())
                name.push_back(accum);
             accum = std::make_pair(level, "");
             }
@@ -30086,13 +30155,13 @@ SCAN_Name::SCAN_Name(std::string algo_spec) : m_orig_algo_spec(algo_spec), m_alg
          accum.second.push_back(c);
       }
 
-   if(accum.second != "")
+   if(!accum.second.empty())
       name.push_back(accum);
 
    if(level != 0)
       throw Decoding_Error(decoding_error + "Missing close paren");
 
-   if(name.size() == 0)
+   if(name.empty())
       throw Decoding_Error(decoding_error + "Empty name");
 
    m_alg_name = name[0].second;
@@ -30202,7 +30271,7 @@ bool Timer::operator<(const Timer& other) const
 
 std::string Timer::to_string() const
    {
-   if(m_custom_msg.size() > 0)
+   if(!m_custom_msg.empty())
       {
       return m_custom_msg;
       }
@@ -30445,14 +30514,16 @@ std::multimap<std::string, std::string> AlternativeName::contents() const
    {
    std::multimap<std::string, std::string> names;
 
-   for(auto i = m_alt_info.begin(); i != m_alt_info.end(); ++i)
+   for(const auto& name : m_alt_info)
       {
-      multimap_insert(names, i->first, i->second);
+      multimap_insert(names, name.first, name.second);
       }
 
-   for(auto i = m_othernames.begin(); i != m_othernames.end(); ++i)
+   for(const auto& othername : m_othernames)
       {
-      multimap_insert(names, i->first.to_formatted_string(), i->second.value());
+      multimap_insert(names,
+                      othername.first.to_formatted_string(),
+                      othername.second.value());
       }
 
    return names;
@@ -30501,7 +30572,7 @@ X509_DN AlternativeName::dn() const
 */
 bool AlternativeName::has_items() const
    {
-   return (m_alt_info.size() > 0 || m_othernames.size() > 0);
+   return (!m_alt_info.empty() || !m_othernames.empty());
    }
 
 namespace {
@@ -30554,12 +30625,12 @@ void AlternativeName::encode_into(DER_Encoder& der) const
    encode_entries(der, m_alt_info, "URI", ASN1_Type(6));
    encode_entries(der, m_alt_info, "IP", ASN1_Type(7));
 
-   for(auto i = m_othernames.begin(); i != m_othernames.end(); ++i)
+   for(const auto& othername : m_othernames)
       {
       der.start_explicit(0)
-         .encode(i->first)
+         .encode(othername.first)
          .start_explicit(0)
-            .encode(i->second)
+            .encode(othername.second)
          .end_explicit()
       .end_explicit();
       }
@@ -30792,7 +30863,7 @@ Certificate_Store::find_cert(const X509_DN& subject_dn, const std::vector<uint8_
    return certs.front();
    }
 
-std::optional<X509_CRL> Certificate_Store::find_crl_for(const X509_Certificate&) const
+std::optional<X509_CRL> Certificate_Store::find_crl_for(const X509_Certificate& /*unused*/) const
    {
    return std::nullopt;
    }
@@ -30821,11 +30892,11 @@ Certificate_Store_In_Memory::find_cert(const X509_DN& subject_dn,
    for(const auto& cert : m_certs)
       {
       // Only compare key ids if set in both call and in the cert
-      if(key_id.size())
+      if(!key_id.empty())
          {
          std::vector<uint8_t> skid = cert.subject_key_id();
 
-         if(skid.size() && skid != key_id) // no match
+         if(!skid.empty() && skid != key_id) // no match
             continue;
          }
 
@@ -30844,11 +30915,11 @@ std::vector<X509_Certificate> Certificate_Store_In_Memory::find_all_certs(
 
    for(const auto& cert : m_certs)
       {
-      if(key_id.size())
+      if(!key_id.empty())
          {
          std::vector<uint8_t> skid = cert.subject_key_id();
 
-         if(skid.size() && skid != key_id) // no match
+         if(!skid.empty() && skid != key_id) // no match
             continue;
          }
 
@@ -30895,7 +30966,7 @@ Certificate_Store_In_Memory::find_cert_by_raw_subject_dn_sha256(const std::vecto
 
 void Certificate_Store_In_Memory::add_crl(const X509_CRL& crl)
    {
-   X509_DN crl_issuer = crl.issuer_dn();
+   const X509_DN& crl_issuer = crl.issuer_dn();
 
    for(auto& c : m_crls)
       {
@@ -30919,11 +30990,11 @@ std::optional<X509_CRL> Certificate_Store_In_Memory::find_crl_for(const X509_Cer
    for(const auto& c : m_crls)
       {
       // Only compare key ids if set in both call and in the CRL
-      if(key_id.size())
+      if(!key_id.empty())
          {
          std::vector<uint8_t> akid = c.authority_key_id();
 
-         if(akid.size() && akid != key_id) // no match
+         if(!akid.empty() && akid != key_id) // no match
             continue;
          }
 
@@ -31244,12 +31315,12 @@ GeneralName::GeneralName(const std::string& str) : GeneralName()
       }
    }
 
-void GeneralName::encode_into(DER_Encoder&) const
+void GeneralName::encode_into(DER_Encoder& /*to*/) const
    {
    throw Not_Implemented("GeneralName encoding");
    }
 
-void GeneralName::decode_from(class BER_Decoder& ber)
+void GeneralName::decode_from(BER_Decoder& ber)
    {
    BER_Object obj = ber.get_next_object();
 
@@ -31460,12 +31531,12 @@ GeneralSubtree::GeneralSubtree(const std::string& str) : GeneralSubtree()
       }
    }
 
-void GeneralSubtree::encode_into(DER_Encoder&) const
+void GeneralSubtree::encode_into(DER_Encoder& /*to*/) const
    {
    throw Not_Implemented("General Subtree encoding");
    }
 
-void GeneralSubtree::decode_from(class BER_Decoder& ber)
+void GeneralSubtree::decode_from(BER_Decoder& ber)
    {
    ber.start_sequence()
       .decode(m_base)
@@ -31495,9 +31566,7 @@ std::ostream& operator<<(std::ostream& os, const GeneralSubtree& gs)
 #if defined(BOTAN_HAS_HTTP_UTIL)
 #endif
 
-namespace Botan {
-
-namespace OCSP {
+namespace Botan::OCSP {
 
 namespace {
 
@@ -31669,23 +31738,23 @@ Certificate_Status_Code Response::check_signature(const std::vector<Certificate_
 
    std::optional<X509_Certificate> signing_cert;
 
-   for(size_t i = 0; i != trusted_roots.size(); ++i)
+   for(const auto& trusted_root : trusted_roots)
       {
       if(m_signer_name.empty() && m_key_hash.empty())
          return Certificate_Status_Code::OCSP_RESPONSE_INVALID;
 
       if(!m_signer_name.empty())
          {
-         signing_cert = trusted_roots[i]->find_cert(m_signer_name, std::vector<uint8_t>());
+         signing_cert = trusted_root->find_cert(m_signer_name, std::vector<uint8_t>());
          if(signing_cert)
             {
             break;
             }
          }
 
-      if(m_key_hash.size() > 0)
+      if(!m_key_hash.empty())
          {
-         signing_cert = trusted_roots[i]->find_cert_by_pubkey_sha1(m_key_hash);
+         signing_cert = trusted_root->find_cert_by_pubkey_sha1(m_key_hash);
          if(signing_cert)
             {
             break;
@@ -31705,7 +31774,7 @@ Certificate_Status_Code Response::check_signature(const std::vector<Certificate_
             break;
             }
 
-         if(m_key_hash.size() > 0 && ee_cert_path[i].subject_public_key_bitstring_sha1() == m_key_hash)
+         if(!m_key_hash.empty() && ee_cert_path[i].subject_public_key_bitstring_sha1() == m_key_hash)
             {
             signing_cert = ee_cert_path[i];
             break;
@@ -31713,20 +31782,20 @@ Certificate_Status_Code Response::check_signature(const std::vector<Certificate_
          }
       }
 
-   if(!signing_cert && m_certs.size() > 0)
+   if(!signing_cert && !m_certs.empty())
       {
-      for(size_t i = 0; i < m_certs.size(); ++i)
+      for(const auto& cert : m_certs)
          {
          // Check all CA certificates in the (assumed validated) EE cert path
-         if(!m_signer_name.empty() && m_certs[i].subject_dn() == m_signer_name)
+         if(!m_signer_name.empty() && cert.subject_dn() == m_signer_name)
             {
-            signing_cert = m_certs[i];
+            signing_cert = cert;
             break;
             }
 
-         if(m_key_hash.size() > 0 && m_certs[i].subject_public_key_bitstring_sha1() == m_key_hash)
+         if(!m_key_hash.empty() && cert.subject_public_key_bitstring_sha1() == m_key_hash)
             {
-            signing_cert = m_certs[i];
+            signing_cert = cert;
             break;
             }
          }
@@ -31835,8 +31904,6 @@ Response online_check(const X509_Certificate& issuer,
 #endif
 
 }
-
-}
 /*
 * OCSP subtypes
 * (C) 2012 Jack Lloyd
@@ -31845,9 +31912,7 @@ Response online_check(const X509_Certificate& issuer,
 */
 
 
-namespace Botan {
-
-namespace OCSP {
+namespace Botan::OCSP {
 
 CertID::CertID(const X509_Certificate& issuer,
                const BigInt& subject_serial)
@@ -31889,7 +31954,7 @@ bool CertID::is_id_for(const X509_Certificate& issuer,
    return true;
    }
 
-void CertID::encode_into(class DER_Encoder& to) const
+void CertID::encode_into(DER_Encoder& to) const
    {
    to.start_sequence()
       .encode(m_hash_id)
@@ -31899,7 +31964,7 @@ void CertID::encode_into(class DER_Encoder& to) const
       .end_cons();
    }
 
-void CertID::decode_from(class BER_Decoder& from)
+void CertID::decode_from(BER_Decoder& from)
    {
    from.start_sequence()
       .decode(m_hash_id)
@@ -31910,12 +31975,12 @@ void CertID::decode_from(class BER_Decoder& from)
 
    }
 
-void SingleResponse::encode_into(class DER_Encoder&) const
+void SingleResponse::encode_into(DER_Encoder& /*to*/) const
    {
    throw Not_Implemented("SingleResponse::encode_into");
    }
 
-void SingleResponse::decode_from(class BER_Decoder& from)
+void SingleResponse::decode_from(BER_Decoder& from)
    {
    BER_Object cert_status;
    Extensions extensions;
@@ -31946,8 +32011,6 @@ void SingleResponse::decode_from(class BER_Decoder& from)
    */
    m_cert_status = static_cast<uint32_t>(cert_status.type());
    }
-
-}
 
 }
 /*
@@ -32110,7 +32173,7 @@ std::unique_ptr<PKCS10_Data> decode_pkcs10(const std::vector<uint8_t>& body)
       data->m_alt_name = ext->get_alt_name();
       }
 
-   for(std::string email : pkcs9_email)
+   for(const std::string& email : pkcs9_email)
       {
       data->m_alt_name.add_attribute("RFC882", email);
       }
@@ -32572,7 +32635,7 @@ X509_CRL X509_CA::make_crl(const std::vector<CRL_Entry>& revoked,
          .encode(m_ca_cert.subject_dn())
          .encode(X509_Time(issue_time))
          .encode(X509_Time(expire_time))
-         .encode_if(revoked.size() > 0,
+         .encode_if(!revoked.empty(),
               DER_Encoder()
                  .start_sequence()
                     .encode_list(revoked)
@@ -32703,7 +32766,7 @@ bool X509_CRL::is_revoked(const X509_Certificate& cert) const
       return false;
 
    std::vector<uint8_t> crl_akid = authority_key_id();
-   std::vector<uint8_t> cert_akid = cert.authority_key_id();
+   const std::vector<uint8_t>& cert_akid = cert.authority_key_id();
 
    if(!crl_akid.empty() && !cert_akid.empty())
       {
@@ -32711,7 +32774,7 @@ bool X509_CRL::is_revoked(const X509_Certificate& cert) const
          return false;
       }
 
-   std::vector<uint8_t> cert_serial = cert.serial_number();
+   const std::vector<uint8_t>& cert_serial = cert.serial_number();
 
    bool is_revoked = false;
 
@@ -33253,7 +33316,7 @@ namespace {
 
 std::string to_short_form(const OID& oid)
    {
-   const std::string long_id = oid.to_formatted_string();
+   std::string long_id = oid.to_formatted_string();
 
    if(long_id == "X520.CommonName")
       return "CN";
@@ -33395,7 +33458,7 @@ namespace {
  * Maps OID string representations instead of human readable strings in order
  * to avoid an additional lookup.
  */
-static const std::map<Botan::OID, size_t> DN_UB =
+const std::map<Botan::OID, size_t> DN_UB =
    {
    { Botan::OID({2,5,4,10}), 64 }, // X520.Organization
    { Botan::OID({2,5,4,11}), 64 }, // X520.OrganizationalUnit
@@ -33530,10 +33593,10 @@ Extensions::create_extn_obj(const OID& oid,
 /*
 * Validate the extension (the default implementation is a NOP)
 */
-void Certificate_Extension::validate(const X509_Certificate&, const X509_Certificate&,
-      const std::vector<X509_Certificate>&,
-      std::vector<std::set<Certificate_Status_Code>>&,
-      size_t)
+void Certificate_Extension::validate(const X509_Certificate& /*unused*/, const X509_Certificate& /*unused*/,
+      const std::vector<X509_Certificate>& /*unused*/,
+      std::vector<std::set<Certificate_Status_Code>>& /*unused*/,
+      size_t /*unused*/)
    {
    }
 
@@ -33663,7 +33726,7 @@ std::map<OID, std::pair<std::vector<uint8_t>, bool>> Extensions::extensions_raw(
 */
 void Extensions::encode_into(DER_Encoder& to_object) const
    {
-   for(auto ext_info : m_extension_info)
+   for(const auto& ext_info : m_extension_info)
       {
       const OID& oid = ext_info.first;
       const bool should_encode = ext_info.second.obj().should_encode();
@@ -33994,7 +34057,7 @@ void Name_Constraints::validate(const X509_Certificate& subject, const X509_Cert
          bool permitted = m_name_constraints.permitted().empty();
          bool failed = false;
 
-         for(auto c: m_name_constraints.permitted())
+         for(const auto& c: m_name_constraints.permitted())
             {
             switch(c.base().matches(cert_path.at(j)))
                {
@@ -34011,7 +34074,7 @@ void Name_Constraints::validate(const X509_Certificate& subject, const X509_Cert
                }
             }
 
-         for(auto c: m_name_constraints.excluded())
+         for(const auto& c: m_name_constraints.excluded())
             {
             switch(c.base().matches(cert_path.at(j)))
                {
@@ -34076,8 +34139,8 @@ std::vector<uint8_t> Certificate_Policies::encode_inner() const
    {
    std::vector<Policy_Information> policies;
 
-   for(size_t i = 0; i != m_oids.size(); ++i)
-      policies.push_back(Policy_Information(m_oids[i]));
+   for(const auto& oid : m_oids)
+      policies.push_back(Policy_Information(oid));
 
    std::vector<uint8_t> output;
    DER_Encoder(output)
@@ -34096,8 +34159,8 @@ void Certificate_Policies::decode_inner(const std::vector<uint8_t>& in)
 
    BER_Decoder(in).decode_list(policies);
    m_oids.clear();
-   for(size_t i = 0; i != policies.size(); ++i)
-      m_oids.push_back(policies[i].oid());
+   for(const auto& policy : policies)
+      m_oids.push_back(policy.oid());
    }
 
 void Certificate_Policies::validate(
@@ -34235,9 +34298,9 @@ void CRL_Distribution_Points::decode_inner(const std::vector<uint8_t>& buf)
 
    std::stringstream ss;
 
-   for(size_t i = 0; i != m_distribution_points.size(); ++i)
+   for(const auto& distribution_point : m_distribution_points)
       {
-      auto contents = m_distribution_points[i].point().contents();
+      auto contents = distribution_point.point().contents();
 
       for(const auto& pair : contents)
          {
@@ -34248,12 +34311,12 @@ void CRL_Distribution_Points::decode_inner(const std::vector<uint8_t>& buf)
    m_crl_distribution_urls.push_back(ss.str());
    }
 
-void CRL_Distribution_Points::Distribution_Point::encode_into(class DER_Encoder&) const
+void CRL_Distribution_Points::Distribution_Point::encode_into(DER_Encoder& /*to*/) const
    {
    throw Not_Implemented("CRL_Distribution_Points encoding");
    }
 
-void CRL_Distribution_Points::Distribution_Point::decode_from(class BER_Decoder& ber)
+void CRL_Distribution_Points::Distribution_Point::decode_from(BER_Decoder& ber)
    {
    ber.start_sequence()
       .start_context_specific(0)
@@ -34346,7 +34409,7 @@ void X509_Object::load_data(DataSource& in)
          if(got_label != PEM_label())
             {
             bool is_alternate = false;
-            for(std::string alt_label : alternate_PEM_labels())
+            for(const std::string& alt_label : alternate_PEM_labels())
                {
                if(got_label == alt_label)
                   {
@@ -34467,7 +34530,7 @@ Certificate_Status_Code X509_Object::verify_signature(const Public_Key& pub_key)
    const std::vector<std::string> sig_info =
       split_on(m_sig_algo.get_oid().to_formatted_string(), '/');
 
-   if(sig_info.size() < 1 || sig_info.size() > 2 || sig_info[0] != pub_key.algo_name())
+   if(sig_info.empty() || sig_info.size() > 2 || sig_info[0] != pub_key.algo_name())
       return Certificate_Status_Code::SIGNATURE_ALGO_BAD_PARAMS;
 
    const std::string pub_key_algo = sig_info[0];
@@ -35298,7 +35361,7 @@ std::vector<std::string> X509_Certificate::ca_issuers() const
 std::string X509_Certificate::crl_distribution_point() const
    {
    // just returns the first (arbitrarily)
-   if(data().m_crl_distribution_points.size() > 0)
+   if(!data().m_crl_distribution_points.empty())
       return data().m_crl_distribution_points[0];
    return "";
    }
@@ -35391,9 +35454,9 @@ std::string X509_Certificate::fingerprint(const std::string& hash_name) const
    * left empty in which case we fall back to create_hex_fingerprint
    * which will throw if the hash is unavailable.
    */
-   if(hash_name == "SHA-256" && data().m_fingerprint_sha256.size() > 0)
+   if(hash_name == "SHA-256" && !data().m_fingerprint_sha256.empty())
       return data().m_fingerprint_sha256;
-   else if(hash_name == "SHA-1" && data().m_fingerprint_sha1.size() > 0)
+   else if(hash_name == "SHA-1" && !data().m_fingerprint_sha1.empty())
       return data().m_fingerprint_sha1;
    else
       return create_hex_fingerprint(this->BER_encode(), hash_name);
@@ -35404,15 +35467,15 @@ bool X509_Certificate::matches_dns_name(const std::string& name) const
    if(name.empty())
       return false;
 
-   std::vector<std::string> issued_names = subject_info("DNS");
+   auto issued_names = subject_info("DNS");
 
    // Fall back to CN only if no DNS names are set (RFC 6125 sec 6.4.4)
    if(issued_names.empty())
       issued_names = subject_info("Name");
 
-   for(size_t i = 0; i != issued_names.size(); ++i)
+   for(const auto& issued_name : issued_names)
       {
-      if(host_wildcard_match(issued_names[i], name))
+      if(host_wildcard_match(issued_name, name))
          return true;
       }
 
@@ -35489,7 +35552,7 @@ std::string X509_Certificate::to_string() const
    if(!policies.empty())
       {
       out << "Policies: " << "\n";
-      for(auto oid : policies)
+      for(const auto& oid : policies)
          out << "   " << oid.to_string() << "\n";
       }
 
@@ -35512,7 +35575,7 @@ std::string X509_Certificate::to_string() const
       if(!name_constraints.permitted().empty())
          {
          out << "   Permit";
-         for(auto st: name_constraints.permitted())
+         for(const auto& st: name_constraints.permitted())
             {
             out << " " << st.base();
             }
@@ -35522,7 +35585,7 @@ std::string X509_Certificate::to_string() const
       if(!name_constraints.excluded().empty())
          {
          out << "   Exclude";
-         for(auto st: name_constraints.excluded())
+         for(const auto& st: name_constraints.excluded())
             {
             out << " " << st.base();
             }
@@ -35537,8 +35600,8 @@ std::string X509_Certificate::to_string() const
    if(!ca_issuers.empty())
       {
       out << "CA Issuers:\n";
-      for(size_t i = 0; i != ca_issuers.size(); i++)
-         out << "   URI: " << ca_issuers[i] << "\n";
+      for(const auto& ca_issuer : ca_issuers)
+         out << "   URI: " << ca_issuer << "\n";
       }
 
    if(!crl_distribution_point().empty())
@@ -35548,10 +35611,10 @@ std::string X509_Certificate::to_string() const
 
    out << "Serial number: " << hex_encode(this->serial_number()) << "\n";
 
-   if(this->authority_key_id().size())
+   if(!this->authority_key_id().empty())
      out << "Authority keyid: " << hex_encode(this->authority_key_id()) << "\n";
 
-   if(this->subject_key_id().size())
+   if(!this->subject_key_id().empty())
      out << "Subject keyid: " << hex_encode(this->subject_key_id()) << "\n";
 
    try
@@ -35660,7 +35723,7 @@ X509_Cert_Options::X509_Cert_Options(const std::string& initial_opts,
       throw Invalid_Argument("X.509 cert options: Too many names: "
                              + initial_opts);
 
-   if(parsed.size() >= 1) common_name  = parsed[0];
+   if(!parsed.empty()) common_name  = parsed[0];
    if(parsed.size() >= 2) country      = parsed[1];
    if(parsed.size() >= 3) organization = parsed[2];
    if(parsed.size() == 4) org_unit     = parsed[3];
@@ -35797,7 +35860,7 @@ PKIX::check_chain(const std::vector<X509_Certificate>& cert_path,
             }
 
          // Ignore untrusted hashes on self-signed roots
-         if(trusted_hashes.size() > 0 && !at_self_signed_root)
+         if(!trusted_hashes.empty() && !at_self_signed_root)
             {
             if(trusted_hashes.count(subject->hash_used_for_signature()) == 0)
                status.insert(Certificate_Status_Code::UNTRUSTED_HASH);
@@ -35912,7 +35975,7 @@ PKIX::check_ocsp(const std::vector<X509_Certificate>& cert_path,
          }
       }
 
-   while(cert_status.size() > 0 && cert_status.back().empty())
+   while(!cert_status.empty() && cert_status.back().empty())
       cert_status.pop_back();
 
    return cert_status;
@@ -35970,7 +36033,7 @@ PKIX::check_crl(const std::vector<X509_Certificate>& cert_path,
             // for example see #1652
 
             // is the extension critical and unknown?
-            if(extension.second && OIDS::oid2str_or_empty(extension.first->oid_of()) == "")
+            if(extension.second && OIDS::oid2str_or_empty(extension.first->oid_of()).empty())
                {
                /* NIST Certificate Path Valiadation Testing document: "When an implementation does not recognize a critical extension in the
                 * crlExtensions field, it shall assume that identified certificates have been revoked and are no longer valid"
@@ -35982,7 +36045,7 @@ PKIX::check_crl(const std::vector<X509_Certificate>& cert_path,
          }
       }
 
-   while(cert_status.size() > 0 && cert_status.back().empty())
+   while(!cert_status.empty() && cert_status.back().empty())
       cert_status.pop_back();
 
    return cert_status;
@@ -36003,9 +36066,9 @@ PKIX::check_crl(const std::vector<X509_Certificate>& cert_path,
 
    for(size_t i = 0; i != cert_path.size(); ++i)
       {
-      for(size_t c = 0; c != certstores.size(); ++c)
+      for(auto certstore : certstores)
          {
-         crls[i] = certstores[c]->find_crl_for(cert_path[i]);
+         crls[i] = certstore->find_crl_for(cert_path[i]);
          if(crls[i])
             break;
          }
@@ -36041,7 +36104,7 @@ PKIX::check_ocsp_online(const std::vector<X509_Certificate>& cert_path,
       const std::optional<X509_Certificate>& subject = cert_path.at(i);
       const std::optional<X509_Certificate>& issuer = cert_path.at(i+1);
 
-      if(subject->ocsp_responder() == "")
+      if(subject->ocsp_responder().empty())
          {
          ocsp_response_futures.emplace_back(std::async(std::launch::deferred, [&]() -> std::optional<OCSP::Response> {
                   return OCSP::Response(Certificate_Status_Code::OCSP_NO_REVOCATION_URL);
@@ -36075,10 +36138,11 @@ PKIX::check_ocsp_online(const std::vector<X509_Certificate>& cert_path,
       }
 
    std::vector<std::optional<OCSP::Response>> ocsp_responses;
+   ocsp_responses.reserve(ocsp_response_futures.size());
 
-   for(size_t i = 0; i < ocsp_response_futures.size(); ++i)
+   for(auto& ocsp_response_future : ocsp_response_futures)
       {
-      ocsp_responses.push_back(ocsp_response_futures[i].get());
+      ocsp_responses.push_back(ocsp_response_future.get());
       }
 
    return PKIX::check_ocsp(cert_path, ocsp_responses, trusted_certstores, ref_time, max_ocsp_age);
@@ -36102,9 +36166,9 @@ PKIX::check_crl_online(const std::vector<X509_Certificate>& cert_path,
    for(size_t i = 0; i != cert_path.size(); ++i)
       {
       const std::optional<X509_Certificate>& cert = cert_path.at(i);
-      for(size_t c = 0; c != certstores.size(); ++c)
+      for(auto certstore : certstores)
          {
-         crls[i] = certstores[c]->find_crl_for(*cert);
+         crls[i] = certstore->find_crl_for(*cert);
          if(crls[i].has_value())
             break;
          }
@@ -36120,7 +36184,7 @@ PKIX::check_crl_online(const std::vector<X509_Certificate>& cert_path,
          */
          future_crls.emplace_back(std::future<std::optional<X509_CRL>>());
          }
-      else if(cert->crl_distribution_point() == "")
+      else if(cert->crl_distribution_point().empty())
          {
          // Avoid creating a thread for this case
          future_crls.emplace_back(std::async(std::launch::deferred, [&]() -> std::optional<X509_CRL> {
@@ -36156,7 +36220,7 @@ PKIX::check_crl_online(const std::vector<X509_Certificate>& cert_path,
          }
       }
 
-   const CertificatePathStatusCodes crl_status = PKIX::check_crl(cert_path, crls, ref_time);
+   auto crl_status = PKIX::check_crl(cert_path, crls, ref_time);
 
    if(crl_store)
       {
@@ -36199,8 +36263,8 @@ PKIX::build_certificate_path(std::vector<X509_Certificate>& cert_path,
    certs_seen.insert(end_entity.fingerprint("SHA-256"));
 
    Certificate_Store_In_Memory ee_extras;
-   for(size_t i = 0; i != end_entity_extra.size(); ++i)
-      ee_extras.add_certificate(end_entity_extra[i]);
+   for(const auto& cert : end_entity_extra)
+      ee_extras.add_certificate(cert);
 
    // iterate until we reach a root or cannot find the issuer
    for(;;)
@@ -36303,9 +36367,9 @@ PKIX::build_all_certificate_paths(std::vector<std::vector<X509_Certificate>>& ce
    std::vector<Certificate_Status_Code> stats;
 
    Certificate_Store_In_Memory ee_extras;
-   for(size_t i = 0; i != end_entity_extra.size(); ++i)
+   for(const auto& cert : end_entity_extra)
       {
-      ee_extras.add_certificate(end_entity_extra[i]);
+      ee_extras.add_certificate(cert);
       }
 
    /*
@@ -36438,7 +36502,7 @@ void PKIX::merge_revocation_status(CertificatePathStatusCodes& chain_status,
       {
       bool had_crl = false, had_ocsp = false;
 
-      if(i < crl.size() && crl[i].size() > 0)
+      if(i < crl.size() && !crl[i].empty())
          {
          for(auto&& code : crl[i])
             {
@@ -36450,7 +36514,7 @@ void PKIX::merge_revocation_status(CertificatePathStatusCodes& chain_status,
             }
          }
 
-      if(i < ocsp.size() && ocsp[i].size() > 0)
+      if(i < ocsp.size() && !ocsp[i].empty())
          {
          for(auto&& code : ocsp[i])
             {
@@ -36545,7 +36609,7 @@ Path_Validation_Result x509_path_validate(
 
       CertificatePathStatusCodes ocsp_status;
 
-      if(ocsp_resp.size() > 0)
+      if(!ocsp_resp.empty())
          {
          ocsp_status = PKIX::check_ocsp(cert_path, ocsp_resp, trusted_roots, ref_time, restrictions.max_ocsp_age());
          }
@@ -36669,7 +36733,7 @@ CertificatePathStatusCodes find_warnings(const CertificatePathStatusCodes& all_s
 
 Path_Validation_Result::Path_Validation_Result(CertificatePathStatusCodes status,
                                                std::vector<X509_Certificate>&& cert_chain) :
-   m_all_status(status),
+   m_all_status(std::move(status)),
    m_warnings(find_warnings(m_all_status)),
    m_cert_path(cert_chain),
    m_overall(PKIX::overall_status(m_all_status))
@@ -36689,8 +36753,8 @@ const X509_Certificate& Path_Validation_Result::trust_root() const
 std::set<std::string> Path_Validation_Result::trusted_hashes() const
    {
    std::set<std::string> hashes;
-   for(size_t i = 0; i != m_cert_path.size(); ++i)
-      hashes.insert(m_cert_path[i].hash_used_for_signature());
+   for(const auto& cert : m_cert_path)
+      hashes.insert(cert.hash_used_for_signature());
    return hashes;
    }
 
@@ -36703,7 +36767,7 @@ bool Path_Validation_Result::successful_validation() const
 
 bool Path_Validation_Result::no_warnings() const
    {
-   for(auto status_set_i : m_warnings)
+   for(const auto& status_set_i : m_warnings)
       if(!status_set_i.empty())
          return false;
    return true;
@@ -36766,7 +36830,7 @@ void load_info(const X509_Cert_Options& opts, X509_DN& subject_dn,
    subject_dn.add_attribute("X520.Locality", opts.locality);
    subject_dn.add_attribute("X520.Organization", opts.organization);
    subject_dn.add_attribute("X520.OrganizationalUnit", opts.org_unit);
-   for(auto extra_ou : opts.more_org_units) {
+   for(const auto& extra_ou : opts.more_org_units) {
       subject_dn.add_attribute("X520.OrganizationalUnit", extra_ou);
    }
 
@@ -36775,7 +36839,7 @@ void load_info(const X509_Cert_Options& opts, X509_DN& subject_dn,
    subject_alt.add_othername(OID::from_string("PKIX.XMPPAddr"),
                              opts.xmpp, ASN1_Type::Utf8String);
 
-   for(auto dns : opts.more_dns)
+   for(const auto& dns : opts.more_dns)
       subject_alt.add_attribute("DNS", dns);
    }
 }

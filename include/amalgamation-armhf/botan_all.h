@@ -31,7 +31,7 @@
 * Build configuration for Botan 3.0.0-alpha0
 *
 * Automatically generated from
-* 'configure.py --cpu=armhf --disable-neon --prefix=/net/risa/projects/zafena/elevator/botan/dist-armhf-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,chacha,chacha20poly1305,aead,stream,sha1,sha2_32,system_rng,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
+* 'configure.py --cpu=armhf --disable-neon --prefix=/usr/local/projects/zafena/elevator/botan/dist-armhf-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,chacha,chacha20poly1305,aead,stream,sha1,sha2_32,system_rng,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
 *
 * Target
 *  - Compiler: g++ -fstack-protector -pthread -std=c++17 -D_REENTRANT -O3
@@ -49,7 +49,7 @@
 
 #define BOTAN_VERSION_RELEASE_TYPE "unreleased"
 
-#define BOTAN_VERSION_VC_REVISION "git:04df705b8cbc023280d3de95b0de726224ef5c11"
+#define BOTAN_VERSION_VC_REVISION "git:15228710faef1b85aaad0cad4f207b8b6dfcdf74"
 
 #define BOTAN_DISTRIBUTION_INFO "unspecified"
 
@@ -57,9 +57,9 @@
 #define BOTAN_MP_WORD_BITS 32
 
 
-#define BOTAN_INSTALL_PREFIX R"(/net/risa/projects/zafena/elevator/botan/dist-armhf-min)"
+#define BOTAN_INSTALL_PREFIX R"(/usr/local/projects/zafena/elevator/botan/dist-armhf-min)"
 #define BOTAN_INSTALL_HEADER_DIR R"(include/botan-3)"
-#define BOTAN_INSTALL_LIB_DIR R"(/net/risa/projects/zafena/elevator/botan/dist-armhf-min/lib)"
+#define BOTAN_INSTALL_LIB_DIR R"(/usr/local/projects/zafena/elevator/botan/dist-armhf-min/lib)"
 #define BOTAN_LIB_LINK ""
 #define BOTAN_LINK_FLAGS "-fstack-protector -pthread"
 
@@ -80,6 +80,7 @@
 #define BOTAN_TARGET_OS_HAS_GETAUXVAL
 #define BOTAN_TARGET_OS_HAS_POSIX1
 #define BOTAN_TARGET_OS_HAS_POSIX_MLOCK
+#define BOTAN_TARGET_OS_HAS_PRCTL
 #define BOTAN_TARGET_OS_HAS_PROC_FS
 #define BOTAN_TARGET_OS_HAS_SOCKETS
 #define BOTAN_TARGET_OS_HAS_THREAD_LOCAL
@@ -420,7 +421,6 @@
     #define BOTAN_DIAGNOSTIC_POP           	_Pragma("clang diagnostic pop")
   #endif
 
-
 #endif
 
 namespace Botan {
@@ -562,6 +562,23 @@ namespace Botan {
                                                  _BOTAN_UNUSED_IMPL1,              \
                                                  unused dummy rest value           \
                           ) /* we got an one of _BOTAN_UNUSED_IMPL*, now call it */ (__VA_ARGS__)
+
+/*
+* Define Botan::unreachable()
+*
+* There is a pending WG21 proposal for `std::unreachable()`
+*   http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0627r3.pdf
+*/
+[[noreturn]] BOTAN_FORCE_INLINE void unreachable()
+   {
+#if defined(__GNUC__) // GCC 4.8+, Clang, Intel and other compilers compatible with GCC (-std=c++0x or above)
+   __builtin_unreachable();
+#elif defined(_MSC_VER) // MSVC
+   __assume(false);
+#else
+   return; // undefined behaviour, just like the others...
+#endif
+   }
 
 }
 
@@ -858,7 +875,7 @@ template<typename T> inline bool same_mem(const T* p1, const T* p2, size_t n)
    volatile T difference = 0;
 
    for(size_t i = 0; i != n; ++i)
-      difference |= (p1[i] ^ p2[i]);
+      difference = difference | (p1[i] ^ p2[i]);
 
    return difference == 0;
    }
@@ -1065,7 +1082,6 @@ std::vector<T, Alloc>&
 operator+=(std::vector<T, Alloc>& out,
            const std::vector<T, Alloc2>& in)
    {
-   out.reserve(out.size() + in.size());
    out.insert(out.end(), in.begin(), in.end());
    return out;
    }
@@ -1081,7 +1097,6 @@ template<typename T, typename Alloc, typename L>
 std::vector<T, Alloc>& operator+=(std::vector<T, Alloc>& out,
                                   const std::pair<const T*, L>& in)
    {
-   out.reserve(out.size() + in.second);
    out.insert(out.end(), in.first, in.first + in.second);
    return out;
    }
@@ -1090,7 +1105,6 @@ template<typename T, typename Alloc, typename L>
 std::vector<T, Alloc>& operator+=(std::vector<T, Alloc>& out,
                                   const std::pair<T*, L>& in)
    {
-   out.reserve(out.size() + in.second);
    out.insert(out.end(), in.first, in.first + in.second);
    return out;
    }
@@ -1120,6 +1134,8 @@ void zap(std::vector<T, Alloc>& vec)
 }
 
 namespace Botan {
+
+class RandomNumberGenerator;
 
 /**
 * Octet String
@@ -1181,7 +1197,7 @@ class BOTAN_PUBLIC_API(2,0) OctetString final
       * @param rng is a random number generator
       * @param len is the desired length in bytes
       */
-      OctetString(class RandomNumberGenerator& rng, size_t len);
+      OctetString(RandomNumberGenerator& rng, size_t len);
 
       /**
       * Create a new OctetString
@@ -1475,10 +1491,8 @@ enum class ErrorType {
    /** An error during Roughtime validation */
    RoughtimeError,
 
-   /** An error when calling OpenSSL */
-   OpenSSLError = 200,
    /** An error when interacting with CommonCrypto API */
-   CommonCryptoError,
+   CommonCryptoError = 201,
    /** An error when interacting with a PKCS11 device */
    Pkcs11Error,
    /** An error when interacting with a TPM device */
@@ -1524,9 +1538,7 @@ class BOTAN_PUBLIC_API(2,0) Exception : public std::exception
       *
       * The domain of this error varies depending on the source, for example on
       * POSIX systems it might be errno, while on a Windows system it might be
-      * the result of GetLastError or WSAGetLastError. For error_type() is
-      * OpenSSLError, it will (if nonzero) be an OpenSSL error code from
-      * ERR_get_error.
+      * the result of GetLastError or WSAGetLastError.
       */
       virtual int error_code() const noexcept { return 0; }
 
@@ -2326,8 +2338,8 @@ class BOTAN_PUBLIC_API(2,0) OID final : public ASN1_Object
       */
       static OID from_string(const std::string& str);
 
-      void encode_into(class DER_Encoder&) const override;
-      void decode_from(class BER_Decoder&) override;
+      void encode_into(DER_Encoder&) const override;
+      void decode_from(BER_Decoder&) override;
 
       /**
       * Find out whether this OID is empty
@@ -2474,8 +2486,8 @@ typedef ASN1_Time X509_Time;
 class BOTAN_PUBLIC_API(2,0) ASN1_String final : public ASN1_Object
    {
    public:
-      void encode_into(class DER_Encoder&) const override;
-      void decode_from(class BER_Decoder&) override;
+      void encode_into(DER_Encoder&) const override;
+      void decode_from(BER_Decoder&) override;
 
       ASN1_Type tagging() const { return m_tag; }
 
@@ -2509,8 +2521,8 @@ class BOTAN_PUBLIC_API(2,0) AlgorithmIdentifier final : public ASN1_Object
    public:
       enum Encoding_Option { USE_NULL_PARAM, USE_EMPTY_PARAM };
 
-      void encode_into(class DER_Encoder&) const override;
-      void decode_from(class BER_Decoder&) override;
+      void encode_into(DER_Encoder&) const override;
+      void decode_from(BER_Decoder&) override;
 
       AlgorithmIdentifier() = default;
 
@@ -2551,6 +2563,7 @@ bool BOTAN_PUBLIC_API(2,0) operator!=(const AlgorithmIdentifier&,
 
 namespace Botan {
 
+class BigInt;
 class BER_Decoder;
 
 /**
@@ -2595,12 +2608,17 @@ class BOTAN_PUBLIC_API(2,4) ASN1_Formatter
 
       /**
       * This is called to format binary elements that we don't know how to
-      * convert to a string The result will be passed as value to format; the
+      * convert to a string. The result will be passed as value to format; the
       * tags are included as a hint to aid decoding.
       */
       virtual std::string format_bin(ASN1_Type type_tag,
                                      ASN1_Class class_tag,
                                      const std::vector<uint8_t>& vec) const = 0;
+
+      /**
+      * This is called to format integers
+      */
+      virtual std::string format_bn(const BigInt& bn) const = 0;
 
    private:
       void decode(std::ostream& output,
@@ -2650,6 +2668,8 @@ class BOTAN_PUBLIC_API(2,4) ASN1_Pretty_Printer final : public ASN1_Formatter
       std::string format_bin(ASN1_Type type_tag,
                              ASN1_Class class_tag,
                              const std::vector<uint8_t>& vec) const override;
+
+      std::string format_bn(const BigInt& bn) const override;
 
       const size_t m_print_limit;
       const size_t m_print_binary_limit;
@@ -3183,7 +3203,7 @@ class BOTAN_PUBLIC_API(2,0) BER_Decoder final
                           ASN1_Type type_tag,
                           ASN1_Class class_tag = ASN1_Class::ContextSpecific);
 
-      BER_Decoder& decode(class ASN1_Object& obj,
+      BER_Decoder& decode(ASN1_Object& obj,
                           ASN1_Type type_tag = ASN1_Type::NoObject,
                           ASN1_Class class_tag = ASN1_Class::NoObject);
 
@@ -3818,7 +3838,12 @@ class BOTAN_PUBLIC_API(2,0) BigInt final
      * @param n bit position to set
      * @param set_it if the bit should be set
      */
-     void conditionally_set_bit(size_t n, bool set_it);
+     void conditionally_set_bit(size_t n, bool set_it)
+        {
+        const size_t which = n / BOTAN_MP_WORD_BITS;
+        const word mask = static_cast<word>(set_it) << (n % BOTAN_MP_WORD_BITS);
+        m_data.set_word_at(which, word_at(which) | mask);
+        }
 
      /**
      * Clear bit at specified position
@@ -4747,6 +4772,7 @@ namespace Botan {
 class Public_Key;
 class Private_Key;
 class RandomNumberGenerator;
+class PK_Signer;
 
 /**
 * This class represents abstract X.509 signed objects as in the X.500
@@ -4789,7 +4815,7 @@ class BOTAN_PUBLIC_API(2,0) X509_Object : public ASN1_Object
       * @param tbs the tbs bits to be signed
       * @return signed X509 object
       */
-      static std::vector<uint8_t> make_signed(class PK_Signer* signer,
+      static std::vector<uint8_t> make_signed(PK_Signer* signer,
                                               RandomNumberGenerator& rng,
                                               const AlgorithmIdentifier& alg_id,
                                               const secure_vector<uint8_t>& tbs);
@@ -4822,13 +4848,13 @@ class BOTAN_PUBLIC_API(2,0) X509_Object : public ASN1_Object
       * DER encode an X509_Object
       * See @ref ASN1_Object::encode_into()
       */
-      void encode_into(class DER_Encoder& to) const override;
+      void encode_into(DER_Encoder& to) const override;
 
       /**
       * Decode a BER encoded X509_Object
       * See @ref ASN1_Object::decode_from()
       */
-      void decode_from(class BER_Decoder& from) override;
+      void decode_from(BER_Decoder& from) override;
 
       /**
       * @return PEM encoding of this
@@ -5297,8 +5323,8 @@ struct CRL_Data;
 class BOTAN_PUBLIC_API(2,0) CRL_Entry final : public ASN1_Object
    {
    public:
-      void encode_into(class DER_Encoder&) const override;
-      void decode_from(class BER_Decoder&) override;
+      void encode_into(DER_Encoder&) const override;
+      void decode_from(BER_Decoder&) override;
 
       /**
       * Get the serial number of the certificate associated with this entry.
@@ -5974,8 +6000,14 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
 
       /**
       * Randomize a byte array.
+      *
+      * May block shortly if e.g. the RNG is not yet initialized
+      * or a retry because of insufficient entropy is needed.
+      *
       * @param output the byte array to hold the random output.
       * @param length the length of the byte array output in bytes.
+      * @throws PRNG_Unseeded if the RNG fails because it has not enough entropy
+      * @throws Exception if the RNG fails
       */
       virtual void randomize(uint8_t output[], size_t length) = 0;
 
@@ -5997,6 +6029,7 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
       *
       * @param input a byte array containg the entropy to be added
       * @param length the length of the byte array in
+      * @throws Exception may throw if the RNG accepts input, but adding the entropy failed.
       */
       virtual void add_entropy(const uint8_t input[], size_t length) = 0;
 
@@ -6023,6 +6056,9 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
       * @param output_len size of the output buffer in bytes
       * @param input entropy buffer to incorporate
       * @param input_len size of the input buffer in bytes
+      * @throws PRNG_Unseeded if the RNG fails because it has not enough entropy
+      * @throws Exception if the RNG fails
+      * @throws Exception may throw if the RNG accepts input, but adding the entropy failed.
       */
       virtual void randomize_with_input(uint8_t output[], size_t output_len,
                                         const uint8_t input[], size_t input_len);
@@ -6035,6 +6071,12 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
       * rollback, or other cases where somehow an RNG state is duplicated. If
       * both of the duplicated RNG states later incorporate a timestamp (and the
       * timestamps don't themselves repeat), their outputs will diverge.
+      *
+      * @param output buffer to hold the random output
+      * @param output_len size of the output buffer in bytes
+      * @throws PRNG_Unseeded if the RNG fails because it has not enough entropy
+      * @throws Exception if the RNG fails
+      * @throws Exception may throw if the RNG accepts input, but adding the entropy failed.
       */
       virtual void randomize_with_ts_input(uint8_t output[], size_t output_len);
 
@@ -6045,7 +6087,7 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
 
       /**
       * Clear all internally held values of this RNG
-      * @post is_seeded() == false
+      * @post is_seeded() == false if the RNG has an internal state that can be cleared.
       */
       virtual void clear() = 0;
 
@@ -6059,6 +6101,8 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
       * Poll provided sources for up to poll_bits bits of entropy
       * or until the timeout expires. Returns estimate of the number
       * of bits collected.
+      *
+      * Sets the seeded state to true if enough entropy was added.
       */
       virtual size_t reseed(Entropy_Sources& srcs,
                             size_t poll_bits = BOTAN_RNG_RESEED_POLL_BITS,
@@ -6066,6 +6110,10 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
 
       /**
       * Reseed by reading specified bits from the RNG
+      *
+      * Sets the seeded state to true if enough entropy was added.
+      *
+      * @throws Exception if RNG accepts input but reseeding failed.
       */
       virtual void reseed_from_rng(RandomNumberGenerator& rng,
                                    size_t poll_bits = BOTAN_RNG_RESEED_POLL_BITS);
@@ -6076,6 +6124,8 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
       * Return a random vector
       * @param bytes number of bytes in the result
       * @return randomized vector of length bytes
+      * @throws PRNG_Unseeded if the RNG fails because it has not enough entropy
+      * @throws Exception if the RNG fails
       */
       secure_vector<uint8_t> random_vec(size_t bytes)
          {
@@ -6094,6 +6144,8 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
       /**
       * Return a random byte
       * @return random byte
+      * @throws PRNG_Unseeded if the RNG fails because it has not enough entropy
+      * @throws Exception if the RNG fails
       */
       uint8_t next_byte()
          {
@@ -6104,6 +6156,8 @@ class BOTAN_PUBLIC_API(2,0) RandomNumberGenerator
 
       /**
       * @return a random byte that is greater than zero
+      * @throws PRNG_Unseeded if the RNG fails because it has not enough entropy
+      * @throws Exception if the RNG fails
       */
       uint8_t next_nonzero_byte()
          {
@@ -6845,6 +6899,13 @@ class BOTAN_PUBLIC_API(2,0) MessageAuthenticationCode : public Buffered_Computat
       */
       virtual std::string provider() const { return "base"; }
 
+      /**
+      * @return if a fresh key must be set for each message that is processed.
+      *
+      * This is required for certain polynomial-based MACs which are insecure
+      * if a key is ever reused for two different messages.
+      */
+      virtual bool fresh_key_required_per_message() const { return false; }
    };
 
 typedef MessageAuthenticationCode MAC;
@@ -7459,8 +7520,8 @@ class BOTAN_PUBLIC_API(2,0) Extensions final : public ASN1_Object
       */
       std::vector<uint8_t> get_extension_bits(const OID& oid) const;
 
-      void encode_into(class DER_Encoder&) const override;
-      void decode_from(class BER_Decoder&) override;
+      void encode_into(DER_Encoder&) const override;
+      void decode_from(BER_Decoder&) override;
 
       /**
       * Adds a new extension to the list.
@@ -7616,9 +7677,9 @@ class BOTAN_PUBLIC_API(2,0) CertID final : public ASN1_Object
       bool is_id_for(const X509_Certificate& issuer,
                      const X509_Certificate& subject) const;
 
-      void encode_into(class DER_Encoder& to) const override;
+      void encode_into(DER_Encoder& to) const override;
 
-      void decode_from(class BER_Decoder& from) override;
+      void decode_from(BER_Decoder& from) override;
 
       const std::vector<uint8_t>& issuer_key_hash() const { return m_issuer_key_hash; }
 
@@ -7640,9 +7701,9 @@ class BOTAN_PUBLIC_API(2,0) SingleResponse final : public ASN1_Object
 
       X509_Time next_update() const { return m_nextupdate; }
 
-      void encode_into(class DER_Encoder& to) const override;
+      void encode_into(DER_Encoder& to) const override;
 
-      void decode_from(class BER_Decoder& from) override;
+      void decode_from(BER_Decoder& from) override;
    private:
       CertID m_certid;
       size_t m_cert_status = 2; // unknown
@@ -8349,7 +8410,7 @@ create_ec_private_key(const std::string& algo_name,
 BOTAN_PUBLIC_API(2,2)
 std::vector<std::string>
 probe_provider_private_key(const std::string& algo_name,
-                           const std::vector<std::string> possible);
+                           const std::vector<std::string>& possible);
 
 }
 
@@ -8657,7 +8718,7 @@ PEM_encode_encrypted_pbkdf_msec(const Private_Key& key,
 */
 BOTAN_PUBLIC_API(2,3)
 std::unique_ptr<Private_Key> load_key(DataSource& source,
-                                      std::function<std::string ()> get_passphrase);
+                                      const std::function<std::string ()>& get_passphrase);
 
 /** Load an encrypted key from a data source.
 * @param source the data source providing the encoded key
@@ -8854,9 +8915,9 @@ class BOTAN_PUBLIC_API(2,0) PK_Encryptor
       virtual ~PK_Encryptor() = default;
 
       PK_Encryptor(const PK_Encryptor&) = delete;
-      PK_Encryptor(PK_Encryptor&&) = delete;
+      PK_Encryptor(PK_Encryptor&&) noexcept = delete;
       PK_Encryptor& operator=(const PK_Encryptor&) = delete;
-      PK_Encryptor& operator=(PK_Encryptor&&) = delete;
+      PK_Encryptor& operator=(PK_Encryptor&&) noexcept = delete;
 
    private:
       virtual std::vector<uint8_t> enc(const uint8_t[], size_t,
@@ -8936,9 +8997,9 @@ class BOTAN_PUBLIC_API(2,0) PK_Decryptor
       virtual ~PK_Decryptor() = default;
 
       PK_Decryptor(const PK_Decryptor&) = delete;
-      PK_Decryptor(PK_Decryptor&&) = delete;
+      PK_Decryptor(PK_Decryptor&&) noexcept = delete;
       PK_Decryptor& operator=(const PK_Decryptor&) = delete;
-      PK_Decryptor& operator=(PK_Decryptor&&) = delete;
+      PK_Decryptor& operator=(PK_Decryptor&&) noexcept = delete;
 
    private:
       virtual secure_vector<uint8_t> do_decrypt(uint8_t& valid_mask,
@@ -8972,9 +9033,9 @@ class BOTAN_PUBLIC_API(2,0) PK_Signer final
       ~PK_Signer();
 
       PK_Signer(const PK_Signer&) = delete;
-      PK_Signer(PK_Signer&&) = delete;
+      PK_Signer(PK_Signer&&) noexcept = delete;
       PK_Signer& operator=(const PK_Signer&) = delete;
-      PK_Signer& operator=(PK_Signer&&) = delete;
+      PK_Signer& operator=(PK_Signer&&) noexcept = delete;
 
       /**
       * Sign a message all in one go
@@ -9085,9 +9146,9 @@ class BOTAN_PUBLIC_API(2,0) PK_Verifier final
       ~PK_Verifier();
 
       PK_Verifier(const PK_Verifier&) = delete;
-      PK_Verifier(PK_Verifier&&) = delete;
+      PK_Verifier(PK_Verifier&&) noexcept = delete;
       PK_Verifier& operator=(const PK_Verifier&) = delete;
-      PK_Verifier& operator=(PK_Verifier&&) = delete;
+      PK_Verifier& operator=(PK_Verifier&&) noexcept = delete;
 
       /**
       * Verify a signature.
@@ -9207,11 +9268,11 @@ class BOTAN_PUBLIC_API(2,0) PK_Key_Agreement final
       PK_Key_Agreement& operator=(PK_Key_Agreement&&) = delete;
 
       // For ECIES
-      PK_Key_Agreement(PK_Key_Agreement&&);
+      PK_Key_Agreement(PK_Key_Agreement&&) noexcept;
 
       /**
       * Perform Key Agreement Operation
-      * @param key_len the desired key output size
+      * @param key_len the desired key output size (ignored if "Raw" KDF is used)
       * @param in the other parties key
       * @param in_len the length of in in bytes
       * @param params extra derivation params
@@ -9225,7 +9286,7 @@ class BOTAN_PUBLIC_API(2,0) PK_Key_Agreement final
 
       /**
       * Perform Key Agreement Operation
-      * @param key_len the desired key output size
+      * @param key_len the desired key output size (ignored if "Raw" KDF is used)
       * @param in the other parties key
       * @param params extra derivation params
       * @param params_len the length of params in bytes
@@ -9241,7 +9302,7 @@ class BOTAN_PUBLIC_API(2,0) PK_Key_Agreement final
 
       /**
       * Perform Key Agreement Operation
-      * @param key_len the desired key output size
+      * @param key_len the desired key output size (ignored if "Raw" KDF is used)
       * @param in the other parties key
       * @param in_len the length of in in bytes
       * @param params extra derivation params
@@ -9257,7 +9318,7 @@ class BOTAN_PUBLIC_API(2,0) PK_Key_Agreement final
 
       /**
       * Perform Key Agreement Operation
-      * @param key_len the desired key output size
+      * @param key_len the desired key output size (ignored if "Raw" KDF is used)
       * @param in the other parties key
       * @param params extra derivation params
       */
@@ -9880,7 +9941,7 @@ class BOTAN_PUBLIC_API(2,0) StreamCipher : public SymmetricAlgorithm
 
       /**
       * @return provider information about this implementation. Default is "base",
-      * might also return "sse2", "avx2", "openssl", or some other arbitrary string.
+      * might also return "sse2", "avx2" or some other arbitrary string.
       */
       virtual std::string provider() const { return "base"; }
    };
@@ -10607,8 +10668,8 @@ class BOTAN_PUBLIC_API(2,0) CRL_Distribution_Points final : public Certificate_E
       class BOTAN_PUBLIC_API(2,0) Distribution_Point final : public ASN1_Object
          {
          public:
-            void encode_into(class DER_Encoder&) const override;
-            void decode_from(class BER_Decoder&) override;
+            void encode_into(DER_Encoder&) const override;
+            void decode_from(BER_Decoder&) override;
 
             const AlternativeName& point() const { return m_point; }
          private:
