@@ -82,12 +82,13 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        Cipherpack::PackInfo pinfo = Cipherpack::encryptThenSign_RSA1(enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
+        cipherpack::PackInfo pinfo = cipherpack::encryptThenSign_RSA1(cipherpack::CryptoConfig::getDefault(),
+                                                                      enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
                                                                       fname_input, target_path, intention,
                                                                       payload_version, payload_version_parent,
                                                                       fname_output, overwrite);
         jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s\n", fname_input.c_str(), fname_output.c_str());
-        jau::PLAIN_PRINT(true, "Pack: %s\n", pinfo.toString().c_str());
+        jau::PLAIN_PRINT(true, "Pack: %s\n", pinfo.toString(true, true).c_str());
         return pinfo.isValid() ? 0 : -1;
     }
     if( command == "unpack") {
@@ -126,11 +127,11 @@ int main(int argc, char *argv[])
         } else {
             enc_stream = std::make_unique<io::DataSource_File>(source, true /* use_binary */);
         }
-        Cipherpack::PackInfo pinfo = Cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
+        cipherpack::PackInfo pinfo = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                                                            *enc_stream, fname_output, overwrite);
         // dec_sec_key_passphrase.resize(0);
         jau::PLAIN_PRINT(true, "Unpack: Decypted %s to %s\n", source.c_str(), fname_output.c_str());
-        jau::PLAIN_PRINT(true, "Unpack: %s\n", pinfo.toString().c_str());
+        jau::PLAIN_PRINT(true, "Unpack: %s\n", pinfo.toString(true, true).c_str());
         return pinfo.isValid() ? 0 : -1;
     }
     jau::PLAIN_PRINT(true, "Pack: Error: Unknown command\n");

@@ -31,20 +31,52 @@
 
 #include <botan_all.h>
 
-using namespace elevator;
+using namespace elevator::cipherpack;
 
-const std::string Cipherpack::package_magic      = "ZAF_ELEVATOR_0005";
+const std::string Constants::package_magic              = "ZAF_ELEVATOR_0006";
 
-const std::string Cipherpack::fingerprint_hash_algo = "SHA-256";
+static const std::string default_pk_type                = "RSA";
+static const std::string default_pk_fingerprt_hash_algo = "SHA-256";
+static const std::string default_pk_enc_padding_algo    = "OAEP"; // or "EME1"
+static const std::string default_pk_enc_hash_algo       = "SHA-256";
+static const std::string default_pk_sign_algo           = "EMSA1(SHA-256)";
 
-const std::string Cipherpack::rsa_padding_algo   = "OAEP"; // or "EME1"
-const std::string Cipherpack::rsa_hash_algo      = "SHA-256";
-const std::string Cipherpack::rsa_sign_algo      = "EMSA1(SHA-256)";
+static const std::string default_sym_enc_mac_algo       = "ChaCha20Poly1305"; // or "AES-256/GCM"
 
-const std::string Cipherpack::aead_cipher_algo   = "ChaCha20Poly1305"; // or "AES-256/GCM"
-const std::string Cipherpack::simple_cipher_algo = "ChaCha(20)";
+/**
+ * Symmetric Encryption nonce size in bytes.
+ *
+ * We only process one message per 'encrypted_key', hence small nonce size of 64 bit.
+ *
+ * ChaCha Nonce Sizes are usually: 64-bit classic, 96-bit IETF, 192-bit big
+ */
+static constexpr const size_t ChaCha_Nonce_BitSize = 64;
 
-std::shared_ptr<Botan::Public_Key> Cipherpack::load_public_key(const std::string& pubkey_fname) {
+CryptoConfig CryptoConfig::getDefault() noexcept {
+    return CryptoConfig (
+        default_pk_type, default_pk_fingerprt_hash_algo,
+        default_pk_enc_padding_algo, default_pk_enc_hash_algo,
+        default_pk_sign_algo, default_sym_enc_mac_algo, ChaCha_Nonce_BitSize/8
+    );
+}
+
+bool CryptoConfig::valid() const noexcept {
+    return !pk_type.empty() &&
+           !pk_fingerprt_hash_algo.empty() &&
+           !pk_enc_padding_algo.empty() &&
+           !pk_enc_hash_algo.empty() &&
+           !pk_sign_algo.empty() &&
+           !sym_enc_algo.empty() &&
+           sym_enc_nonce_bytes > 0;
+}
+
+std::string CryptoConfig::toString() const noexcept {
+    return "CCfg[pk[type '"+pk_type+"', fingerprt_hash '"+pk_fingerprt_hash_algo+"', enc_padding '"+pk_enc_padding_algo+
+            "', enc_hash '"+pk_enc_hash_algo+"', sign '"+pk_sign_algo+
+            "'], sym['"+sym_enc_algo+"', nonce "+std::to_string(sym_enc_nonce_bytes)+" byte]]";
+}
+
+std::shared_ptr<Botan::Public_Key> elevator::cipherpack::load_public_key(const std::string& pubkey_fname) {
     Botan::DataSource_Stream key_data(pubkey_fname, false /* use_binary */);
     std::shared_ptr<Botan::Public_Key> key(Botan::X509::load_key(key_data));
     if( !key ) {
@@ -58,7 +90,7 @@ std::shared_ptr<Botan::Public_Key> Cipherpack::load_public_key(const std::string
     return key;
 }
 
-std::shared_ptr<Botan::Private_Key> Cipherpack::load_private_key(const std::string& privatekey_fname, const std::string& passphrase) {
+std::shared_ptr<Botan::Private_Key> elevator::cipherpack::load_private_key(const std::string& privatekey_fname, const std::string& passphrase) {
     Botan::DataSource_Stream key_data(privatekey_fname, false /* use_binary */);
     std::shared_ptr<Botan::Private_Key> key;
     if( passphrase.empty() ) {
@@ -77,17 +109,45 @@ std::shared_ptr<Botan::Private_Key> Cipherpack::load_private_key(const std::stri
     return key;
 }
 
-std::string Cipherpack::PackInfo::toString() const noexcept {
+std::string PackHeader::toString(const bool show_crypto_algos, const bool force_all_fingerprints) const noexcept {
+    const std::string crypto_str = show_crypto_algos ? crypto_cfg.toString() : "";
+
+    std::string term_fingerprint;
+    {
+        if( 0 <= term_key_fingerprint_used_idx ) {
+            term_fingerprint += "dec '"+term_keys_fingerprint.at(term_key_fingerprint_used_idx)+"', ";
+        }
+        if( force_all_fingerprints || 0 > term_key_fingerprint_used_idx ) {
+            term_fingerprint += "enc[";
+            int i = 0;
+            for(const std::string& tkf : term_keys_fingerprint) {
+                if( 0 < i ) {
+                    term_fingerprint += ", ";
+                }
+                term_fingerprint += "'"+tkf+"'";
+                ++i;
+            }
+            term_fingerprint += "]";
+        }
+    }
+
+    std::string res = "Header[";
+    res += "valid "+std::to_string( isValid() )+
+           ", file[target_path "+target_path+", net_size "+jau::to_decstring(net_file_size).c_str()+
+           "], creation "+ts_creation.to_iso8601_string(true)+" UTC, intention '"+intention+"', "+
+           " version["+std::to_string(payload_version)+
+           ", parent "+std::to_string(payload_version_parent)+crypto_str+
+           "], fingerprints[sign/host '"+host_key_fingerprint+
+           "', term["+term_fingerprint+
+           "]]]";
+    return res;
+}
+
+std::string PackInfo::toString(const bool show_crypto_algos, const bool force_all_fingerprints) const noexcept {
     std::string source_enc_s = source_enc ? " (E)" : "";
     std::string stored_enc_s = stored_enc ? " (E)" : "";
-    std::string res = "PackInfo[";
-    res += "source "+source+source_enc_s+
-           ", file[target_path "+target_path+", stored "+stored_file_stats.to_string(true)+stored_enc_s+
-           "intention "+intention+"], creation "+ts_creation.to_iso8601_string(true)+
-           " UTC, version["+std::to_string(payload_version)+
-           ", parent "+std::to_string(payload_version_parent)+
-           ", fingerprints[sign/host '"+host_key_fingerprint+
-           "', decrypt/term '"+term_key_fingerprint+
-           "'], valid "+std::to_string( isValid() )+"]";
+    std::string res = "Info["+header.toString(show_crypto_algos, force_all_fingerprints);
+    res += ", source "+source+source_enc_s+
+           ", stored "+stored_file_stats.to_string(true)+stored_enc_s+"]";
     return res;
 }
