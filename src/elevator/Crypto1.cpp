@@ -522,8 +522,8 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
             }
             Botan::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
             input.clear_recording(); // implies stop_recording()
-            DBG_PRINT("Decrypt: DER Header1 Size %zu bytes, enc_key %zu/%zu",
-                    header1_buffer.size(), encrypted_key_idx, encrypted_key_count);
+            DBG_PRINT("Decrypt: DER Header1 Size %zu bytes, enc_key %zu/%zu (size %zd)",
+                    header1_buffer.size(), encrypted_key_idx, encrypted_key_count, encrypted_file_key.size());
 
             {
                 Botan::BER_Decoder ber(input);
@@ -572,6 +572,8 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
 
         const Botan::secure_vector<uint8_t> plain_file_key =
                 dec.decrypt_or_random(encrypted_file_key.data(), encrypted_file_key.size(), expected_keylen, rng);
+
+        DBG_PRINT("Decrypt file_key[sz %zd]", plain_file_key.size());
 
         aead->set_key(plain_file_key);
         aead->set_associated_data_vec(signature);
