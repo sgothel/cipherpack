@@ -579,12 +579,12 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
 
         uint64_t out_bytes_payload = 0;
         io::StreamConsumerFunc consume_data = [&](Botan::secure_vector<uint8_t>& data, bool is_final) -> bool {
-            if( !is_final ) {
+            if( !is_final && out_bytes_payload + data.size() < file_size ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
                 DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, file_size);
-                return out_bytes_payload < file_size; // end streaming if done
+                return true; // continue ..
             } else {
                 // DBG_PRINT("Decrypt: p111a size %zu, capacity %zu", data.size(), data.capacity());
                 // DBG_PRINT("Decrypt: p111a data %s",
@@ -596,7 +596,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
                 out_bytes_payload += data.size();
                 DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, file_size);
-                return true;
+                return false; // EOS
             }
         };
         Botan::secure_vector<uint8_t> io_buffer;
@@ -625,10 +625,10 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                     output_stats.to_string(true).c_str() );
             io::remove(output_fname);
             return PackInfo(ts_creation, source.id(), true);
-        } else if( output_stats.size() != file_size ) {
-            ERR_PRINT2("Descrypt: Writing done, %s payload bytes != %s header file_size",
-                    jau::to_decstring(out_bytes_payload).c_str(),
-                    jau::to_decstring(file_size).c_str() );
+        } else if( file_size != output_stats.size() ) {
+            ERR_PRINT2("Descrypt: Writing done, %s header file_size != %s",
+                    jau::to_decstring(file_size).c_str(),
+                    output_stats.to_string(true).c_str());
             io::remove(output_fname);
             return PackInfo(ts_creation, source.id(), true);
         } else {
