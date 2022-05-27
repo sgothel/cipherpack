@@ -219,19 +219,44 @@ namespace elevator::io {
     */
     class DataSource_URL final : public DataSource_Closeable {
         public:
+            /**
+             * Check whether n bytes are available in the input stream.
+             *
+             * Wait up to timeout duration given in constructor until n bytes become available, where fractions_i64::zero waits infinitely.
+             *
+             * This method is blocking.
+             *
+             * @param n byte count to wait for
+             * @return true if n bytes are available, otherwise false
+             */
+            bool check_available(size_t n) override;
+
+            /**
+             * Read from the source. Moves the internal offset so that every
+             * call to read will return a new portion of the source.
+             *
+             * Method only blocks until at least one byte is available, using timeout duration given in constructor.
+             * To require a specific number of bytes, call blocking check_available() first.
+             *
+             * @param out the byte array to write the result to
+             * @param length the length of the byte array out
+             * @return length in bytes that was actually read and put into out
+             */
             size_t read(uint8_t out[], size_t length) override;
+
             size_t peek(uint8_t out[], size_t length, size_t peek_offset) const override;
-            bool check_available(size_t n) override { return get_available() >= n; }
-            bool end_of_data() const override { return result_t::NONE != m_url_result && m_buffer.isEmpty(); }
+
+            bool end_of_data() const override;
 
             std::string id() const override { return m_url; }
 
             /**
              * Construct a ringbuffer backed Http DataSource
              * @param url the URL of the data to read
+             * @param timeout maximum duration in fractions of seconds to wait @ check_available(), where fractions_i64::zero waits infinitely
              * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only (default).
              */
-            DataSource_URL(const std::string& url, const uint64_t exp_size=0);
+            DataSource_URL(const std::string& url, jau::fraction_i64 timeout, const uint64_t exp_size=0);
 
             DataSource_URL(const DataSource_URL&) = delete;
 
@@ -241,10 +266,7 @@ namespace elevator::io {
 
             ~DataSource_URL() override { close(); }
 
-            bool get_url_has_content_length() const { return m_url_has_content_length; }
-            uint64_t get_url_content_length() const { return m_url_content_length; }
-
-            size_t get_bytes_read() const override { return m_bytes_consumed; }
+            size_t get_bytes_read() const override { return (size_t)m_bytes_consumed; }
 
             /**
              * Botan's get_bytes_read() API uses `size_t`,
@@ -253,28 +275,20 @@ namespace elevator::io {
              */
             uint64_t get_bytes_read_u64() const { return m_bytes_consumed; }
 
-            uint64_t get_available() const noexcept {
-                if( result_t::NONE != m_url_result ) {
-                    // url thread ended, only remaining bytes in buffer available left
-                    return m_buffer.size();
-                }
-                if( m_url_has_content_length ) {
-                    return m_url_content_length - m_bytes_consumed;
-                }
-                // unknown size w/o content_length
-                return UINT64_MAX;
-            }
-
-            std::string to_string() const;
+            std::string to_string() const override;
 
         private:
+            uint64_t get_available() const noexcept { return m_has_content_length ? m_content_size - m_bytes_consumed : 0; }
+            std::string to_string_int() const;
+
             const std::string m_url;
             const uint64_t m_exp_size;
+            jau::fraction_i64 m_timeout;
             ByteRingbuffer m_buffer;
-            jau::relaxed_atomic_bool m_url_has_content_length;
-            jau::relaxed_atomic_uint64 m_url_content_length;
-            jau::relaxed_atomic_uint64 m_url_total_read;
-            relaxed_atomic_result_t m_url_result;
+            jau::relaxed_atomic_bool m_has_content_length; // informal only
+            jau::relaxed_atomic_uint64 m_content_size; // informal only
+            jau::relaxed_atomic_uint64 m_total_xfered;
+            relaxed_atomic_result_t m_result;
             std::thread m_url_thread;
             uint64_t m_bytes_consumed;
     };
@@ -363,6 +377,8 @@ namespace elevator::io {
             uint64_t get_recording_start_pos() noexcept { return m_rec_offset; }
 
             bool is_recording() noexcept { return m_is_recording; }
+
+            std::string to_string() const override;
 
         private:
             DataSource_Closeable& m_parent;

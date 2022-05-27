@@ -41,12 +41,14 @@
 #include "test_data.hpp"
 
 #include <jau/debug.hpp>
+#include <jau/file_util.hpp>
 
 extern "C" {
     #include <unistd.h>
 }
 
 using namespace elevator;
+using namespace jau::fractions_i64_literals;
 
 class Test01Cipherpack : public TestData {
     private:
@@ -68,7 +70,7 @@ class Test01Cipherpack : public TestData {
                 REQUIRE( ofs.good() == true );
                 REQUIRE( ofs.is_open() == true );
 
-                for(int i=0; i < 1024*1000/100; i+=one_line.size()) { // 1MiB
+                for(int i=0; i < 1024*10; i+=one_line.size()) { // 10kiB
                     ofs.write(reinterpret_cast<char*>(one_line.data()), one_line.size());
                 }
             }
@@ -83,15 +85,15 @@ class Test01Cipherpack : public TestData {
                                                                                sign_sec_key1_fname, sign_sec_key_passphrase,
                                                                                fname_payload, fname_payload, "test_case", 1, 0,
                                                                                fname_encrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo1.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", pinfo1.toString(true, true).c_str());
                 REQUIRE( pinfo1.isValid() == true );
 
                 io::DataSource_File enc_stream(fname_encrypted, true /* use_binary */);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, fname_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == true );
             }
             {
@@ -100,15 +102,15 @@ class Test01Cipherpack : public TestData {
                                                                                sign_sec_key2_fname, sign_sec_key_passphrase,
                                                                                fname_payload, fname_payload, "test_case", 1, 0,
                                                                                fname_encrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo1.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", pinfo1.toString(true, true).c_str());
                 REQUIRE( pinfo1.isValid() == true );
 
                 io::DataSource_File enc_stream(fname_encrypted, true /* use_binary */);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, fname_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == true );
             }
             {
@@ -117,15 +119,15 @@ class Test01Cipherpack : public TestData {
                                                                                sign_sec_key3_fname, sign_sec_key_passphrase,
                                                                                fname_payload, fname_payload, "test_case", 1, 0,
                                                                                fname_encrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo1.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", pinfo1.toString(true, true).c_str());
                 REQUIRE( pinfo1.isValid() == true );
 
                 io::DataSource_File enc_stream(fname_encrypted, true /* use_binary */);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, fname_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == true );
             }
         }
@@ -137,8 +139,8 @@ class Test01Cipherpack : public TestData {
                                                                            sign_sec_key1_fname, sign_sec_key_passphrase,
                                                                            fname_payload, fname_payload, "test_case", 1, 0,
                                                                            fname_encrypted, overwrite);
-            jau::PLAIN_PRINT(true, "test01cipher01: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
-            jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo1.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: Encrypted %s to %s\n", fname_payload.c_str(), fname_encrypted.c_str());
+            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: %s\n", pinfo1.toString(true, true).c_str());
             REQUIRE( pinfo1.isValid() == true );
 
             const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
@@ -147,8 +149,8 @@ class Test01Cipherpack : public TestData {
                 io::DataSource_File enc_stream(fname_encrypted, true /* use_binary */);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, fname_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == false );
             }
             {
@@ -157,65 +159,65 @@ class Test01Cipherpack : public TestData {
                 io::DataSource_File enc_stream(fname_encrypted, true /* use_binary */);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys_nope, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, fname_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_encrypted.c_str(), fname_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == false );
             }
         }
 
         void test11_dec_http_ok() {
-            const std::string uri_encrypted = url_input_root + basename_64kB + ".enc";
+            const std::string uri_encrypted = url_input_root + basename_10kiB + ".enc";
             const std::string file_decrypted = basename_64kB+".enc.dec";
 
             const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
             {
-                io::DataSource_URL enc_stream(uri_encrypted);
+                io::DataSource_URL enc_stream(uri_encrypted, io_timeout);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, file_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test11_dec_http_ok: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test11_dec_http_ok: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == true );
             }
             {
-                io::DataSource_URL enc_stream(uri_encrypted);
+                io::DataSource_URL enc_stream(uri_encrypted, io_timeout);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, file_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test11_dec_http_ok: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test11_dec_http_ok: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == true );
             }
             {
-                io::DataSource_URL enc_stream(uri_encrypted);
+                io::DataSource_URL enc_stream(uri_encrypted, io_timeout);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, file_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test11_dec_http_ok: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test11_dec_http_ok: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == true );
             }
         }
 
         void test12_dec_http_error() {
-            const std::string uri_encrypted = url_input_root + basename_64kB + ".enc";
+            const std::string uri_encrypted = url_input_root + basename_10kiB + ".enc";
             const std::string file_decrypted = basename_64kB+".enc.dec";
 
             const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
             {
                 // Error: Not encrypted for terminal key 4
-                io::DataSource_URL enc_stream(uri_encrypted);
+                io::DataSource_URL enc_stream(uri_encrypted, io_timeout);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, file_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test12_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test12_dec_http_error: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == false );
             }
             {
                 // Error: Not signed from host key 4
                 const std::vector<std::string> sign_pub_keys_nope { sign_pub_key4_fname };
-                io::DataSource_URL enc_stream(uri_encrypted);
+                io::DataSource_URL enc_stream(uri_encrypted, io_timeout);
                 cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys_nope, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                                     enc_stream, file_decrypted, overwrite);
-                jau::PLAIN_PRINT(true, "test01cipher01: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test01cipher01: %s\n", pinfo2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test12_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test12_dec_http_error: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == false );
             }
         }

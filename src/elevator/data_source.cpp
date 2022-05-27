@@ -230,32 +230,51 @@ void DataSource_File::close() noexcept {
     m_source->close();
 }
 
-DataSource_URL::DataSource_URL(const std::string& url, const uint64_t exp_size)
-: m_url(url), m_exp_size(exp_size), m_buffer(0x00, BEST_URLSTREAM_RINGBUFFER_SIZE), m_bytes_consumed(0)
+std::string DataSource_File::to_string() const {
+    return "DataSource_File["+m_identifier+", content_length "+jau::to_decstring(m_content_size)+
+                            ", consumed "+jau::to_decstring(m_bytes_consumed)+
+                            ", available "+jau::to_decstring(m_content_size - m_bytes_consumed)+
+                            ", eod "+std::to_string(end_of_data())+"]";
+}
+
+DataSource_URL::DataSource_URL(const std::string& url, jau::fraction_i64 timeout, const uint64_t exp_size)
+: m_url(url), m_exp_size(exp_size), m_timeout(timeout), m_buffer(0x00, BEST_URLSTREAM_RINGBUFFER_SIZE),
+  m_has_content_length( false ), m_content_size( 0 ), m_total_xfered( 0 ), m_result( io::result_t::NONE ),
+  m_bytes_consumed(0)
+
 {
-    m_url_thread = read_url_stream(m_url, m_exp_size, m_buffer, m_url_has_content_length, m_url_content_length, m_url_total_read, m_url_result);
+    m_url_thread = read_url_stream(m_url, m_exp_size, m_buffer, m_has_content_length, m_content_size, m_total_xfered, m_result);
 }
 
 void DataSource_URL::close() noexcept {
-    DBG_PRINT("DataSource_Url: close.0 %s, %s", id().c_str(), m_buffer.toString().c_str());
+    DBG_PRINT("DataSource_URL: close.0 %s, %s", id().c_str(), to_string_int().c_str());
 
-    m_url_result = result_t::FAILED; // signal end of curl thread!
+    m_result = result_t::FAILED; // signal end of curl thread!
 
     m_buffer.drop(m_buffer.size()); // unblock putBlocking(..)
     if( m_url_thread.joinable() ) {
-        DBG_PRINT("DataSource_Url: close.1 %s, %s", id().c_str(), m_buffer.toString().c_str());
+        DBG_PRINT("DataSource_URL: close.1 %s, %s", id().c_str(), m_buffer.toString().c_str());
         m_url_thread.join();
     }
-    DBG_PRINT("DataSource_Url: close.X %s, %s", id().c_str(), m_buffer.toString().c_str());
+    DBG_PRINT("DataSource_URL: close.X %s, %s", id().c_str(), to_string_int().c_str());
+}
+
+bool DataSource_URL::check_available(size_t n) {
+    if( result_t::NONE != m_result ) {
+        // url thread ended, only remaining bytes in buffer available left
+        return m_buffer.size();
+    }
+    // I/O still in progress, we have to poll until data is available or timeout
+    return m_buffer.waitForElements(n, m_timeout);
 }
 
 size_t DataSource_URL::read(uint8_t out[], size_t length) {
-    if( !check_available( 1 ) ) {
-        DBG_PRINT("DataSource_Url::read(.., length %zu): !avail, abort: %s", length, to_string().c_str());
+    if( 0 == length ) {
         return 0;
     }
-    const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, 0_s);
+    const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, m_timeout);
     m_bytes_consumed += consumed_bytes;
+    // DBG_PRINT("DataSource_Feed::read: size %zu/%zu bytes, %s", consumed_bytes, length, to_string_int().c_str() );
     return consumed_bytes;
 }
 
@@ -263,18 +282,25 @@ size_t DataSource_URL::peek(uint8_t out[], size_t length, size_t peek_offset) co
     (void)out;
     (void)length;
     (void)peek_offset;
-    throw Botan::Not_Implemented("DataSource_Url::peek not implemented");
+    throw Botan::Not_Implemented("DataSource_URL::peek not implemented");
     return 0;
 }
 
+bool DataSource_URL::end_of_data() const {
+    return result_t::NONE != m_result && m_buffer.isEmpty();
+}
+
+std::string DataSource_URL::to_string_int() const {
+    return m_url+", Url[content_length "+std::to_string(m_has_content_length.load())+
+                       " "+jau::to_decstring(m_content_size.load())+
+                       ", xfered "+jau::to_decstring(m_total_xfered.load())+
+                       ", result "+std::to_string((int8_t)m_result.load())+
+           "], consumed "+jau::to_decstring(m_bytes_consumed)+
+           ", available "+jau::to_decstring(get_available())+
+           ", eod "+std::to_string(end_of_data())+", "+m_buffer.toString();
+}
 std::string DataSource_URL::to_string() const {
-    return "DataSource_Url["+m_url+", Url[content_length "+std::to_string(m_url_has_content_length.load())+
-                                                   " "+std::to_string(m_url_content_length.load())+
-                                                   ", read "+std::to_string(m_url_total_read.load())+
-                                                   ", result "+std::to_string((int8_t)m_url_result.load())+
-                            "], consumed "+std::to_string(m_bytes_consumed)+
-                            ", available "+std::to_string(get_available())+
-                            ", eod "+std::to_string(end_of_data())+", "+m_buffer.toString()+"]";
+    return "DataSource_URL["+to_string_int()+"]";
 }
 
 
@@ -310,4 +336,11 @@ size_t DataSource_Recorder::read(uint8_t out[], size_t length) {
         m_buffer.insert(m_buffer.end(), out, out+consumed_bytes);
     }
     return consumed_bytes;
+}
+
+std::string DataSource_Recorder::to_string() const {
+    return "DataSource_Recorder[parent "+m_parent.id()+", recording[on "+std::to_string(m_is_recording)+
+                                                   " offset "+jau::to_decstring(m_rec_offset)+
+                            "], consumed "+jau::to_decstring(m_bytes_consumed)+
+                            ", eod "+std::to_string(end_of_data())+"]";
 }

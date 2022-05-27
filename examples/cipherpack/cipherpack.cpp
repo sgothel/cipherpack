@@ -17,6 +17,7 @@ extern "C" {
 }
 
 using namespace elevator;
+using namespace jau::fractions_i64_literals;
 
 static void print_usage(const char* progname) {
     fprintf(stderr, "Usage %s pack [-epk <enc-pub-key>]+ -ssk <sign-sec-key> -sskp <sign-sec-key-passphrase> -in <input-filename> -target_path <target-path-filename> "
@@ -123,7 +124,7 @@ int main(int argc, char *argv[])
         std::unique_ptr<io::DataSource_Closeable> enc_stream;
         const std::string proto = source.substr(0, 5);
         if( proto == "http:" ) {
-            enc_stream = std::make_unique<io::DataSource_URL>(source);
+            enc_stream = std::make_unique<io::DataSource_URL>(source, 20_s);
         } else {
             enc_stream = std::make_unique<io::DataSource_File>(source, true /* use_binary */);
         }
