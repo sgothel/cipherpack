@@ -272,7 +272,7 @@ bool DataSource_URL::check_available(size_t n) {
 }
 
 size_t DataSource_URL::read(uint8_t out[], size_t length) {
-    if( 0 == length ) {
+    if( 0 == length || ( m_has_content_length && m_content_size - m_bytes_consumed < 1 ) ) {
         return 0;
     }
     const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, m_timeout);
@@ -335,7 +335,7 @@ bool DataSource_Feed::check_available(size_t n) {
 }
 
 size_t DataSource_Feed::read(uint8_t out[], size_t length) {
-    if( 0 == length ) {
+    if( 0 == length || ( m_has_content_length && m_content_size - m_bytes_consumed < 1 ) ) {
         return 0;
     }
     const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, m_timeout);
