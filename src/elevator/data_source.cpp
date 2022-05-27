@@ -262,10 +262,13 @@ void DataSource_URL::close() noexcept {
 bool DataSource_URL::check_available(size_t n) {
     if( result_t::NONE != m_result ) {
         // url thread ended, only remaining bytes in buffer available left
-        return m_buffer.size();
+        return m_buffer.size() >= n;
+    }
+    if( m_has_content_length && m_content_size - m_bytes_consumed < n ) {
+        return false;
     }
     // I/O still in progress, we have to poll until data is available or timeout
-    return m_buffer.waitForElements(n, m_timeout);
+    return m_buffer.waitForElements(n, m_timeout) >= n;
 }
 
 size_t DataSource_URL::read(uint8_t out[], size_t length) {
@@ -322,10 +325,13 @@ void DataSource_Feed::close() noexcept {
 bool DataSource_Feed::check_available(size_t n) {
     if( result_t::NONE != m_result ) {
         // feeder completed, only remaining bytes in buffer available left
-        return m_buffer.size();
+        return m_buffer.size() >= n;
+    }
+    if( m_has_content_length && m_content_size - m_bytes_consumed < n ) {
+        return false;
     }
     // I/O still in progress, we have to poll until data is available or timeout
-    return m_buffer.waitForElements(n, m_timeout);
+    return m_buffer.waitForElements(n, m_timeout) >= n;
 }
 
 size_t DataSource_Feed::read(uint8_t out[], size_t length) {

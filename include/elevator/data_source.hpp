@@ -285,8 +285,8 @@ namespace elevator::io {
             const uint64_t m_exp_size;
             jau::fraction_i64 m_timeout;
             ByteRingbuffer m_buffer;
-            jau::relaxed_atomic_bool m_has_content_length; // informal only
-            jau::relaxed_atomic_uint64 m_content_size; // informal only
+            jau::relaxed_atomic_bool m_has_content_length;
+            jau::relaxed_atomic_uint64 m_content_size;
             jau::relaxed_atomic_uint64 m_total_xfered;
             relaxed_atomic_result_t m_result;
             std::thread m_url_thread;
@@ -393,8 +393,8 @@ namespace elevator::io {
             const uint64_t m_exp_size;
             jau::fraction_i64 m_timeout;
             ByteRingbuffer m_buffer;
-            jau::relaxed_atomic_bool m_has_content_length; // informal only
-            jau::relaxed_atomic_uint64 m_content_size; // informal only
+            jau::relaxed_atomic_bool m_has_content_length;
+            jau::relaxed_atomic_uint64 m_content_size;
             jau::relaxed_atomic_uint64 m_total_xfered;
             relaxed_atomic_result_t m_result;
             uint64_t m_bytes_consumed;
