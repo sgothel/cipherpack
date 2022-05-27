@@ -303,7 +303,77 @@ std::string DataSource_URL::to_string() const {
     return "DataSource_URL["+to_string_int()+"]";
 }
 
+DataSource_Feed::DataSource_Feed(const std::string& id_name, jau::fraction_i64 timeout, const uint64_t exp_size)
+: m_id(id_name), m_exp_size(exp_size), m_timeout(timeout), m_buffer(0x00, BEST_URLSTREAM_RINGBUFFER_SIZE),
+  m_has_content_length( false ), m_content_size( 0 ), m_total_xfered( 0 ), m_result( io::result_t::NONE ),
+  m_bytes_consumed(0)
+{ }
 
+void DataSource_Feed::close() noexcept {
+    DBG_PRINT("DataSource_Feed: close.0 %s, %s", id().c_str(), to_string_int().c_str());
+
+    m_result = result_t::FAILED; // signal end of curl thread!
+
+    m_buffer.drop(m_buffer.size()); // unblock putBlocking(..)
+
+    DBG_PRINT("DataSource_Feed: close.X %s, %s", id().c_str(), to_string_int().c_str());
+}
+
+bool DataSource_Feed::check_available(size_t n) {
+    if( result_t::NONE != m_result ) {
+        // feeder completed, only remaining bytes in buffer available left
+        return m_buffer.size();
+    }
+    // I/O still in progress, we have to poll until data is available or timeout
+    return m_buffer.waitForElements(n, m_timeout);
+}
+
+size_t DataSource_Feed::read(uint8_t out[], size_t length) {
+    if( 0 == length ) {
+        return 0;
+    }
+    const size_t consumed_bytes = m_buffer.getBlocking(out, length, 1, m_timeout);
+    m_bytes_consumed += consumed_bytes;
+    // DBG_PRINT("DataSource_Feed::read: size %zu/%zu bytes, %s", consumed_bytes, length, to_string_int().c_str() );
+    return consumed_bytes;
+}
+
+size_t DataSource_Feed::peek(uint8_t out[], size_t length, size_t peek_offset) const {
+    (void)out;
+    (void)length;
+    (void)peek_offset;
+    throw Botan::Not_Implemented("DataSource_URL::peek not implemented");
+    return 0;
+}
+
+bool DataSource_Feed::end_of_data() const {
+    return result_t::NONE != m_result && m_buffer.isEmpty();
+}
+
+void DataSource_Feed::write(uint8_t in[], size_t length) {
+    if( 0 < length ) {
+        size_t l = (in+length) - in;
+        if( length != l ) {
+            throw Botan::Stream_IO_Error("DataSource_Feed "+std::to_string(length)+" != "+std::to_string(l));
+        }
+        m_buffer.putBlocking(in, in+length, m_timeout);
+        m_total_xfered.fetch_add(length);
+    }
+}
+
+std::string DataSource_Feed::to_string_int() const {
+    return m_id+", ext[content_length "+std::to_string(m_has_content_length.load())+
+                   " "+jau::to_decstring(m_content_size.load())+
+                   ", xfered "+jau::to_decstring(m_total_xfered.load())+
+                   ", result "+std::to_string((int8_t)m_result.load())+
+           "], consumed "+std::to_string(m_bytes_consumed)+
+           ", available "+std::to_string(get_available())+
+           ", eod "+std::to_string(result_t::NONE != m_result && m_buffer.isEmpty())+", "+m_buffer.toString();
+}
+
+std::string DataSource_Feed::to_string() const {
+    return "DataSource_Feed["+to_string_int()+"]";
+}
 
 void DataSource_Recorder::close() noexcept {
     clear_recording();
