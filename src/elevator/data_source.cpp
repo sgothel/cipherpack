@@ -32,6 +32,7 @@
 #include <elevator/io_util.hpp>
 
 #include <jau/debug.hpp>
+#include <jau/file_util.hpp>
 
 #include <curl/curl.h>
 
@@ -78,26 +79,33 @@ void DataSource_SecMemory::close() noexcept {
     m_offset = 0;
 }
 
-size_t DataSource_File::read(uint8_t out[], size_t length) {
+std::string DataSource_SecMemory::to_string() const {
+    return "DataSource_SecMemory[content size "+jau::to_decstring(m_source.size())+
+                            ", consumed "+jau::to_decstring(m_offset)+
+                            ", available "+jau::to_decstring(m_source.size()-m_offset)+"]";
+}
+
+size_t DataSource_Stream::read(uint8_t out[], size_t length) {
    m_source.read(Botan::cast_uint8_ptr_to_char(out), length);
    if( m_source.bad() ) {
       throw Botan::Stream_IO_Error("DataSource_Stream::read: Source failure");
    }
 
    const size_t got = static_cast<size_t>(m_source.gcount());
-   m_total_read += got;
+   m_bytes_consumed += got;
    return got;
 }
 
-bool DataSource_File::check_available(size_t n) {
-   const std::streampos orig_pos = m_source.tellg();
-   m_source.seekg(0, std::ios::end);
-   const size_t avail = static_cast<size_t>(m_source.tellg() - orig_pos);
-   m_source.seekg(orig_pos);
-   return avail >= n;
+bool DataSource_Stream::check_available(size_t n) {
+    // stream size is dynamic, hence can't store size until end
+    const std::streampos orig_pos = m_source.tellg();
+    m_source.seekg(0, std::ios::end);
+    uint64_t avail = static_cast<uint64_t>(m_source.tellg() - orig_pos);
+    m_source.seekg(orig_pos);
+    return avail >= n;
 }
 
-size_t DataSource_File::peek(uint8_t out[], size_t length, size_t offset) const {
+size_t DataSource_Stream::peek(uint8_t out[], size_t length, size_t offset) const {
    if(end_of_data()) {
       throw Botan::Invalid_State("DataSource_Stream: Cannot peek when out of data");
    }
@@ -124,13 +132,79 @@ size_t DataSource_File::peek(uint8_t out[], size_t length, size_t offset) const 
    if(m_source.eof()) {
       m_source.clear();
    }
-   m_source.seekg(m_total_read, std::ios::beg);
+   m_source.seekg(m_bytes_consumed, std::ios::beg);
+
+   return got;
+}
+
+bool DataSource_Stream::end_of_data() const {
+   return !m_source.good();
+}
+
+std::string DataSource_Stream::id() const {
+   return m_identifier;
+}
+
+DataSource_Stream::DataSource_Stream(std::istream& in, const std::string& name)
+: m_identifier(name), m_source(in),
+  m_bytes_consumed(0)
+{ }
+
+void DataSource_Stream::close() noexcept {
+    // nop
+}
+
+std::string DataSource_Stream::to_string() const {
+    return "DataSource_Stream["+m_identifier+
+                            ", consumed "+jau::to_decstring(m_bytes_consumed)+
+                            ", eod "+std::to_string(end_of_data())+"]";
+}
+
+size_t DataSource_File::read(uint8_t out[], size_t length) {
+   m_source->read(Botan::cast_uint8_ptr_to_char(out), length);
+   if( m_source->bad() ) {
+      throw Botan::Stream_IO_Error("DataSource_File::read: Source failure");
+   }
+
+   const size_t got = static_cast<size_t>(m_source->gcount());
+   m_bytes_consumed += got;
+   return got;
+}
+
+size_t DataSource_File::peek(uint8_t out[], size_t length, size_t offset) const {
+   if( end_of_data() ) {
+      throw Botan::Invalid_State("DataSource_File: Cannot peek when out of data");
+   }
+
+   size_t got = 0;
+
+   if(offset) {
+      Botan::secure_vector<uint8_t> buf(offset);
+      m_source->read(Botan::cast_uint8_ptr_to_char(buf.data()), buf.size());
+      if(m_source->bad()) {
+         throw Botan::Stream_IO_Error("DataSource_File::peek: Source failure");
+      }
+      got = static_cast<size_t>(m_source->gcount());
+   }
+
+   if(got == offset) {
+      m_source->read(Botan::cast_uint8_ptr_to_char(out), length);
+      if(m_source->bad()) {
+         throw Botan::Stream_IO_Error("DataSource_File::peek: Source failure");
+      }
+      got = static_cast<size_t>(m_source->gcount());
+   }
+
+   if(m_source->eof()) {
+      m_source->clear();
+   }
+   m_source->seekg(m_bytes_consumed, std::ios::beg);
 
    return got;
 }
 
 bool DataSource_File::end_of_data() const {
-   return !m_source.good();
+   return !m_source->good() || m_bytes_consumed >= m_content_size;
 }
 
 std::string DataSource_File::id() const {
@@ -139,23 +213,21 @@ std::string DataSource_File::id() const {
 
 DataSource_File::DataSource_File(const std::string& path, bool use_binary)
 : m_identifier(path),
-  m_source_memory(new std::ifstream(path, use_binary ? std::ios::binary : std::ios::in)),
-  m_source(*m_source_memory),
-  m_total_read(0)
+  m_source(), m_content_size(0), m_bytes_consumed(0)
 {
-   if(!m_source.good()) {
-      throw Botan::Stream_IO_Error("DataSource: Failure opening file " + path);
+   jau::fs::file_stats in_stats(path);
+   if( !in_stats.exists() || !in_stats.has_access() ) {
+       throw Botan::Stream_IO_Error("DataSource: Failure opening file " + in_stats.to_string(true));
    }
+   m_source = std::make_unique<std::ifstream>(path, use_binary ? std::ios::binary : std::ios::in);
+   if(!m_source->good()) {
+      throw Botan::Stream_IO_Error("DataSource: Failure opening file " + in_stats.to_string(true));
+   }
+   m_content_size = in_stats.size();
 }
 
-DataSource_File::DataSource_File(std::istream& in, const std::string& name)
-: m_identifier(name),
-  m_source(in),
-  m_total_read(0)
-{ }
-
 void DataSource_File::close() noexcept {
-    m_source_memory->close();
+    m_source->close();
 }
 
 DataSource_URL::DataSource_URL(const std::string& url, const uint64_t exp_size)

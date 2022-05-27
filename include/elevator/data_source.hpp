@@ -64,8 +64,14 @@ namespace elevator::io {
     */
     class DataSource_Closeable : public Botan::DataSource {
         public:
+            /**
+             * Close the stream if supported by the underlying mechanism.
+             */
             virtual void close() noexcept = 0;
+
             ~DataSource_Closeable() override = default;
+
+            virtual std::string to_string() const = 0;
     };
 
     /**
@@ -123,10 +129,46 @@ namespace elevator::io {
           ~DataSource_SecMemory() override { close(); }
 
           size_t get_bytes_read() const override { return m_offset; }
+
+          std::string to_string() const override;
+
        private:
           Botan::secure_vector<uint8_t> m_source;
           size_t m_offset;
     };
+
+    /**
+    * This class represents an std::istream based DataSource.
+    */
+    class DataSource_Stream final : public DataSource_Closeable {
+       public:
+          size_t read(uint8_t[], size_t) override;
+          size_t peek(uint8_t[], size_t, size_t) const override;
+          bool check_available(size_t n) override;
+          bool end_of_data() const override;
+          std::string id() const override;
+
+          DataSource_Stream(std::istream&, const std::string& id = "<std::istream>");
+
+          DataSource_Stream(const DataSource_Stream&) = delete;
+
+          DataSource_Stream& operator=(const DataSource_Stream&) = delete;
+
+          void close() noexcept override;
+
+          ~DataSource_Stream() override { close(); }
+
+          size_t get_bytes_read() const override { return m_bytes_consumed; }
+
+          std::string to_string() const override;
+
+       private:
+          const std::string m_identifier;
+
+          std::istream& m_source;
+          size_t m_bytes_consumed;
+    };
+
 
     /**
     * This class represents a file based DataSource.
@@ -135,11 +177,9 @@ namespace elevator::io {
        public:
           size_t read(uint8_t[], size_t) override;
           size_t peek(uint8_t[], size_t, size_t) const override;
-          bool check_available(size_t n) override;
+          bool check_available(size_t n) override { return m_content_size >= (uint64_t)n; };
           bool end_of_data() const override;
           std::string id() const override;
-
-          DataSource_File(std::istream&, const std::string& id = "<std::istream>");
 
           /**
           * Construct a Stream-Based DataSource from filesystem path
@@ -156,16 +196,23 @@ namespace elevator::io {
 
           ~DataSource_File() override { close(); }
 
-          size_t get_bytes_read() const override { return m_total_read; }
+          size_t get_bytes_read() const override { return (size_t)m_bytes_consumed; }
+
+          /**
+           * Botan's get_bytes_read() API uses `size_t`,
+           * which only covers 32bit or 4GB on 32bit systems.
+           * @return uint64_t bytes read
+           */
+          uint64_t get_bytes_read_u64() const { return m_bytes_consumed; }
+
+          std::string to_string() const override;
 
        private:
           const std::string m_identifier;
-
-          std::unique_ptr<std::ifstream> m_source_memory;
-          std::istream& m_source;
-          size_t m_total_read;
+          std::unique_ptr<std::ifstream> m_source;
+          uint64_t m_content_size;
+          uint64_t m_bytes_consumed;
     };
-
 
     /**
     * This class represents a Ringbuffer-Based URL DataSource
