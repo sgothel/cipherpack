@@ -284,7 +284,7 @@ static size_t consume_curl2(void *ptr, size_t size, size_t nmemb, void *stream) 
     cg->buffer.putBlocking(reinterpret_cast<uint8_t*>(ptr),
                            reinterpret_cast<uint8_t*>(ptr)+realsize, 0_s);
 
-    cg->total_read = cg->total_read + realsize;
+    cg->total_read.fetch_add(realsize);
     const bool is_final = 0 == realsize ||
                           cg->has_content_length ? cg->total_read >= cg->content_length : false ||
                           ( 0 < cg->exp_size || cg->total_read >= cg->exp_size );
