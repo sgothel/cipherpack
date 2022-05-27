@@ -517,8 +517,6 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                 }
 
                 // ber.end_cons(); // header2 + encrypted data follows ...
-
-                crypto_cfg.sym_enc_nonce_bytes = nonce.size();
             }
             Botan::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
             input.clear_recording(); // implies stop_recording()
