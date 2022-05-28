@@ -26,7 +26,7 @@
 #ifndef ELEVATOR_HPP_
 #define ELEVATOR_HPP_
 
-#include <elevator/data_source.hpp>
+#include <elevator/byte_stream.hpp>
 #include <elevator/io_util.hpp>
 
 #include <elevator/Cipherpack.hpp>

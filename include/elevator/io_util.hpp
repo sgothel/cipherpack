@@ -30,22 +30,21 @@
 #include <cstdint>
 #include <functional>
 #include <thread>
+#include <vector>
 
 #include <jau/basic_types.hpp>
 #include <jau/ringbuffer.hpp>
 
-#include <elevator/data_source.hpp>
+#include <elevator/byte_stream.hpp>
 
 namespace elevator::io {
-        bool remove(const std::string& fname) noexcept;
-
         /**
          * Stream consumer function
-         * - `bool consumer(Botan::secure_vector<uint8_t>& data, bool is_final)`
+         * - `bool consumer(secure_vector<uint8_t>& data, bool is_final)`
          *
          * Returns true to signal continuation, false to end streaming.
          */
-        typedef std::function<bool (Botan::secure_vector<uint8_t>& /* data */, bool /* is_final */)> StreamConsumerFunc;
+        typedef std::function<bool (secure_vector<uint8_t>& /* data */, bool /* is_final */)> StreamConsumerFunc;
 
         /**
          *
@@ -56,7 +55,7 @@ namespace elevator::io {
          * @return total bytes read or 0 if error
          */
         uint64_t read_file(const std::string& input_file, const uint64_t exp_size,
-                           Botan::secure_vector<uint8_t>& buffer,
+                           secure_vector<uint8_t>& buffer,
                            StreamConsumerFunc consumer_fn);
 
         /**
@@ -68,7 +67,7 @@ namespace elevator::io {
          * @return total bytes read
          */
         uint64_t read_stream(std::istream& in, const uint64_t exp_size,
-                             Botan::secure_vector<uint8_t>& buffer,
+                             secure_vector<uint8_t>& buffer,
                              StreamConsumerFunc consumer_fn);
 
         /**
@@ -78,8 +77,8 @@ namespace elevator::io {
          * @param consumer_fn
          * @return total bytes read
          */
-        uint64_t read_stream(DataSource_Closeable& in, const uint64_t exp_size,
-                             Botan::secure_vector<uint8_t>& buffer,
+        uint64_t read_stream(ByteStream& in, const uint64_t exp_size,
+                             secure_vector<uint8_t>& buffer,
                              StreamConsumerFunc consumer_fn);
 
         /**
@@ -91,7 +90,7 @@ namespace elevator::io {
          * @return total bytes read or 0 if error
          */
         uint64_t read_url_stream(const std::string& url, const uint64_t exp_size,
-                                 Botan::secure_vector<uint8_t>& buffer,
+                                 secure_vector<uint8_t>& buffer,
                                  StreamConsumerFunc consumer_fn);
 
         /**

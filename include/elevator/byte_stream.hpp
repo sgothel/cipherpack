@@ -1,8 +1,10 @@
 /*
  * Author: Sven Gothel <sgothel@jausoft.com>
  * Copyright (c) 2021 Gothel Software e.K.
- * Copyright (c) 1999-2007 Jack Lloyd (Botan)
- * Copyright (c) 2005 Matthew Gregan (Botan)
+ *
+ * ByteStream, ByteStream_SecMemory and ByteStream_istream are derived from Botan under same license:
+ * Copyright (c) 1999-2007 Jack Lloyd
+ * Copyright (c) 2005 Matthew Gregan
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -24,8 +26,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef JAU_DATA_SOURCE_HPP_
-#define JAU_DATA_SOURCE_HPP_
+#ifndef JAU_BYTE_STREAM_HPP_
+#define JAU_BYTE_STREAM_HPP_
 
 #include <fstream>
 #include <string>
@@ -34,6 +36,7 @@
 #include <thread>
 
 #include <jau/basic_types.hpp>
+#include <jau/callocator_sec.hpp>
 #include <jau/ringbuffer.hpp>
 
 #include <botan_all.h>
@@ -59,25 +62,146 @@ namespace elevator::io {
 
     extern const size_t BEST_URLSTREAM_RINGBUFFER_SIZE;
 
+#ifdef BOTAN_VERSION_MAJOR
+    #define VIRTUAL_BOTAN
+    #define OVERRIDE_BOTAN override
+    template<typename T> using secure_vector = std::vector<T, Botan::secure_allocator<T>>;
+#else
+    #define VIRTUAL_BOTAN virtual
+    #define OVERRIDE_BOTAN
+    template<typename T> using secure_vector = std::vector<T, jau::callocator_sec<T>>;
+#endif
+
     /**
-    * This class represents a closeable DataSource
-    */
-    class DataSource_Closeable : public Botan::DataSource {
+     * This class represents an abstract byte stream object.
+     *
+     * @anchor byte_stream_properties
+     * ### ByteStream Properties
+     * The byte stream can be originated from a local source w/o delay,
+     * remote like http streaming or even from another thread.<br />
+     * Both latter asynchronous resources may expose blocking properties
+     * in check_available().
+     *
+     * Asynchronous resources benefit from knowing their content size,
+     * their check_available() implementation may avoid
+     * blocking and waiting for requested bytes available
+     * if the stream is already beyond its scope.
+     *
+     * @see @ref byte_stream_properties "ByteStream Properties"
+     */
+    class ByteStream
+#ifdef BOTAN_VERSION_MAJOR
+    : public Botan::DataSource
+#endif
+    {
         public:
+            ByteStream() = default;
+            virtual ~ByteStream() = default;
+            ByteStream& operator=(const ByteStream&) = delete;
+            ByteStream(const ByteStream&) = delete;
+
             /**
              * Close the stream if supported by the underlying mechanism.
              */
             virtual void close() noexcept = 0;
 
-            ~DataSource_Closeable() override = default;
+            /**
+             * Check whether n bytes are available in the input stream.
+             *
+             * This method may be blocking when using an asynchronous source
+             * up until the requested bytes are actually available.
+             *
+             * A subsequent call to read() shall return immediately with at least
+             * the requested numbers of bytes available.
+             *
+             * @param n byte count to wait for
+             * @return true if n bytes are available, otherwise false
+             *
+             * @see read()
+             * @see @ref byte_stream_properties "ByteStream Properties"
+             */
+            VIRTUAL_BOTAN bool check_available(size_t n) OVERRIDE_BOTAN = 0;
+
+            /**
+             * Read from the source. Moves the internal offset so that every
+             * call to read will return a new portion of the source.
+             *
+             * Use check_available() to wait and ensure a certain amount of bytes are available.
+             *
+             * This method is not blocking.
+             *
+             * @param out the byte array to write the result to
+             * @param length the length of the byte array out
+             * @return length in bytes that was actually read and put into out
+             *
+             * @see check_available()
+             * @see @ref byte_stream_properties "ByteStream Properties"
+             */
+            [[nodiscard]] VIRTUAL_BOTAN size_t read(uint8_t out[], size_t length) OVERRIDE_BOTAN = 0;
+
+            /**
+             * Read from the source but do not modify the internal
+             * offset. Consecutive calls to peek() will return portions of
+             * the source starting at the same position.
+             *
+             * @param out the byte array to write the output to
+             * @param length the length of the byte array out
+             * @param peek_offset the offset into the stream to read at
+             * @return length in bytes that was actually read and put into out
+             */
+            [[nodiscard]] VIRTUAL_BOTAN size_t peek(uint8_t out[], size_t length, size_t peek_offset) const OVERRIDE_BOTAN = 0;
+
+            /**
+             * Test whether the source still has data that can be read.
+             * @return true if there is no more data to read, false otherwise
+             */
+            VIRTUAL_BOTAN bool end_of_data() const OVERRIDE_BOTAN = 0;
+
+#ifndef BOTAN_VERSION_MAJOR
+
+            /**
+             * return the id of this data source
+             * @return std::string representing the id of this data source
+             */
+            virtual std::string id() const OVERRIDE_BOTAN { return ""; }
+
+            /**
+             * Read one byte.
+             * @param out the byte to read to
+             * @return length in bytes that was actually read and put
+             * into out
+             */
+            size_t read_byte(uint8_t& out);
+
+            /**
+             * Peek at one byte.
+             * @param out an output byte
+             * @return length in bytes that was actually read and put
+             * into out
+             */
+            size_t peek_byte(uint8_t& out) const;
+
+            /**
+             * Discard the next N bytes of the data
+             * @param N the number of bytes to discard
+             * @return number of bytes actually discarded
+             */
+            size_t discard_next(size_t N);
+
+#endif /* BOTAN_VERSION_MAJOR */
+
+            /**
+             * @return number of bytes read so far.
+             */
+            VIRTUAL_BOTAN size_t get_bytes_read() const OVERRIDE_BOTAN = 0;
 
             virtual std::string to_string() const = 0;
     };
 
     /**
-    * This class represents a secure Memory-Based DataSource
-    */
-    class DataSource_SecMemory final : public DataSource_Closeable {
+     * This class represents a secure Memory-Based byte stream
+     */
+    class ByteStream_SecMemory final : public ByteStream {
        public:
           /**
            * Read from a memory buffer
@@ -100,47 +224,47 @@ namespace elevator::io {
           * Construct a memory source that reads from a string
           * @param in the string to read from
           */
-          explicit DataSource_SecMemory(const std::string& in);
+          explicit ByteStream_SecMemory(const std::string& in);
 
           /**
           * Construct a memory source that reads from a byte array
           * @param in the byte array to read from
           * @param length the length of the byte array
           */
-          DataSource_SecMemory(const uint8_t in[], size_t length)
+          ByteStream_SecMemory(const uint8_t in[], size_t length)
           : m_source(in, in + length), m_offset(0) {}
 
           /**
           * Construct a memory source that reads from a secure_vector
           * @param in the MemoryRegion to read from
           */
-          explicit DataSource_SecMemory(const Botan::secure_vector<uint8_t>& in)
+          explicit ByteStream_SecMemory(const io::secure_vector<uint8_t>& in)
           : m_source(in), m_offset(0) {}
 
           /**
           * Construct a memory source that reads from a std::vector
           * @param in the MemoryRegion to read from
           */
-          explicit DataSource_SecMemory(const std::vector<uint8_t>& in)
+          explicit ByteStream_SecMemory(const std::vector<uint8_t>& in)
           : m_source(in.begin(), in.end()), m_offset(0) {}
 
           void close() noexcept override;
 
-          ~DataSource_SecMemory() override { close(); }
+          ~ByteStream_SecMemory() override { close(); }
 
           size_t get_bytes_read() const override { return m_offset; }
 
           std::string to_string() const override;
 
        private:
-          Botan::secure_vector<uint8_t> m_source;
+          io::secure_vector<uint8_t> m_source;
           size_t m_offset;
     };
 
     /**
-    * This class represents an std::istream based DataSource.
-    */
-    class DataSource_Stream final : public DataSource_Closeable {
+     * This class represents an std::istream based byte stream.
+     */
+    class ByteStream_istream final : public ByteStream {
        public:
           size_t read(uint8_t[], size_t) override;
           size_t peek(uint8_t[], size_t, size_t) const override;
@@ -148,15 +272,15 @@ namespace elevator::io {
           bool end_of_data() const override;
           std::string id() const override;
 
-          DataSource_Stream(std::istream&, const std::string& id = "<std::istream>");
+          ByteStream_istream(std::istream&, const std::string& id = "<std::istream>");
 
-          DataSource_Stream(const DataSource_Stream&) = delete;
+          ByteStream_istream(const ByteStream_istream&) = delete;
 
-          DataSource_Stream& operator=(const DataSource_Stream&) = delete;
+          ByteStream_istream& operator=(const ByteStream_istream&) = delete;
 
           void close() noexcept override;
 
-          ~DataSource_Stream() override { close(); }
+          ~ByteStream_istream() override { close(); }
 
           size_t get_bytes_read() const override { return m_bytes_consumed; }
 
@@ -171,9 +295,9 @@ namespace elevator::io {
 
 
     /**
-    * This class represents a file based DataSource.
-    */
-    class DataSource_File final : public DataSource_Closeable {
+     * This class represents a file based byte stream.
+     */
+    class ByteStream_File final : public ByteStream {
        public:
           size_t read(uint8_t[], size_t) override;
           size_t peek(uint8_t[], size_t, size_t) const override;
@@ -182,19 +306,19 @@ namespace elevator::io {
           std::string id() const override;
 
           /**
-          * Construct a Stream-Based DataSource from filesystem path
-          * @param file the path to the file
-          * @param use_binary whether to treat the file as binary or not
-          */
-          DataSource_File(const std::string& file, bool use_binary = false);
+           * Construct a Stream-Based byte stream from filesystem path
+           * @param file the path to the file
+           * @param use_binary whether to treat the file as binary or not
+           */
+          ByteStream_File(const std::string& file, bool use_binary = false);
 
-          DataSource_File(const DataSource_File&) = delete;
+          ByteStream_File(const ByteStream_File&) = delete;
 
-          DataSource_File& operator=(const DataSource_File&) = delete;
+          ByteStream_File& operator=(const ByteStream_File&) = delete;
 
           void close() noexcept override;
 
-          ~DataSource_File() override { close(); }
+          ~ByteStream_File() override { close(); }
 
           size_t get_bytes_read() const override { return (size_t)m_bytes_consumed; }
 
@@ -215,9 +339,9 @@ namespace elevator::io {
     };
 
     /**
-    * This class represents a Ringbuffer-Based URL DataSource
-    */
-    class DataSource_URL final : public DataSource_Closeable {
+     * This class represents a Ringbuffer-Based URL byte stream
+     */
+    class ByteStream_URL final : public ByteStream {
         public:
             /**
              * Check whether n bytes are available in the input stream.
@@ -228,6 +352,9 @@ namespace elevator::io {
              *
              * @param n byte count to wait for
              * @return true if n bytes are available, otherwise false
+             *
+             * @see read()
+             * @see @ref byte_stream_properties "ByteStream Properties"
              */
             bool check_available(size_t n) override;
 
@@ -235,12 +362,16 @@ namespace elevator::io {
              * Read from the source. Moves the internal offset so that every
              * call to read will return a new portion of the source.
              *
-             * Method only blocks until at least one byte is available, using timeout duration given in constructor.
-             * To require a specific number of bytes, call blocking check_available() first.
+             * Use check_available() to wait and ensure a certain amount of bytes are available.
+             *
+             * This method is not blocking.
              *
              * @param out the byte array to write the result to
              * @param length the length of the byte array out
              * @return length in bytes that was actually read and put into out
+             *
+             * @see check_available()
+             * @see @ref byte_stream_properties "ByteStream Properties"
              */
             size_t read(uint8_t out[], size_t length) override;
 
@@ -251,20 +382,20 @@ namespace elevator::io {
             std::string id() const override { return m_url; }
 
             /**
-             * Construct a ringbuffer backed Http DataSource
+             * Construct a ringbuffer backed Http byte stream
              * @param url the URL of the data to read
              * @param timeout maximum duration in fractions of seconds to wait @ check_available(), where fractions_i64::zero waits infinitely
              * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only (default).
              */
-            DataSource_URL(const std::string& url, jau::fraction_i64 timeout, const uint64_t exp_size=0);
+            ByteStream_URL(const std::string& url, jau::fraction_i64 timeout, const uint64_t exp_size=0);
 
-            DataSource_URL(const DataSource_URL&) = delete;
+            ByteStream_URL(const ByteStream_URL&) = delete;
 
-            DataSource_URL& operator=(const DataSource_URL&) = delete;
+            ByteStream_URL& operator=(const ByteStream_URL&) = delete;
 
             void close() noexcept override;
 
-            ~DataSource_URL() override { close(); }
+            ~ByteStream_URL() override { close(); }
 
             size_t get_bytes_read() const override { return (size_t)m_bytes_consumed; }
 
@@ -294,9 +425,9 @@ namespace elevator::io {
     };
 
     /**
-    * This class represents a Ringbuffer-Based externally provisioned data feed.
-    */
-    class DataSource_Feed final : public DataSource_Closeable {
+     * This class represents a Ringbuffer-Based externally provisioned data feed.
+     */
+    class ByteStream_Feed final : public ByteStream {
         public:
             /**
              * Check whether n bytes are available in the input stream.
@@ -307,6 +438,9 @@ namespace elevator::io {
              *
              * @param n byte count to wait for
              * @return true if n bytes are available, otherwise false
+             *
+             * @see read()
+             * @see @ref byte_stream_properties "ByteStream Properties"
              */
             bool check_available(size_t n) override;
 
@@ -314,12 +448,16 @@ namespace elevator::io {
              * Read from the source. Moves the internal offset so that every
              * call to read will return a new portion of the source.
              *
-             * Method only blocks until at least one byte is available, using timeout duration given in constructor.
-             * To require a specific number of bytes, call blocking check_available() first.
+             * Use check_available() to wait and ensure a certain amount of bytes are available.
+             *
+             * This method is not blocking.
              *
              * @param out the byte array to write the result to
              * @param length the length of the byte array out
              * @return length in bytes that was actually read and put into out
+             *
+             * @see check_available()
+             * @see @ref byte_stream_properties "ByteStream Properties"
              */
             size_t read(uint8_t out[], size_t length) override;
 
@@ -330,20 +468,20 @@ namespace elevator::io {
             std::string id() const override { return m_id; }
 
             /**
-             * Construct a ringbuffer backed externally provisioned DataSource
+             * Construct a ringbuffer backed externally provisioned byte stream
              * @param id_name arbitrary identifier for this instance
              * @param timeout maximum duration in fractions of seconds to wait @ check_available() and write(), where fractions_i64::zero waits infinitely
              * @param exp_size if > 0 it is additionally used to determine EOF, otherwise the underlying EOF mechanism is being used only (default).
              */
-            DataSource_Feed(const std::string& id_name, jau::fraction_i64 timeout, const uint64_t exp_size=0);
+            ByteStream_Feed(const std::string& id_name, jau::fraction_i64 timeout, const uint64_t exp_size=0);
 
-            DataSource_Feed(const DataSource_URL&) = delete;
+            ByteStream_Feed(const ByteStream_URL&) = delete;
 
-            DataSource_Feed& operator=(const DataSource_URL&) = delete;
+            ByteStream_Feed& operator=(const ByteStream_URL&) = delete;
 
             void close() noexcept override;
 
-            ~DataSource_Feed() override { close(); }
+            ~ByteStream_Feed() override { close(); }
 
             size_t get_bytes_read() const override { return m_bytes_consumed; }
 
@@ -401,13 +539,12 @@ namespace elevator::io {
     };
 
     /**
-    * This class represents a wrapped DataSource with the capability
-    * to record the byte stream read out at will.
-    * <p>
-    * Peek'ed bytes won't be recorded, only read bytes.
-    * </p>
-    */
-    class DataSource_Recorder final : public DataSource_Closeable {
+     * This class represents a wrapped byte stream with the capability
+     * to record the byte stream read out at will.
+     *
+     * Peek'ed bytes won't be recorded, only read bytes.
+     */
+    class ByteStream_Recorder final : public ByteStream {
         public:
             size_t read(uint8_t[], size_t) override;
 
@@ -426,21 +563,20 @@ namespace elevator::io {
             std::string id() const override { return m_parent.id(); }
 
             /**
-             * Construct a DataSource wrapper using the given parent DataSource,
-             * i.e. the actual DataSource.
-             * @param parent the actual parent DataSource origin
+             * Construct a byte stream wrapper using the given parent ByteStream.
+             * @param parent the parent ByteStream
              * @param buffer a user defined buffer for the recording
              */
-            DataSource_Recorder(DataSource_Closeable& parent, Botan::secure_vector<uint8_t>& buffer)
+            ByteStream_Recorder(ByteStream& parent, io::secure_vector<uint8_t>& buffer)
             : m_parent(parent), m_bytes_consumed(0), m_buffer(buffer), m_rec_offset(0), m_is_recording(false) {};
 
-            DataSource_Recorder(const DataSource_Recorder&) = delete;
+            ByteStream_Recorder(const ByteStream_Recorder&) = delete;
 
-            DataSource_Recorder& operator=(const DataSource_Recorder&) = delete;
+            ByteStream_Recorder& operator=(const ByteStream_Recorder&) = delete;
 
             void close() noexcept override;
 
-            ~DataSource_Recorder() override { close(); }
+            ~ByteStream_Recorder() override { close(); }
 
             size_t get_bytes_read() const override { return m_parent.get_bytes_read(); }
 
@@ -476,7 +612,7 @@ namespace elevator::io {
             void clear_recording() noexcept;
 
             /** Returns the reference of the recording buffer given by user. */
-            Botan::secure_vector<uint8_t>& get_recording() noexcept { return m_buffer; }
+            io::secure_vector<uint8_t>& get_recording() noexcept { return m_buffer; }
 
             size_t get_bytes_recorded() noexcept { return m_buffer.size(); }
 
@@ -488,13 +624,13 @@ namespace elevator::io {
             std::string to_string() const override;
 
         private:
-            DataSource_Closeable& m_parent;
+            ByteStream& m_parent;
             uint64_t m_bytes_consumed;
-            Botan::secure_vector<uint8_t>& m_buffer;
+            io::secure_vector<uint8_t>& m_buffer;
             uint64_t m_rec_offset;
             bool m_is_recording;
     };
 
 } // namespace elevator::io
 
-#endif /* JAU_DATA_SOURCE_HPP_ */
+#endif /* JAU_BYTE_STREAM_HPP_ */

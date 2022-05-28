@@ -41,12 +41,9 @@
 using namespace elevator::io;
 using namespace jau::fractions_i64_literals;
 
-bool elevator::io::remove(const std::string& fname) noexcept {
-    return 0 == std::remove( fname.c_str() );
-}
 
 uint64_t elevator::io::read_file(const std::string& input_file, const uint64_t exp_size,
-                                 Botan::secure_vector<uint8_t>& buffer,
+                                 secure_vector<uint8_t>& buffer,
                                  StreamConsumerFunc consumer_fn)
 {
     if(input_file == "-") {
@@ -62,7 +59,7 @@ uint64_t elevator::io::read_file(const std::string& input_file, const uint64_t e
 }
 
 uint64_t elevator::io::read_stream(std::istream& in, const uint64_t exp_size,
-                                   Botan::secure_vector<uint8_t>& buffer,
+                                   secure_vector<uint8_t>& buffer,
                                    StreamConsumerFunc consumer_fn)
 {
     uint64_t total = 0;
@@ -83,19 +80,20 @@ uint64_t elevator::io::read_stream(std::istream& in, const uint64_t exp_size,
    return total;
 }
 
-uint64_t elevator::io::read_stream(DataSource_Closeable& in, const uint64_t exp_size,
-                                   Botan::secure_vector<uint8_t>& buffer,
+uint64_t elevator::io::read_stream(ByteStream& in, const uint64_t exp_size,
+                                   secure_vector<uint8_t>& buffer,
                                    StreamConsumerFunc consumer_fn) {
     uint64_t total = 0;
     bool has_more = !in.end_of_data();
     while( has_more ) {
         buffer.resize(buffer.capacity());
 
+        in.check_available(1);
         const uint64_t got = in.read(buffer.data(), buffer.capacity());
 
         buffer.resize(got);
         total += got;
-        has_more = !in.end_of_data() && ( 0 == exp_size || total < exp_size );
+        has_more = 1 <= got && !in.end_of_data() && ( 0 == exp_size || total < exp_size );
         if( !consumer_fn(buffer, !has_more) ) {
             break; // end streaming
         }
@@ -109,7 +107,7 @@ struct curl_glue1_t {
     bool has_content_length;
     uint64_t content_length;
     uint64_t total_read;
-    Botan::secure_vector<uint8_t>& buffer;
+    secure_vector<uint8_t>& buffer;
     StreamConsumerFunc consumer_fn;
 };
 
@@ -151,7 +149,7 @@ static size_t consume_curl1(void *ptr, size_t size, size_t nmemb, void *stream) 
 }
 
 uint64_t elevator::io::read_url_stream(const std::string& url, const uint64_t exp_size,
-                                       Botan::secure_vector<uint8_t>& buffer,
+                                       secure_vector<uint8_t>& buffer,
                                        StreamConsumerFunc consumer_fn) {
     std::vector<char> errorbuffer;
     errorbuffer.reserve(CURL_ERROR_SIZE);

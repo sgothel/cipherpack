@@ -33,9 +33,9 @@
 #include <jau/basic_types.hpp>
 #include <jau/file_util.hpp>
 
-#include <elevator/data_source.hpp>
-
 #include <botan_all.h>
+
+#include <elevator/byte_stream.hpp>
 
 namespace elevator {
 
@@ -392,7 +392,7 @@ namespace cipherpack {
      */
     PackInfo checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                        const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                       io::DataSource_Closeable &source,
+                                       io::ByteStream &source,
                                        const std::string &output_fname, const bool overwrite);
 };
 
