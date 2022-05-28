@@ -31,8 +31,6 @@
 #include <jau/debug.hpp>
 #include <jau/file_util.hpp>
 
-#include <botan_all.h>
-
 using namespace elevator;
 using namespace elevator::cipherpack;
 
@@ -135,8 +133,8 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
            ERR_PRINT2("Encrypt failed: AEAD algo %s not available", crypto_cfg.sym_enc_algo.c_str());
            return PackInfo(PackHeader(ts_creation), input_fname, false);
         }
-        io::secure_vector<uint8_t> plain_file_key = rng.random_vec(aead->key_spec().maximum_keylength());
-        io::secure_vector<uint8_t> nonce = rng.random_vec(crypto_cfg.sym_enc_nonce_bytes);
+        jau::io::secure_vector<uint8_t> plain_file_key = rng.random_vec(aead->key_spec().maximum_keylength());
+        jau::io::secure_vector<uint8_t> nonce = rng.random_vec(crypto_cfg.sym_enc_nonce_bytes);
         const std::string host_key_fingerprint = sign_sec_key->fingerprint_public(crypto_cfg.pk_fingerprt_hash_algo);
 
         struct enc_key_data_t {
@@ -161,7 +159,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
 
         std::vector<uint8_t> signature;
         {
-            io::secure_vector<uint8_t> header_buffer;
+            jau::io::secure_vector<uint8_t> header_buffer;
             header_buffer.reserve(Constants::buffer_size);
 
             // DER-Header-1
@@ -232,7 +230,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
         aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;
-        io::StreamConsumerFunc consume_data = [&](io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             if( !is_final ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
@@ -246,9 +244,9 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
             }
             return true;
         };
-        io::secure_vector<uint8_t> io_buffer;
+        jau::io::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(Constants::buffer_size);
-        const uint64_t in_bytes_total = io::read_file(input_fname, input_stats.size(), io_buffer, consume_data);
+        const uint64_t in_bytes_total = jau::io::read_file(input_fname, input_stats.size(), io_buffer, consume_data);
 
         if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT2("Encrypt failed: Output file write failed %s", output_fname.c_str());
@@ -290,7 +288,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-        io::print_stats("Encrypt", out_bytes_total, _td);
+        jau::io::print_stats("Encrypt", out_bytes_total, _td);
 
         return PackInfo( PackHeader(target_path,
                                     input_stats.size(),
@@ -312,7 +310,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
 
 PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                                          const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                                         io::ByteStream &source,
+                                                         jau::io::ByteStream &source,
                                                          const std::string &output_fname, const bool overwrite) {
     Elevator::env_init();
 
@@ -381,8 +379,8 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
 
         std::vector<uint8_t> signature;
 
-        io::secure_vector<uint8_t> input_buffer;
-        io::ByteStream_Recorder input(source, input_buffer);
+        jau::io::secure_vector<uint8_t> input_buffer;
+        jau::io::ByteStream_Recorder input(source, input_buffer);
 
         try {
             // DER-Header-1
@@ -518,7 +516,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
 
                 // ber.end_cons(); // header2 + encrypted data follows ...
             }
-            io::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
+            jau::io::secure_vector<uint8_t> header1_buffer( input.get_recording() ); // copy
             input.clear_recording(); // implies stop_recording()
             DBG_PRINT("Decrypt: DER Header1 Size %zu bytes, enc_key %zu/%zu (size %zd)",
                     header1_buffer.size(), encrypted_key_idx, encrypted_key_count, encrypted_file_key.size());
@@ -568,7 +566,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
 
         Botan::PK_Decryptor_EME dec(*dec_sec_key, rng, crypto_cfg.pk_enc_padding_algo+"(" + crypto_cfg.pk_enc_hash_algo + ")");
 
-        const io::secure_vector<uint8_t> plain_file_key =
+        const jau::io::secure_vector<uint8_t> plain_file_key =
                 dec.decrypt_or_random(encrypted_file_key.data(), encrypted_file_key.size(), expected_keylen, rng);
 
         DBG_PRINT("Decrypt file_key[sz %zd]", plain_file_key.size());
@@ -578,7 +576,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
         aead->start(nonce);
 
         uint64_t out_bytes_payload = 0;
-        io::StreamConsumerFunc consume_data = [&](io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             if( !is_final && out_bytes_payload + data.size() < file_size ) {
                 aead->update(data);
                 outfile.write(reinterpret_cast<char*>(data.data()), data.size());
@@ -599,9 +597,9 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                 return false; // EOS
             }
         };
-        io::secure_vector<uint8_t> io_buffer;
+        jau::io::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(Constants::buffer_size);
-        const uint64_t in_bytes_total = io::read_stream(input, 0, io_buffer, consume_data);
+        const uint64_t in_bytes_total = jau::io::read_stream(input, 0, io_buffer, consume_data);
         input.close();
 
         if ( 0==in_bytes_total || outfile.fail() ) {
@@ -638,7 +636,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-        io::print_stats("Decrypt", out_bytes_total, _td);
+        jau::io::print_stats("Decrypt", out_bytes_total, _td);
 
         return PackInfo( PackHeader(target_path,
                                     file_size,

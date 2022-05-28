@@ -23,8 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef TEST_DATA_HPP_
-#define TEST_DATA_HPP_
+#ifndef DATA_TEST_HPP_
+#define DATA_TEST_HPP_
 
 #include <iostream>
 #include <cassert>
@@ -69,10 +69,6 @@ class TestData {
         static const std::string sign_sec_key_passphrase;
 
         static const std::string url_input_root;
-        static const std::string basename_10kiB;
-        static const std::string basename_64kB;
-        static const std::string basename_382MB;
-        static const std::string basename_1GB;
 };
 
-#endif /* TEST_DATA_HPP_ */
+#endif /* DATA_TEST_HPP_ */

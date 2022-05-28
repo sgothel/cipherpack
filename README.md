@@ -39,14 +39,6 @@ cd elevator
 
 From here on we assume to be in the `elevator` project folder.
 
-Before building and testing start mini-httpd:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
-killall mini_httpd
-echo launch minihttpd
-/usr/sbin/mini_httpd -p 8080 -l `pwd`/mini_httpd-platform.log
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-or use `./scripts/run_mini_httpd.sh`
-
 For a generic build use:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 CPU_COUNT=`getconf _NPROCESSORS_ONLN`

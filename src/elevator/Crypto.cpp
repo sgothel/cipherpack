@@ -29,8 +29,6 @@
 
 #include <jau/debug.hpp>
 
-#include <botan_all.h>
-
 using namespace elevator::cipherpack;
 
 const std::string Constants::package_magic              = "ZAF_ELEVATOR_0006";
@@ -77,7 +75,7 @@ std::string CryptoConfig::toString() const noexcept {
 }
 
 std::shared_ptr<Botan::Public_Key> elevator::cipherpack::load_public_key(const std::string& pubkey_fname) {
-    io::ByteStream_File key_data(pubkey_fname, false /* use_binary */);
+    jau::io::ByteStream_File key_data(pubkey_fname, false /* use_binary */);
     std::shared_ptr<Botan::Public_Key> key(Botan::X509::load_key(key_data));
     if( !key ) {
         ERR_PRINT("Couldn't load Key %s", pubkey_fname.c_str());
@@ -91,7 +89,7 @@ std::shared_ptr<Botan::Public_Key> elevator::cipherpack::load_public_key(const s
 }
 
 std::shared_ptr<Botan::Private_Key> elevator::cipherpack::load_private_key(const std::string& privatekey_fname, const std::string& passphrase) {
-    io::ByteStream_File key_data(privatekey_fname, false /* use_binary */);
+    jau::io::ByteStream_File key_data(privatekey_fname, false /* use_binary */);
     std::shared_ptr<Botan::Private_Key> key;
     if( passphrase.empty() ) {
         key = Botan::PKCS8::load_key(key_data);

@@ -30,12 +30,12 @@
 #include <cstdint>
 #include <functional>
 
-#include <jau/basic_types.hpp>
-#include <jau/file_util.hpp>
-
 #include <botan_all.h>
 
-#include <elevator/byte_stream.hpp>
+#include <jau/basic_types.hpp>
+#include <jau/file_util.hpp>
+#include <jau/byte_stream.hpp>
+#include <jau/io_util.hpp>
 
 namespace elevator {
 
@@ -392,7 +392,7 @@ namespace cipherpack {
      */
     PackInfo checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                        const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                       io::ByteStream &source,
+                                       jau::io::ByteStream &source,
                                        const std::string &output_fname, const bool overwrite);
 };
 

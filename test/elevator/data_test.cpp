@@ -23,7 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "test_data.hpp"
+#include "data_test.hpp"
 
 const std::string TestData::enc_pub_key1_fname = "../../../test_keys/terminal_rsa1.pub.pem";
 const std::string TestData::dec_sec_key1_fname = "../../../test_keys/terminal_rsa1";
@@ -53,8 +53,4 @@ const std::string TestData::sign_sec_key4_fname = "../../../test_keys/host_rsa4"
 
 const std::string TestData::sign_sec_key_passphrase = "";
 
-const std::string TestData::url_input_root = "http://localhost:8080/test_data/";
-const std::string TestData::basename_10kiB = "data-10kiB.bin"; // + '.enc' for encrypted
-const std::string TestData::basename_64kB = "data-64kB.bin"; // + '.enc' for encrypted
-const std::string TestData::basename_382MB = "data-382MB.mkv"; // + '.enc' for encrypted
-const std::string TestData::basename_1GB = "data-1GB.mkv"; // + '.enc' for encrypted
+const std::string TestData::url_input_root = "http://localhost:8080/";
