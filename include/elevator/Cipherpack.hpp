@@ -392,7 +392,7 @@ namespace cipherpack {
      */
     PackInfo checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                        const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                       jau::io::ByteStream &source,
+                                       jau::io::ByteInStream &source,
                                        const std::string &output_fname, const bool overwrite);
 };
 

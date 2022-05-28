@@ -310,7 +310,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
 
 PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
                                                          const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                                         jau::io::ByteStream &source,
+                                                         jau::io::ByteInStream &source,
                                                          const std::string &output_fname, const bool overwrite) {
     Elevator::env_init();
 
@@ -380,7 +380,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
         std::vector<uint8_t> signature;
 
         jau::io::secure_vector<uint8_t> input_buffer;
-        jau::io::ByteStream_Recorder input(source, input_buffer);
+        jau::io::ByteInStream_Recorder input(source, input_buffer);
 
         try {
             // DER-Header-1

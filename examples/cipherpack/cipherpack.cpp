@@ -121,12 +121,12 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        std::unique_ptr<jau::io::ByteStream> enc_stream;
+        std::unique_ptr<jau::io::ByteInStream> enc_stream;
         const std::string proto = source.substr(0, 5);
         if( proto == "http:" ) {
-            enc_stream = std::make_unique<jau::io::ByteStream_URL>(source, 20_s);
+            enc_stream = std::make_unique<jau::io::ByteInStream_URL>(source, 20_s);
         } else {
-            enc_stream = std::make_unique<jau::io::ByteStream_File>(source, true /* use_binary */);
+            enc_stream = std::make_unique<jau::io::ByteInStream_File>(source, true /* use_binary */);
         }
         cipherpack::PackInfo pinfo = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                                                            *enc_stream, fname_output, overwrite);
