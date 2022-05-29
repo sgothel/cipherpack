@@ -246,7 +246,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
         };
         jau::io::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(Constants::buffer_size);
-        const uint64_t in_bytes_total = jau::io::read_file(input_fname, input_stats.size(), io_buffer, consume_data);
+        const uint64_t in_bytes_total = jau::io::read_file(input_fname, io_buffer, consume_data);
 
         if ( 0==in_bytes_total || outfile.fail() ) {
             ERR_PRINT2("Encrypt failed: Output file write failed %s", output_fname.c_str());
@@ -288,7 +288,9 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-        jau::io::print_stats("Encrypt", out_bytes_total, _td);
+        if( jau::environment::get().verbose ) {
+            jau::io::print_stats("Encrypt", out_bytes_total, _td);
+        }
 
         return PackInfo( PackHeader(target_path,
                                     input_stats.size(),
@@ -599,7 +601,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
         };
         jau::io::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(Constants::buffer_size);
-        const uint64_t in_bytes_total = jau::io::read_stream(input, 0, io_buffer, consume_data);
+        const uint64_t in_bytes_total = jau::io::read_stream(input, io_buffer, consume_data);
         input.close();
 
         if ( 0==in_bytes_total || outfile.fail() ) {
@@ -636,7 +638,9 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-        jau::io::print_stats("Decrypt", out_bytes_total, _td);
+        if( jau::environment::get().verbose ) {
+            jau::io::print_stats("Decrypt", out_bytes_total, _td);
+        }
 
         return PackInfo( PackHeader(target_path,
                                     file_size,
