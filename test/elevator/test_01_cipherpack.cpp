@@ -311,9 +311,19 @@ class Test01Cipherpack : public TestData {
                 jau::PLAIN_PRINT(true, "test12_dec_http_error: %s\n", pinfo2.toString(true, true).c_str());
                 REQUIRE( pinfo2.isValid() == false );
             }
+            {
+                // Error: URL file doesn't exist
+                const std::string uri_encrypted_err = url_input_root + "doesnt_exists.enc";
+                jau::io::ByteInStream_URL enc_stream(uri_encrypted_err, io_timeout);
+                cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
+                                                                                    enc_stream, file_decrypted, overwrite);
+                jau::PLAIN_PRINT(true, "test12_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test12_dec_http_error: %s\n", pinfo2.toString(true, true).c_str());
+                REQUIRE( pinfo2.isValid() == false );
+            }
         }
 
-        // throttled, no content size
+        // throttled, no content size, interruptReader() via set_eof() will avoid timeout
         static void feed_source_00(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
@@ -323,15 +333,36 @@ class Test01Cipherpack : public TestData {
                 if( 0 < count ) {
                     xfer_total += count;
                     enc_feed->write(buffer, count);
-                    jau::sleep_for( 100_ms );
+                    jau::sleep_for( 16_ms );
                 }
             }
             // probably set after decryption due to above sleep, which also ends when total size has been reached.
             enc_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
         }
 
-        // full speed, with content size
+        // throttled, with content size
         static void feed_source_01(jau::io::ByteInStream_Feed * enc_feed) {
+            jau::fs::file_stats fs_feed(enc_feed->id());
+            const uint64_t file_size = fs_feed.size();
+            enc_feed->set_content_size( file_size );
+
+            uint64_t xfer_total = 0;
+            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
+            while( !enc_stream.end_of_data() && xfer_total < file_size ) {
+                uint8_t buffer[1024]; // 1k
+                size_t count = enc_stream.read(buffer, sizeof(buffer));
+                if( 0 < count ) {
+                    xfer_total += count;
+                    enc_feed->write(buffer, count);
+                    jau::sleep_for( 16_ms );
+                }
+            }
+            // probably set after transfering due to above sleep, which also ends when total size has been reached.
+            enc_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
+        }
+
+        // full speed, with content size
+        static void feed_source_10(jau::io::ByteInStream_Feed * enc_feed) {
             jau::fs::file_stats fs_feed(enc_feed->id());
             const uint64_t file_size = fs_feed.size();
             enc_feed->set_content_size( file_size );
@@ -350,6 +381,50 @@ class Test01Cipherpack : public TestData {
             enc_feed->set_eof( xfer_total == file_size ? jau::io::async_io_result_t::SUCCESS : jau::io::async_io_result_t::FAILED );
         }
 
+        // full speed, no content size, interrupting @ 1024 bytes within our header
+        static void feed_source_20(jau::io::ByteInStream_Feed * data_feed) {
+            uint64_t xfer_total = 0;
+            jau::io::ByteInStream_File enc_stream(data_feed->id(), true /* use_binary */);
+            while( !enc_stream.end_of_data() ) {
+                uint8_t buffer[1024]; // 1k
+                size_t count = enc_stream.read(buffer, sizeof(buffer));
+                if( 0 < count ) {
+                    xfer_total += count;
+                    data_feed->write(buffer, count);
+                    if( xfer_total >= 1024 ) {
+                        data_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
+                        return;
+                    }
+                }
+            }
+            // probably set after transfering due to above sleep, which also ends when total size has been reached.
+            data_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
+        }
+
+        // full speed, with content size, interrupting 1/4 way
+        static void feed_source_21(jau::io::ByteInStream_Feed * data_feed) {
+            jau::fs::file_stats fs_feed(data_feed->id());
+            const uint64_t file_size = fs_feed.size();
+            data_feed->set_content_size( file_size );
+
+            uint64_t xfer_total = 0;
+            jau::io::ByteInStream_File enc_stream(data_feed->id(), true /* use_binary */);
+            while( !enc_stream.end_of_data() ) {
+                uint8_t buffer[1024]; // 1k
+                size_t count = enc_stream.read(buffer, sizeof(buffer));
+                if( 0 < count ) {
+                    xfer_total += count;
+                    data_feed->write(buffer, count);
+                    if( xfer_total >= file_size/4 ) {
+                        data_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
+                        return;
+                    }
+                }
+            }
+            // probably set after transfering due to above sleep, which also ends when total size has been reached.
+            data_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
+        }
+
         void test21_enc_dec_fed_ok() {
             const std::vector<std::string> enc_pub_keys { enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname };
             const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
@@ -366,9 +441,23 @@ class Test01Cipherpack : public TestData {
                     REQUIRE( pinfo1.isValid() == true );
                 }
                 {
-                    // throttled, no content size
+                    // throttled, no content size, interruptReader() via set_eof() will avoid timeout
                     jau::io::ByteInStream_Feed enc_feed(fname_payload_encrypted_lst[file_idx], io_timeout);
                     std::thread feeder_thread= std::thread(&feed_source_00, &enc_feed);
+
+                    cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
+                                                                                        enc_feed, fname_payload_decrypted_lst[file_idx], overwrite);
+                    if( feeder_thread.joinable() ) {
+                        feeder_thread.join();
+                    }
+                    jau::PLAIN_PRINT(true, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst[file_idx].c_str(), fname_payload_decrypted_lst[file_idx].c_str());
+                    jau::PLAIN_PRINT(true, "test21_enc_dec_fed_ok: %s\n", pinfo2.toString(true, true).c_str());
+                    REQUIRE( pinfo2.isValid() == true );
+                }
+                {
+                    // throttled, with content size
+                    jau::io::ByteInStream_Feed enc_feed(fname_payload_encrypted_lst[file_idx], io_timeout);
+                    std::thread feeder_thread= std::thread(&feed_source_01, &enc_feed);
 
                     cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                                         enc_feed, fname_payload_decrypted_lst[file_idx], overwrite);
@@ -395,7 +484,7 @@ class Test01Cipherpack : public TestData {
                 {
                     // full speed, with content size
                     jau::io::ByteInStream_Feed enc_feed(fname_payload_encrypted_lst[file_idx], io_timeout);
-                    std::thread feeder_thread= std::thread(&feed_source_01, &enc_feed);
+                    std::thread feeder_thread= std::thread(&feed_source_10, &enc_feed);
 
                     cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                                         enc_feed, fname_payload_decrypted_lst[file_idx], overwrite);
@@ -408,6 +497,53 @@ class Test01Cipherpack : public TestData {
                 }
             }
         }
+
+        void test22_enc_dec_fed_irq() {
+            const std::vector<std::string> enc_pub_keys { enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname };
+            const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
+            {
+                const size_t file_idx = IDX_65MiB;
+                {
+                    cipherpack::PackInfo pinfo1 = cipherpack::encryptThenSign_RSA1(cipherpack::CryptoConfig::getDefault(),
+                                                                                   enc_pub_keys,
+                                                                                   sign_sec_key1_fname, sign_sec_key_passphrase,
+                                                                                   fname_payload_lst[file_idx], fname_payload_lst[file_idx], "test_case", 1, 0,
+                                                                                   fname_payload_encrypted_lst[file_idx], overwrite);
+                    jau::PLAIN_PRINT(true, "test22_enc_dec_fed_irq: Encrypted %s to %s\n", fname_payload_lst[file_idx].c_str(), fname_payload_encrypted_lst[file_idx].c_str());
+                    jau::PLAIN_PRINT(true, "test22_enc_dec_fed_irq: %s\n", pinfo1.toString(true, true).c_str());
+                    REQUIRE( pinfo1.isValid() == true );
+                }
+                {
+                    // full speed, no content size, interrupting @ 1024 bytes within our header
+                    jau::io::ByteInStream_Feed enc_feed(fname_payload_encrypted_lst[file_idx], io_timeout);
+                    std::thread feeder_thread= std::thread(&feed_source_20, &enc_feed);
+
+                    cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
+                                                                                        enc_feed, fname_payload_decrypted_lst[file_idx], overwrite);
+                    if( feeder_thread.joinable() ) {
+                        feeder_thread.join();
+                    }
+                    jau::PLAIN_PRINT(true, "test22_enc_dec_fed_irq: Decypted %s to %s\n", fname_payload_encrypted_lst[file_idx].c_str(), fname_payload_decrypted_lst[file_idx].c_str());
+                    jau::PLAIN_PRINT(true, "test22_enc_dec_fed_irq: %s\n", pinfo2.toString(true, true).c_str());
+                    REQUIRE( pinfo2.isValid() == false );
+                }
+                {
+                    // full speed, with content size, interrupting 1/4 way
+                    jau::io::ByteInStream_Feed enc_feed(fname_payload_encrypted_lst[file_idx], io_timeout);
+                    std::thread feeder_thread= std::thread(&feed_source_21, &enc_feed);
+
+                    cipherpack::PackInfo pinfo2 = cipherpack::checkSignThenDecrypt_RSA1(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
+                                                                                        enc_feed, fname_payload_decrypted_lst[file_idx], overwrite);
+                    if( feeder_thread.joinable() ) {
+                        feeder_thread.join();
+                    }
+                    jau::PLAIN_PRINT(true, "test22_enc_dec_fed_irq: Decypted %s to %s\n", fname_payload_encrypted_lst[file_idx].c_str(), fname_payload_decrypted_lst[file_idx].c_str());
+                    jau::PLAIN_PRINT(true, "test22_enc_dec_fed_irq: %s\n", pinfo2.toString(true, true).c_str());
+                    REQUIRE( pinfo2.isValid() == false );
+                }
+            }
+        }
+
 };
 
 std::vector<std::string> Test01Cipherpack::fname_payload_lst;
@@ -422,5 +558,6 @@ METHOD_AS_TEST_CASE( Test01Cipherpack::test12_dec_http_ok,        "Elevator Ciph
 METHOD_AS_TEST_CASE( Test01Cipherpack::test13_dec_http_error,     "Elevator CipherPack 02 test13_dec_http_error");
 
 METHOD_AS_TEST_CASE( Test01Cipherpack::test21_enc_dec_fed_ok,     "Elevator CipherPack 03 test21_enc_dec_fed_ok");
+METHOD_AS_TEST_CASE( Test01Cipherpack::test22_enc_dec_fed_irq,    "Elevator CipherPack 03 test22_enc_dec_fed_irq");
 
 

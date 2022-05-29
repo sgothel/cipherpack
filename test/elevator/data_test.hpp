@@ -37,7 +37,7 @@ using namespace jau::fractions_i64_literals;
 
 class TestData {
     public:
-        static constexpr const jau::fraction_i64 io_timeout = 20_s;
+        static constexpr const jau::fraction_i64 io_timeout = 10_s;
 
         static constexpr const bool overwrite = true;
         static const std::string enc_pub_key1_fname;
