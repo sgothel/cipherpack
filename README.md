@@ -116,6 +116,11 @@ please contact [Gothel Software](https://jausoft.com/) to setup a potential supp
 
 * First stable release (TODO)
 
+**0.4.0**
+
+* Working version with universal jau::io::ByteInStream and matured unit testing OK and error cases
+
+
 **0.0.0**
 
 * Kick-off
