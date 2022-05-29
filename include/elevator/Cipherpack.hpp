@@ -285,6 +285,7 @@ namespace cipherpack {
              */
             std::string toString(const bool show_crypto_algos=false, const bool force_all_fingerprints=false) const noexcept;
 
+            void setValid(const bool v) { valid = v; }
             bool isValid() const noexcept { return valid; }
     };
 
