@@ -150,14 +150,14 @@ namespace cipherpack {
                      const std::string& pk_enc_hash_algo_,
                      const std::string& pk_sign_algo_,
                      const std::string& sym_enc_algo_,
-                     const size_t sym_enc_nonce_bitsize_) noexcept
+                     const size_t sym_enc_nonce_bytes_) noexcept
         : pk_type(pk_type_),
           pk_fingerprt_hash_algo(pk_fingerprt_hash_algo_),
           pk_enc_padding_algo(pk_enc_padding_algo_),
           pk_enc_hash_algo(pk_enc_hash_algo_),
           pk_sign_algo(pk_sign_algo_),
           sym_enc_algo(sym_enc_algo_),
-          sym_enc_nonce_bytes(sym_enc_nonce_bitsize_)
+          sym_enc_nonce_bytes(sym_enc_nonce_bytes_)
         { }
 
         bool valid() const noexcept;
@@ -252,7 +252,7 @@ namespace cipherpack {
             /** Returns the designated decrypted target path of the file from DER-Header-1, see @ref cipherpack_stream "Cipherpack Data Stream". */
             const std::string& getTargetPath() const noexcept { return target_path; }
 
-            /** Returns the plain content size in bytes, i.e. decrypted payload size, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            /** Returns the plaintext content size in bytes, i.e. decrypted payload size, see @ref cipherpack_stream "Cipherpack Data Stream". */
             uint64_t getContentSize() const noexcept { return content_size; }
 
             /** Returns the creation time since Unix epoch, see @ref cipherpack_stream "Cipherpack Data Stream". */

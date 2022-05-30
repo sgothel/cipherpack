@@ -139,7 +139,7 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
 
     std::string res = "Header[";
     res += "valid "+std::to_string( isValid() )+
-           ", file[target_path "+target_path+", net_size "+jau::to_decstring(content_size).c_str()+
+           ", file[target_path "+target_path+", content_size "+jau::to_decstring(content_size).c_str()+
            "], creation "+ts_creation.to_iso8601_string(true)+" UTC, intention '"+intention+"', "+
            " version["+std::to_string(payload_version)+
            ", parent "+std::to_string(payload_version_parent)+crypto_str+
