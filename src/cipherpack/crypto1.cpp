@@ -26,13 +26,12 @@
 #include <fstream>
 #include <iostream>
 
-#include <elevator/elevator.hpp>
+#include <cipherpack/cipherpack.hpp>
 
 #include <jau/debug.hpp>
 #include <jau/file_util.hpp>
 
-using namespace elevator;
-using namespace elevator::cipherpack;
+using namespace cipherpack;
 
 // static uint32_t to_uint32_t(const Botan::BigInt& v) const { return v.to_u32bit(); }
 
@@ -62,21 +61,19 @@ static std::string to_string(const std::vector<uint8_t>& v) {
     return std::string(reinterpret_cast<const char*>(v.data()), v.size());
 }
 
-PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_cfg,
-                                                    const std::vector<std::string> &enc_pub_keys,
-                                                    const std::string &sign_sec_key_fname, const std::string &passphrase,
-                                                    const std::string &input_fname,
-                                                    const std::string &target_path, const std::string &intention,
-                                                    const uint64_t payload_version,
-                                                    const uint64_t payload_version_parent,
-                                                    const std::string &output_fname, const bool overwrite) {
-    Elevator::env_init();
-
+PackInfo cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
+                                     const std::vector<std::string>& enc_pub_keys,
+                                     const std::string& sign_sec_key_fname, const std::string& passphrase,
+                                     jau::io::ByteInStream& source,
+                                     const std::string& target_path, const std::string& intention,
+                                     const uint64_t payload_version,
+                                     const uint64_t payload_version_parent,
+                                     const std::string& destination_fname, const bool overwrite) {
+    Environment::env_init();
     const jau::fraction_timespec ts_creation = jau::getWallClockTime();
-    const jau::fs::file_stats input_stats(input_fname);
 
     PackHeader header(target_path,
-                      input_stats.size(),
+                      source.content_size(),
                       ts_creation,
                       intention,
                       payload_version, payload_version_parent,
@@ -86,43 +83,118 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
                       -1 /* term_key_fingerprint_used_idx */,
                       false /* valid */);
 
+    {
+        const jau::fs::file_stats output_stats(destination_fname);
+        if( output_stats.exists() ) {
+            if( overwrite && output_stats.is_file() ) {
+                if( !jau::fs::remove(destination_fname, false /* recursive */) ) {
+                    ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
+                    return PackInfo(header, source.id(), false);
+                }
+            } else {
+                ERR_PRINT2("Encrypt failed: Not overwriting existing output file %s", output_stats.to_string(true).c_str());
+                return PackInfo(header, source.id(), false);
+            }
+        }
+    }
+    std::ofstream outfile(destination_fname, std::ios::out | std::ios::binary);
+    if ( !outfile.good() || !outfile.is_open() ) {
+        ERR_PRINT2("Encrypt failed: Output file not open %s", destination_fname.c_str());
+        return PackInfo(header, source.id(), false);
+    }
+
+    uint64_t out_bytes_header=0, out_bytes_payload=0;
+    EncryptionStreamConsumerFunc destination_fn = [&](bool is_header, jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        (void) is_final;
+        outfile.write(reinterpret_cast<char*>(data.data()), data.size());
+        if( outfile.fail() ) {
+            return false;
+        }
+        if( is_header ) {
+            out_bytes_header += data.size();
+        } else {
+            out_bytes_payload += data.size();
+        }
+        return true;
+    };
+
+    PackInfo pi = encryptThenSign(crypto_cfg,
+                                  enc_pub_keys,
+                                  sign_sec_key_fname, passphrase,
+                                  source,
+                                  target_path, intention,
+                                  payload_version,
+                                  payload_version_parent,
+                                  destination_fn);
+    if ( outfile.fail() ) {
+        ERR_PRINT2("Encrypt failed: Output file write failed %s", destination_fname.c_str());
+        jau::fs::remove(destination_fname, false /* recursive */);
+        return PackInfo(header, source.id(), false);
+    }
+    outfile.close();
+
+    if( !pi.isValid() ) {
+        jau::fs::remove(destination_fname, false /* recursive */);
+        return pi;
+    }
+
+    const jau::fs::file_stats output_stats(destination_fname);
+    if( out_bytes_header + out_bytes_payload != output_stats.size() ) {
+        ERR_PRINT2("Encrypt: Writing done, %s header + %s payload != %s total bytes",
+                jau::to_decstring(out_bytes_header).c_str(),
+                jau::to_decstring(out_bytes_payload).c_str(),
+                jau::to_decstring(output_stats.size()).c_str());
+        jau::fs::remove(destination_fname, false /* recursive */);
+        return PackInfo(pi.getHeader(), source.id(), false);
+    }
+
+    pi.setDestination(destination_fname);
+    jau::PLAIN_PRINT(true, "Encrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
+    return pi;
+}
+
+PackInfo cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
+                                     const std::vector<std::string>& enc_pub_keys,
+                                     const std::string& sign_sec_key_fname, const std::string& passphrase,
+                                     jau::io::ByteInStream& source,
+                                     const std::string& target_path, const std::string& intention,
+                                     const uint64_t payload_version,
+                                     const uint64_t payload_version_parent,
+                                     EncryptionStreamConsumerFunc destination_fn) {
+    Environment::env_init();
+    const jau::fraction_timespec ts_creation = jau::getWallClockTime();
+
+    PackHeader header(target_path,
+                      source.content_size(),
+                      ts_creation,
+                      intention,
+                      payload_version, payload_version_parent,
+                      crypto_cfg,
+                      std::string(),
+                      std::vector<std::string>(),
+                      -1 /* term_key_fingerprint_used_idx */,
+                      false /* valid */);
+
+    if( source.end_of_data() || source.error() ) {
+        ERR_PRINT2("Encrypt failed: Source is EOS or has an error %s", source.to_string().c_str());
+        return PackInfo(header, source.id(), false);
+    }
+    if( !source.has_content_size() ) {
+        ERR_PRINT2("Encrypt failed: Source doesn't provide content_size %s", source.to_string().c_str());
+        return PackInfo(header, source.id(), false);
+    }
+    const uint64_t content_size = source.content_size();
+
     if( !crypto_cfg.valid() ) {
-        ERR_PRINT2("Encrypt failed: CryptoConfig incomplete %s", crypto_cfg.toString().c_str());
-        return PackInfo(header, input_fname, false);
+        ERR_PRINT2("Encrypt failed: CryptoConfig incomplete %s", crypto_cfg.to_string().c_str());
+        return PackInfo(header, source.id(), false);
     }
 
     const jau::fraction_timespec _t0 = jau::getMonotonicTime();
 
-    if( !input_stats.exists() || !input_stats.has_access() || !input_stats.is_file() ) {
-        ERR_PRINT2("Encrypt failed: Input file not accessible %s", input_stats.to_string(true).c_str());
-        return PackInfo(header, input_fname, false);
-    }
-    if( 0 == input_stats.size() ) {
-        ERR_PRINT2("Encrypt failed: Input file has zero size %s", input_stats.to_string(true).c_str());
-        return PackInfo(header, input_fname, false);
-    }
     if( target_path.empty() ) {
-        ERR_PRINT2("Encrypt failed: Target path is empty for %s", input_stats.to_string(true).c_str());
-        return PackInfo(header, input_fname, false);
-    }
-    {
-        const jau::fs::file_stats output_stats(output_fname);
-        if( output_stats.exists() ) {
-            if( overwrite && output_stats.is_file() ) {
-                if( !jau::fs::remove(output_fname, false /* recursive */) ) {
-                    ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
-                    return PackInfo(header, input_fname, false);
-                }
-            } else {
-                ERR_PRINT2("Encrypt failed: Not overwriting existing output file %s", output_stats.to_string(true).c_str());
-                return PackInfo(header, input_fname, false);
-            }
-        }
-    }
-    std::ofstream outfile(output_fname, std::ios::out | std::ios::binary);
-    if ( !outfile.good() || !outfile.is_open() ) {
-        ERR_PRINT2("Encrypt failed: Output file not open %s", output_fname.c_str());
-        return PackInfo(header, input_fname, false);
+        ERR_PRINT2("Encrypt failed: Target path is empty for %s", source.to_string().c_str());
+        return PackInfo(header, source.id(), false);
     }
     uint64_t out_bytes_header;
 
@@ -131,18 +203,18 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
 
         std::shared_ptr<Botan::Private_Key> sign_sec_key = load_private_key(sign_sec_key_fname, passphrase);
         if( !sign_sec_key ) {
-            return PackInfo(header, input_fname, false);
+            return PackInfo(header, source.id(), false);
         }
 
         const Botan::OID sym_enc_algo_oid = Botan::OID::from_string(crypto_cfg.sym_enc_algo);
         if( sym_enc_algo_oid.empty() ) {
             ERR_PRINT2("Encrypt failed: No OID defined for cypher algo %s", crypto_cfg.sym_enc_algo.c_str());
-            return PackInfo(header, input_fname, false);
+            return PackInfo(header, source.id(), false);
         }
         std::shared_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create(crypto_cfg.sym_enc_algo, Botan::ENCRYPTION);
         if(!aead) {
            ERR_PRINT2("Encrypt failed: AEAD algo %s not available", crypto_cfg.sym_enc_algo.c_str());
-           return PackInfo(header, input_fname, false);
+           return PackInfo(header, source.id(), false);
         }
         jau::io::secure_vector<uint8_t> plain_file_key = rng.random_vec(aead->key_spec().maximum_keylength());
         jau::io::secure_vector<uint8_t> nonce = rng.random_vec(crypto_cfg.sym_enc_nonce_bytes);
@@ -160,7 +232,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
 
             enc_key_data.pub_key = load_public_key(pub_key_fname);
             if( !enc_key_data.pub_key ) {
-                return PackInfo(header, input_fname, false);
+                return PackInfo(header, source.id(), false);
             }
             Botan::PK_Encryptor_EME enc(*enc_key_data.pub_key, rng, crypto_cfg.pk_enc_padding_algo+"(" + crypto_cfg.pk_enc_hash_algo + ")");
 
@@ -180,7 +252,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
                 der.start_sequence()
                    .encode( to_OctetString( Constants::package_magic ), Botan::ASN1_Type::OctetString )
                    .encode( to_OctetString( target_path ), Botan::ASN1_Type::OctetString )
-                   .encode( to_BigInt( static_cast<uint64_t>( input_stats.size() ) ), Botan::ASN1_Type::Integer )
+                   .encode( to_BigInt( static_cast<uint64_t>( content_size ) ), Botan::ASN1_Type::Integer )
                    .encode( to_BigInt( static_cast<uint64_t>( ts_creation.tv_sec ) ), Botan::ASN1_Type::Integer )
                    .encode( to_OctetString( intention ), Botan::ASN1_Type::OctetString )
                    .encode( to_BigInt(payload_version), Botan::ASN1_Type::Integer )
@@ -204,7 +276,7 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
 
                 der.end_cons(); // data push
             }
-            outfile.write((char*)header_buffer.data(), header_buffer.size());
+            destination_fn(true /* header */, header_buffer, false /* final */);
             out_bytes_header = header_buffer.size();
             DBG_PRINT("Encrypt: DER Header1 written + %zu bytes -> %" PRIu64 " bytes, enc_keys %zu",
                     header_buffer.size(), out_bytes_header, enc_key_data_list.size());
@@ -222,12 +294,12 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
                    .encode( signature, Botan::ASN1_Type::OctetString )
                    .end_cons();
             }
-            outfile.write((char*)header_buffer.data(), header_buffer.size());
+            destination_fn(true /* header */, header_buffer, false /* final */);
             out_bytes_header += header_buffer.size();
             DBG_PRINT("Encrypt: DER Header2 written + %zu bytes -> %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
         }
         header = PackHeader(target_path,
-                            input_stats.size(),
+                            content_size,
                             ts_creation,
                             intention,
                             payload_version, payload_version_parent,
@@ -237,16 +309,8 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
                             -1 /* term_key_fingerprint_used_idx */,
                             false /* valid */);
 
-        uint64_t out_bytes_total = outfile.tellp();
-        if( out_bytes_header != out_bytes_total ) {
-            ERR_PRINT2("Encrypt: DER Header done, %" PRIu64 " header != %" PRIu64 " total bytes", out_bytes_header, out_bytes_total);
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, input_fname, false);
-        } else {
-            DBG_PRINT("Encrypt: DER Header done, %" PRIu64 " header == %" PRIu64 " total bytes: %s",
-                    out_bytes_header, out_bytes_total,
-                    header.toString(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
-        }
+        DBG_PRINT("Encrypt: DER Header done, %" PRIu64 " header: %s",
+                out_bytes_header, header.toString(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
 
         aead->set_key(plain_file_key);
         aead->set_associated_data_vec(signature);
@@ -254,113 +318,136 @@ PackInfo elevator::cipherpack::encryptThenSign_RSA1(const CryptoConfig& crypto_c
 
         uint64_t out_bytes_payload = 0;
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+            bool res;
             if( !is_final ) {
                 aead->update(data);
-                outfile.write(reinterpret_cast<char*>(data.data()), data.size());
+                res = destination_fn(true /* header */, data, is_final);
                 out_bytes_payload += data.size();
-                DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, input_stats.size());
+                DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user res %d",
+                        data.size(), out_bytes_payload, content_size, res);
             } else {
                 aead->finish(data);
-                outfile.write(reinterpret_cast<char*>(data.data()), data.size());
+                res = destination_fn(true /* header */, data, is_final);
                 out_bytes_payload += data.size();
-                DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, input_stats.size());
+                DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user res %d",
+                        data.size(), out_bytes_payload, content_size, res);
             }
-            return true;
+            return res;
         };
         jau::io::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(Constants::buffer_size);
-        jau::io::ByteInStream_File source(input_fname, true /* use_binary */);
         const uint64_t in_bytes_total = jau::io::read_stream(source, io_buffer, consume_data);
         source.close();
 
         if ( 0==in_bytes_total || source.error() ) {
-            ERR_PRINT2("Encrypt failed: Input file read failed %s", source.to_string().c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, input_fname, false);
-        }
-        if ( outfile.fail() ) {
-            ERR_PRINT2("Encrypt failed: Output file write failed %s", output_fname.c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, input_fname, false);
+            ERR_PRINT2("Encrypt failed: Source read failed %s", source.to_string().c_str());
+            return PackInfo(header, source.id(), false);
         }
 
-        out_bytes_total = outfile.tellp();
-        outfile.close();
-        const jau::fs::file_stats output_stats(output_fname);
-        if( out_bytes_header + out_bytes_payload != out_bytes_total ) {
-            ERR_PRINT2("Encrypt: Writing done, %s header + %s payload != %s total bytes for %s bytes input",
-                    jau::to_decstring(out_bytes_header).c_str(),
-                    jau::to_decstring(out_bytes_payload).c_str(),
-                    jau::to_decstring(out_bytes_total).c_str(),
-                    jau::to_decstring(in_bytes_total).c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, input_fname, false);
-        } else if( output_stats.size() != out_bytes_total ) {
-            ERR_PRINT2("Encrypt: Writing done, %s total bytes != %s",
-                    jau::to_decstring(out_bytes_payload).c_str(),
-                    output_stats.to_string(true).c_str() );
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, input_fname, false);
-        } else if( input_stats.size() != in_bytes_total ) {
-            ERR_PRINT2("Encrypt: Writing done, %s != %s bytes input",
-                    input_stats.to_string(true).c_str(),
-                    jau::to_decstring(in_bytes_total).c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, input_fname, false);
+        if( source.bytes_read() != in_bytes_total ) {
+            ERR_PRINT2("Encrypt: Writing done, %s bytes read != %s",
+                    jau::to_decstring(in_bytes_total).c_str(),
+                    source.to_string().c_str());
+            return PackInfo(header, source.id(), false);
         } else if( jau::environment::get().verbose ) {
-            jau::PLAIN_PRINT(true, "Encrypt: Writing done, %s header + %s payload == %s total bytes for %s bytes input, ratio %lf out/in",
+            jau::PLAIN_PRINT(true, "Encrypt: Writing done, %s header + %s payload for %s bytes written, ratio %lf out/in",
                     jau::to_decstring(out_bytes_header).c_str(),
                     jau::to_decstring(out_bytes_payload).c_str(),
-                    jau::to_decstring(out_bytes_total).c_str(),
-                    jau::to_decstring(in_bytes_total).c_str(), (double)out_bytes_total/(double)in_bytes_total);
-            jau::PLAIN_PRINT(true, "Encrypt: Writing done: input : %s", input_stats.to_string(true).c_str());
-            jau::PLAIN_PRINT(true, "Encrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
+                    jau::to_decstring(in_bytes_total).c_str(), (double)(out_bytes_header+out_bytes_payload)/(double)in_bytes_total);
+            jau::PLAIN_PRINT(true, "Encrypt: Writing done: source: %s", source.to_string().c_str());
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
         if( jau::environment::get().verbose ) {
-            jau::io::print_stats("Encrypt", out_bytes_total, _td);
+            jau::io::print_stats("Encrypt", (out_bytes_header+out_bytes_payload), _td);
         }
         header.setValid(true);
-        return PackInfo( header,
-                         input_fname, false, output_stats, true);
+        return PackInfo( header, source.id(), false, target_path, true);
     } catch (std::exception &e) {
         ERR_PRINT2("Encrypt failed: Caught exception: %s", e.what());
-        jau::fs::remove(output_fname, false /* recursive */);
-        return PackInfo(header, input_fname, false);
+        return PackInfo(header, source.id(), false);
     }
 }
 
-PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
-                                                         const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                                         jau::io::ByteInStream &source,
-                                                         const std::string &output_fname, const bool overwrite) {
-    Elevator::env_init();
-
+PackInfo cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
+                                          const std::string& dec_sec_key_fname, const std::string& passphrase,
+                                          jau::io::ByteInStream& source,
+                                          const std::string& destination_fname, const bool overwrite) {
+    Environment::env_init();
     jau::fraction_timespec ts_creation;
     PackHeader header(ts_creation);
-
-    const jau::fraction_timespec _t0 = jau::getMonotonicTime();
     {
-        const jau::fs::file_stats output_stats(output_fname);
+        const jau::fs::file_stats output_stats(destination_fname);
         if( output_stats.exists() ) {
             if( overwrite && output_stats.is_file() ) {
-                if( !jau::fs::remove(output_fname, false /* recursive */) ) {
-                    ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_fname.c_str());
+                if( !jau::fs::remove(destination_fname, false /* recursive */) ) {
+                    ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", destination_fname.c_str());
                     return PackInfo(header, source.id(), true);
                 }
             } else {
-                ERR_PRINT2("Decrypt failed: Not overwriting existing output file %s", output_fname.c_str());
+                ERR_PRINT2("Decrypt failed: Not overwriting existing output file %s", destination_fname.c_str());
                 return PackInfo(header, source.id(), true);
             }
         }
     }
-    std::ofstream outfile(output_fname, std::ios::out | std::ios::binary);
+    std::ofstream outfile(destination_fname, std::ios::out | std::ios::binary);
     if ( !outfile.good() || !outfile.is_open() ) {
-        ERR_PRINT2("Decrypt failed: Couldn't open output file %s", output_fname.c_str());
+        ERR_PRINT2("Decrypt failed: Output file not open %s", destination_fname.c_str());
         return PackInfo(header, source.id(), true);
     }
 
+    jau::io::StreamConsumerFunc destination_fn = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        (void) is_final;
+        outfile.write(reinterpret_cast<char*>(data.data()), data.size());
+        if( outfile.fail() ) {
+            return false;
+        }
+        return true;
+    };
+
+    PackInfo pi = checkSignThenDecrypt(sign_pub_keys,
+                                       dec_sec_key_fname, passphrase,
+                                       source, destination_fn);
+    if ( outfile.fail() ) {
+        ERR_PRINT2("Decrypt failed: Output file write failed %s", destination_fname.c_str());
+        jau::fs::remove(destination_fname, false /* recursive */);
+        return PackInfo(header, source.id(), true);
+    }
+    outfile.close();
+
+    if( !pi.isValid() ) {
+        jau::fs::remove(destination_fname, false /* recursive */);
+        return pi;
+    }
+
+    const jau::fs::file_stats output_stats(destination_fname);
+    if( pi.getHeader().getContentSize() != output_stats.size() ) {
+        ERR_PRINT2("Decrypt: Writing done, %s content_size != %s total bytes",
+                jau::to_decstring(pi.getHeader().getContentSize()).c_str(),
+                jau::to_decstring(output_stats.size()).c_str());
+        jau::fs::remove(destination_fname, false /* recursive */);
+        return PackInfo(pi.getHeader(), source.id(), true);
+    }
+
+    pi.setDestination(destination_fname);
+    jau::PLAIN_PRINT(true, "Decrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
+    return pi;
+}
+
+PackInfo cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
+                                          const std::string& dec_sec_key_fname, const std::string& passphrase,
+                                          jau::io::ByteInStream& source,
+                                          jau::io::StreamConsumerFunc destination_fn) {
+    Environment::env_init();
+    jau::fraction_timespec ts_creation;
+    PackHeader header(ts_creation);
+
+    const jau::fraction_timespec _t0 = jau::getMonotonicTime();
+
+    if( source.end_of_data() || source.error() ) {
+        ERR_PRINT2("Decrypt failed: Source is EOS or has an error %s", source.to_string().c_str());
+        return PackInfo(header, source.id(), true);
+    }
     try {
         Botan::RandomNumberGenerator& rng = Botan::system_rng();
 
@@ -373,7 +460,7 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
             sign_key_data_t sign_key_data;
             sign_key_data.pub_key = load_public_key(pub_key_fname);
             if( !sign_key_data.pub_key ) {
-                return PackInfo(header, source.id(), false);
+                return PackInfo(header, source.id(), true);
             }
             sign_key_data_list.push_back(sign_key_data);
         }
@@ -420,7 +507,6 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
 
                 if( Constants::package_magic != package_magic_in ) {
                     ERR_PRINT2("Decrypt failed: Expected Magic %s, but got %s in %s", Constants::package_magic.c_str(), package_magic_in.c_str(), source.to_string().c_str());
-                    jau::fs::remove(output_fname, false /* recursive */);
                     return PackInfo(header, source.id(), true);
                 }
                 DBG_PRINT("Decrypt: Magic is %s", package_magic_in.c_str());
@@ -484,21 +570,18 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                                     encrypted_key_idx,
                                     false /* valid */);
 
-                DBG_PRINT("Decrypt: %s", crypto_cfg.toString().c_str());
+                DBG_PRINT("Decrypt: %s", crypto_cfg.to_string().c_str());
 
                 if( target_path.empty() ) {
                    ERR_PRINT2("Decrypt failed: Unknown target_path in %s", source.to_string().c_str());
-                   jau::fs::remove(output_fname, false /* recursive */);
                    return PackInfo(header, source.id(), true);
                 }
                 if( 0 == file_size ) {
                    ERR_PRINT2("Decrypt failed: Zero file-size in %s", source.to_string().c_str());
-                   jau::fs::remove(output_fname, false /* recursive */);
                    return PackInfo(header, source.id(), true);
                 }
                 if( !crypto_cfg.valid() ) {
-                    ERR_PRINT2("Decrypt failed: CryptoConfig transmission incomplete %s from %s", crypto_cfg.toString().c_str(), source.to_string().c_str());
-                    jau::fs::remove(output_fname, false /* recursive */);
+                    ERR_PRINT2("Decrypt failed: CryptoConfig transmission incomplete %s from %s", crypto_cfg.to_string().c_str(), source.to_string().c_str());
                     return PackInfo(header, source.id(), true);
                 }
 
@@ -520,7 +603,6 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                 if( nullptr == sign_pub_key ) {
                     jau::INFO_PRINT("Decrypt failed: No matching host fingerprint, received `%s` in %s",
                             host_key_fingerprt.c_str(), source.to_string().c_str());
-                    jau::fs::remove(output_fname, false /* recursive */);
                     return PackInfo(header, source.id(), true);
                 }
 
@@ -545,7 +627,6 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                 }
                 if( 0 > encrypted_key_idx || 0 == encrypted_key_count ) {
                     jau::INFO_PRINT("Decrypt failed: No matching enc_key found %zd/%zu in %s", encrypted_key_idx, encrypted_key_count, source.to_string().c_str());
-                    jau::fs::remove(output_fname, false /* recursive */);
                     header = PackHeader(target_path,
                                         file_size,
                                         ts_creation,
@@ -594,14 +675,12 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                         header1_buffer.size(),
                         jau::bytesHexString(signature.data(), 0, signature.size(), true /* lsbFirst */).c_str(),
                         source.to_string().c_str());
-                jau::fs::remove(output_fname, false /* recursive */);
                 return PackInfo(header, source.id(), true);
             } else {
                 DBG_PRINT("Decrypt: Signature OK");
             }
         } catch (Botan::Decoding_Error &e) {
             ERR_PRINT2("Decrypt failed: Invalid input file format: %s, %s", e.what(), source.to_string().c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
             return PackInfo(header, source.id(), true);
         }
 
@@ -634,10 +713,10 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             if( !is_final && out_bytes_payload + data.size() < file_size ) {
                 aead->update(data);
-                outfile.write(reinterpret_cast<char*>(data.data()), data.size());
+                const bool res = destination_fn(data, is_final);
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, file_size);
-                return true; // continue ..
+                DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user res %d", data.size(), out_bytes_payload, file_size, res);
+                return res; // continue if user so desires
             } else {
                 // DBG_PRINT("Decrypt: p111a size %zu, capacity %zu", data.size(), data.capacity());
                 // DBG_PRINT("Decrypt: p111a data %s",
@@ -646,9 +725,9 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
                 // DBG_PRINT("Decrypt: p111b size %zu, capacity %zu", data.size(), data.capacity());
                 // DBG_PRINT("Decrypt: p111b data %s",
                 //           jau::bytesHexString(data.data(), 0, data.size(), true /* lsbFirst */).c_str());
-                outfile.write(reinterpret_cast<char*>(data.data()), data.size());
+                const bool res = destination_fn(data, is_final);
                 out_bytes_payload += data.size();
-                DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes", data.size(), out_bytes_payload, file_size);
+                DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user res %d", data.size(), out_bytes_payload, file_size, res);
                 return false; // EOS
             }
         };
@@ -659,53 +738,29 @@ PackInfo elevator::cipherpack::checkSignThenDecrypt_RSA1(const std::vector<std::
 
         if ( 0==in_bytes_total || source.error() ) {
             ERR_PRINT2("Decrypt failed: Input file read failed %s", source.to_string().c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
             return PackInfo(header, source.id(), true);
         }
-        if ( outfile.fail() ) {
-            ERR_PRINT2("Decrypt failed: Output file write failed %s", output_fname.c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, source.id(), true);
-        }
-
-        const uint64_t out_bytes_total = outfile.tellp();
-        outfile.close();
-        const jau::fs::file_stats output_stats(output_fname);
-        if( out_bytes_payload != out_bytes_total ) {
-            ERR_PRINT2("Decrypt: Writing done, %s payload != %s total bytes for %s bytes input",
-                    jau::to_decstring(out_bytes_payload).c_str(), jau::to_decstring(out_bytes_total).c_str(),
-                    jau::to_decstring(in_bytes_total).c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, source.id(), true);
-        } else if( output_stats.size() != out_bytes_payload ) {
-            ERR_PRINT2("Descrypt: Writing done, %s payload bytes != %s",
+        if( out_bytes_payload != file_size ) {
+            ERR_PRINT2("Decrypt: Writing done, %s output payload != %s header files size",
                     jau::to_decstring(out_bytes_payload).c_str(),
-                    output_stats.to_string(true).c_str() );
-            jau::fs::remove(output_fname, false /* recursive */);
-            return PackInfo(header, source.id(), true);
-        } else if( file_size != output_stats.size() ) {
-            ERR_PRINT2("Descrypt: Writing done, %s header file_size != %s",
-                    jau::to_decstring(file_size).c_str(),
-                    output_stats.to_string(true).c_str());
-            jau::fs::remove(output_fname, false /* recursive */);
+                    jau::to_decstring(file_size).c_str());
             return PackInfo(header, source.id(), true);
         } else {
             WORDY_PRINT("Decrypt: Writing done, %s total bytes from %s bytes input, ratio %lf in/out",
-                    jau::to_decstring(out_bytes_total).c_str(),
-                    jau::to_decstring(in_bytes_total).c_str(), (double)out_bytes_total/(double)in_bytes_total);
+                    jau::to_decstring(out_bytes_payload).c_str(),
+                    jau::to_decstring(in_bytes_total).c_str(),
+                    (double)out_bytes_payload/(double)in_bytes_total);
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
         if( jau::environment::get().verbose ) {
-            jau::io::print_stats("Decrypt", out_bytes_total, _td);
+            jau::io::print_stats("Decrypt", out_bytes_payload, _td);
         }
 
         header.setValid(true);
-        return PackInfo( header,
-                         source.id(), true, output_stats, false);
+        return PackInfo( header, source.id(), true, target_path, false);
     } catch (std::exception &e) {
         ERR_PRINT2("Decrypt failed: Caught exception: %s", e.what());
-        jau::fs::remove(output_fname, false /* recursive */);
         return PackInfo(header, source.id(), true);
     }
 }

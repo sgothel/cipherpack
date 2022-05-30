@@ -12,8 +12,8 @@ set( TARGETS_IDIOMATIC_EXAMPLES ${BASENAMES_IDIOMATIC_EXAMPLES} )
 
 foreach( name ${TARGETS_IDIOMATIC_EXAMPLES} )
     add_executable(${name} ${name}.cpp data_test.cpp)
-    target_link_libraries(${name} elevator catch2)
-    add_dependencies(${name} elevator catch2)
+    target_link_libraries(${name} cipherpack catch2)
+    add_dependencies(${name} cipherpack catch2)
     add_test (NAME ${name} COMMAND ${name})
 endforeach()
 

@@ -25,13 +25,21 @@
 
 #include <fstream>
 
-#include <elevator/elevator.hpp>
+#include <cipherpack/cipherpack.hpp>
+
+#include <curl/curl.h>
 
 #include <jau/debug.hpp>
 
-using namespace elevator::cipherpack;
+using namespace cipherpack;
 
-const std::string Constants::package_magic              = "ZAF_ELEVATOR_0006";
+void Environment::env_init() noexcept {
+    jau::environment::get("cipherpack");
+
+    curl_global_init(CURL_GLOBAL_ALL);
+}
+
+const std::string Constants::package_magic              = "CIPHERPACK_0001";
 
 static const std::string default_pk_type                = "RSA";
 static const std::string default_pk_fingerprt_hash_algo = "SHA-256";
@@ -68,13 +76,13 @@ bool CryptoConfig::valid() const noexcept {
            sym_enc_nonce_bytes > 0;
 }
 
-std::string CryptoConfig::toString() const noexcept {
+std::string CryptoConfig::to_string() const noexcept {
     return "CCfg[pk[type '"+pk_type+"', fingerprt_hash '"+pk_fingerprt_hash_algo+"', enc_padding '"+pk_enc_padding_algo+
             "', enc_hash '"+pk_enc_hash_algo+"', sign '"+pk_sign_algo+
             "'], sym['"+sym_enc_algo+"', nonce "+std::to_string(sym_enc_nonce_bytes)+" byte]]";
 }
 
-std::shared_ptr<Botan::Public_Key> elevator::cipherpack::load_public_key(const std::string& pubkey_fname) {
+std::shared_ptr<Botan::Public_Key> cipherpack::load_public_key(const std::string& pubkey_fname) {
     jau::io::ByteInStream_File key_data(pubkey_fname, false /* use_binary */);
     std::shared_ptr<Botan::Public_Key> key(Botan::X509::load_key(key_data));
     if( !key ) {
@@ -88,7 +96,7 @@ std::shared_ptr<Botan::Public_Key> elevator::cipherpack::load_public_key(const s
     return key;
 }
 
-std::shared_ptr<Botan::Private_Key> elevator::cipherpack::load_private_key(const std::string& privatekey_fname, const std::string& passphrase) {
+std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::string& privatekey_fname, const std::string& passphrase) {
     jau::io::ByteInStream_File key_data(privatekey_fname, false /* use_binary */);
     std::shared_ptr<Botan::Private_Key> key;
     if( passphrase.empty() ) {
@@ -108,7 +116,7 @@ std::shared_ptr<Botan::Private_Key> elevator::cipherpack::load_private_key(const
 }
 
 std::string PackHeader::toString(const bool show_crypto_algos, const bool force_all_fingerprints) const noexcept {
-    const std::string crypto_str = show_crypto_algos ? crypto_cfg.toString() : "";
+    const std::string crypto_str = show_crypto_algos ? crypto_cfg.to_string() : "";
 
     std::string term_fingerprint;
     {
@@ -131,7 +139,7 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
 
     std::string res = "Header[";
     res += "valid "+std::to_string( isValid() )+
-           ", file[target_path "+target_path+", net_size "+jau::to_decstring(net_file_size).c_str()+
+           ", file[target_path "+target_path+", net_size "+jau::to_decstring(content_size).c_str()+
            "], creation "+ts_creation.to_iso8601_string(true)+" UTC, intention '"+intention+"', "+
            " version["+std::to_string(payload_version)+
            ", parent "+std::to_string(payload_version_parent)+crypto_str+
@@ -145,7 +153,7 @@ std::string PackInfo::toString(const bool show_crypto_algos, const bool force_al
     std::string source_enc_s = source_enc ? " (E)" : "";
     std::string stored_enc_s = stored_enc ? " (E)" : "";
     std::string res = "Info["+header.toString(show_crypto_algos, force_all_fingerprints);
-    res += ", source "+source+source_enc_s+
-           ", stored "+stored_file_stats.to_string(true)+stored_enc_s+"]";
+    res += ", src "+source+source_enc_s+
+           ", dst "+destination+stored_enc_s+"]";
     return res;
 }

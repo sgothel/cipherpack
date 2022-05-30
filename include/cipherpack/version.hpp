@@ -23,21 +23,15 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <iostream>
-#include <cassert>
-#include <cinttypes>
-#include <cstring>
+#ifndef JAU_CIPHERPACK_VERSION_HPP_
+#define JAU_CIPHERPACK_VERSION_HPP_
 
-#define CATCH_CONFIG_RUNNER
-// #define CATCH_CONFIG_MAIN
-#include <catch2/catch_amalgamated.hpp>
-#include <jau/test/catch2_ext.hpp>
+namespace cipherpack {
 
-#include <elevator/elevator.hpp>
+    extern const char* VERSION;
+    extern const char* VERSION_SHORT;
+    extern const char* VERSION_API;
 
-using namespace elevator;
+} /* namespace elevator */
 
-TEST_CASE( "Elevator Test 01", "[nop][none]" ) {
-    std::cout << "Hello COUT" << std::endl;
-    std::cerr << "Hello CERR" << std::endl;
-}
+#endif /* JAU_CIPHERPACK_VERSION_HPP_ */

@@ -1,10 +1,12 @@
-# Elevator - An Update Process (C++, ...)
+# Cipherpack - A Cryprographic Stream Processor in C++ with a Java Binding
 
-[Original document location](https://jausoft.com/cgit/elevator.git/about/).
+[Original document location](https://jausoft.com/cgit/cipherpack.git/about/).
 
 ## Goals
-This project aims to provide a secure update process, 
-elevating your installed firm- and software.
+This project aims to provide a secure cryptographic stream processor. 
+
+Original use-case is a secure update process, elevating your installed firm- and software.<br/>
+Hence original project name was *Elevator*.
 
 ## Supported Platforms
 
@@ -33,11 +35,11 @@ apt install mini-httpd
 
 To fetch the source tree use:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
-git clone --recurse-submodule git://jausoft.com/srv/scm/elevator.git
-cd elevator
+git clone --recurse-submodule git://jausoft.com/srv/scm/cipherpack.git
+cd cipherpack
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-From here on we assume to be in the `elevator` project folder.
+From here on we assume to be in the `cipherpack` project folder.
 
 For a generic build use:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
@@ -104,9 +106,9 @@ make doc
 
 ## Support
 
-*Elevator* is provided by [Gothel Software](https://jausoft.com/) and [Zafena ICT](https://ict.zafena.se).
+*Cipherpack* is provided by [Gothel Software](https://jausoft.com/) and [Zafena ICT](https://ict.zafena.se).
 
-If you like to utilize *Elevator* in a commercial setting, 
+If you like to utilize *Cipherpack* in a commercial setting, 
 please contact [Gothel Software](https://jausoft.com/) to setup a potential support contract.
 
 

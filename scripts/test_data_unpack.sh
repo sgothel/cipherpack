@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export elevator_debug=true
+# export elevator_debug=true
 export elevator_verbose=true
 
 USE_HTTPD=1
@@ -51,8 +51,8 @@ do_test() {
 
     #for i in ../test_data_local/data-10kiB.bin ../test_data_local/data-64kB.bin ../test_data_local/data-382MB.mkv ../test_data_local/data-1GB.mkv ; do
     #for i in ../test_data_local/*.bin.enc ; do
-    #for i in ../test_data_local/data-1GB.bin.enc ; do
-    for i in ../test_data_local/data-10kiB.bin.enc ; do
+    #for i in ../test_data_local/data-10kiB.bin.enc ; do
+    for i in ../test_data_local/data-1GB.bin.enc ../test_data_local/data-2GB.bin.enc ; do
         bname_file=`basename $i`
         if [ $USE_HTTPD -eq 1 ] ; then
             in_name="http://localhost:8080/test_data_local/${bname_file}"

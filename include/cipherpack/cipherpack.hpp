@@ -23,8 +23,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef CRYPTO_HPP_
-#define CRYPTO_HPP_
+#ifndef JAU_CIPHERPACK_HPP_
+#define JAU_CIPHERPACK_HPP_
 
 #include <string>
 #include <cstdint>
@@ -36,8 +36,7 @@
 #include <jau/file_util.hpp>
 #include <jau/byte_stream.hpp>
 #include <jau/io_util.hpp>
-
-namespace elevator {
+#include <jau/environment.hpp>
 
 /**
  * @anchor cipherpack_overview
@@ -70,7 +69,7 @@ namespace elevator {
  * DER Header 1 {
  *     ASN1_Type::OctetString               package_magic
  *     ASN1_Type::OctetString               target_path            // designated target path for file
- *     ASN1_Type::Integer                   net_file_size          // file size of decrypted payload
+ *     ASN1_Type::Integer                   content_size           // plain content size, i.e. decrypted payload
  *     ASN1_Type::Integer                   creation_timestamp_sec
  *     ASN1_Type::OctetString               intention              // designated intention of payload for application
  *     ASN1_Type::Integer                   payload_version
@@ -96,11 +95,17 @@ namespace elevator {
  * uint8_t encrypted_data[]
  * ```
  *
- * @see encryptThenSign_RSA1()
- * @see checkSignThenDecrypt_RSA1()
+ * @see encryptThenSign()
+ * @see checkSignThenDecrypt()
  *
  */
 namespace cipherpack {
+
+     class Environment {
+         public:
+             static void env_init() noexcept;
+     };
+
     /**
      * CryptoConfig, contains crypto algorithms settings given at encryption wired via the @see @ref cipherpack_stream "Cipherpack Data Stream",
      * hence received and used at decryption if matching keys are available.
@@ -153,7 +158,7 @@ namespace cipherpack {
 
         bool valid() const noexcept;
 
-        std::string toString() const noexcept;
+        std::string to_string() const noexcept;
     };
 
     class Constants {
@@ -162,7 +167,7 @@ namespace cipherpack {
             constexpr static const size_t buffer_size = 4096;
 
             /**
-             * Package magic {@code ZAF_ELEVATOR_0006}.
+             * Package magic {@code CIPHERPACK_0001}.
              */
             static const std::string package_magic;
     };
@@ -175,7 +180,7 @@ namespace cipherpack {
     class PackHeader {
         private:
             std::string target_path;
-            uint64_t net_file_size;
+            uint64_t content_size;
             jau::fraction_timespec ts_creation;
             std::string intention;
             uint32_t payload_version; // FIXME: std::string  VENDOR_VERSION
@@ -190,7 +195,7 @@ namespace cipherpack {
             /** default ctor, denoting an invalid package header. */
             PackHeader()
             : target_path("none"),
-              net_file_size(0),
+              content_size(0),
               ts_creation( jau::getWallClockTime() ),
               intention("none"),
               payload_version(0),
@@ -205,7 +210,7 @@ namespace cipherpack {
             /** ctor, denoting an invalid package header. */
             PackHeader(const jau::fraction_timespec ts_creation_)
             : target_path("none"),
-              net_file_size(0),
+              content_size(0),
               ts_creation( ts_creation_ ),
               intention("none"),
               payload_version(0),
@@ -219,7 +224,7 @@ namespace cipherpack {
 
             /** Complete ctor, denoting a complete package header, see @ref cipherpack_stream "Cipherpack Data Stream". */
             PackHeader(const std::string& target_path_,
-                       const uint64_t net_file_size_,
+                       const uint64_t content_size_,
                        const jau::fraction_timespec ts_creation_,
                        const std::string& intention_,
                        const uint32_t pversion, const uint32_t pversion_parent,
@@ -229,7 +234,7 @@ namespace cipherpack {
                        const size_t term_key_fingerprint_used_idx_,
                        const bool valid_)
             : target_path(target_path_),
-              net_file_size(net_file_size_),
+              content_size(content_size_),
               ts_creation(ts_creation_),
               intention(intention_),
               payload_version(pversion), payload_version_parent(pversion_parent),
@@ -243,8 +248,8 @@ namespace cipherpack {
             /** Returns the designated decrypted target path of the file from DER-Header-1, see @ref cipherpack_stream "Cipherpack Data Stream". */
             const std::string& getTargetPath() const noexcept { return target_path; }
 
-            /** Returns the decrypted payload's file size in bytes, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            uint64_t getNetFileSize() const noexcept { return net_file_size; }
+            /** Returns the plain content size in bytes, i.e. decrypted payload size, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            uint64_t getContentSize() const noexcept { return content_size; }
 
             /** Returns the creation time since Unix epoch, see @ref cipherpack_stream "Cipherpack Data Stream". */
             constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
@@ -298,7 +303,7 @@ namespace cipherpack {
             PackHeader header;
             std::string source;
             bool source_enc;
-            jau::fs::file_stats stored_file_stats;
+            std::string destination;
             bool stored_enc;
 
         public:
@@ -306,23 +311,23 @@ namespace cipherpack {
             PackInfo()
             : header(),
               source("none"), source_enc(false),
-              stored_file_stats(), stored_enc(false)
+              destination(), stored_enc(false)
             { }
 
             /** Source ctor, denoting an invalid package information */
             PackInfo(const PackHeader& header_, const std::string& source_, const bool source_enc_)
             : header(header_),
               source(source_), source_enc(source_enc_),
-              stored_file_stats(), stored_enc(false)
-            { }
+              destination(), stored_enc(false)
+            { header.setValid(false); }
 
             /** Complete ctor, denoting a valid package information */
             PackInfo(const PackHeader& header_,
                      const std::string& source_, const bool source_enc_,
-                     const jau::fs::file_stats& stored_file_stats_, bool stored_enc_)
+                     const std::string& destination_, bool stored_enc_)
             : header(header_),
               source(source_), source_enc(source_enc_),
-              stored_file_stats(stored_file_stats_), stored_enc(stored_enc_)
+              destination(destination_), stored_enc(stored_enc_)
             { }
 
             /** Returns the PackHeader information, see @ref cipherpack_stream "Cipherpack Data Stream". */
@@ -333,12 +338,8 @@ namespace cipherpack {
             const std::string& getSource() const noexcept { return source; }
             bool isSourceEncrypted() const noexcept { return source_enc; }
 
-            /** Returns the full file_stats for the stored target file, incl. validated size etc. */
-            const jau::fs::file_stats& getStoredFileStats() const noexcept { return stored_file_stats; }
-
-            /** Returns the stored file's path. */
-            std::string getStoredFilePath() const noexcept { return stored_file_stats.path(); }
-
+            const std::string& getDestination() const noexcept { return destination; }
+            void setDestination(const std::string& v) noexcept { destination=v; }
             bool isStoredFileEncrypted() const noexcept { return stored_enc; }
 
             /**
@@ -354,49 +355,108 @@ namespace cipherpack {
     std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
 
     /**
+     * Encryption stream consumer function
+     * - `bool consumer(bool is_header, secure_vector<uint8_t>& data, bool is_final)`
+     *
+     * Returns true to signal continuation, false to end streaming.
+     */
+    typedef std::function<bool (bool /* is_header */, jau::io::secure_vector<uint8_t>& /* data */, bool /* is_final */)> EncryptionStreamConsumerFunc;
+
+    /**
+     * Encrypt then sign the source producing a cipherpack stream passed to the destination_fn consumer.
      *
      * @param crypto_cfg             The used CryptoConfig, consider using CryptoConfig::getDefault()
      * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the file-key for multiple parties.
      * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted file-key for authenticity.
      * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
-     * @param input_fname            The filename of the plaintext payload.
-     * @param designated_fname           The designated filename for the decrypted file as written in the DER-Header-1
+     * @param source                 The source jau::io::ByteInStream of the plaintext payload.
+     * @param target_path            The designated target_path for the decrypted file as written in the DER-Header-1
      * @param payload_version        The version of this payload
      * @param payload_version_parent The version of this payload's parent
-     * @param output_fname           The filename of the ciphertext pack file target.
+     * @param destination_fn         The EncryptionStreamConsumerFunc consumer of the ciphertext destination bytes.
+     * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
+     *
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
+     * @see checkSignThenDecrypt()
+     */
+    PackInfo encryptThenSign(const CryptoConfig& crypto_cfg,
+                             const std::vector<std::string>& enc_pub_keys,
+                             const std::string& sign_sec_key_fname, const std::string& passphrase,
+                             jau::io::ByteInStream& source,
+                             const std::string& target_path, const std::string& intention,
+                             const uint64_t payload_version,
+                             const uint64_t payload_version_parent,
+                             EncryptionStreamConsumerFunc destination_fn);
+
+    /**
+     * Encrypt then sign the source producing a cipherpack destination file.
+     *
+     * @param crypto_cfg             The used CryptoConfig, consider using CryptoConfig::getDefault()
+     * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the file-key for multiple parties.
+     * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted file-key for authenticity.
+     * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
+     * @param source                 The source jau::io::ByteInStream of the plaintext payload.
+     * @param designated_fname       The designated filename for the decrypted file as written in the DER-Header-1
+     * @param payload_version        The version of this payload
+     * @param payload_version_parent The version of this payload's parent
+     * @param destination_fname      The filename of the ciphertext destination file.
      * @param overwrite              If true, overwrite a potentially existing `outfilename`.
      * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
      *
-     * @see #checkSignThenDecrypt_RSA1()
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
+     * @see checkSignThenDecrypt()
      */
-    PackInfo encryptThenSign_RSA1(const CryptoConfig& crypto_cfg,
-                                  const std::vector<std::string> &enc_pub_keys,
-                                  const std::string &sign_sec_key_fname, const std::string &passphrase,
-                                  const std::string &input_fname,
-                                  const std::string &target_path, const std::string &intention,
-                                  const uint64_t payload_version,
-                                  const uint64_t payload_version_parent,
-                                  const std::string &output_fname, const bool overwrite);
+    PackInfo encryptThenSign(const CryptoConfig& crypto_cfg,
+                             const std::vector<std::string>& enc_pub_keys,
+                             const std::string& sign_sec_key_fname, const std::string& passphrase,
+                             jau::io::ByteInStream& source,
+                             const std::string& target_path, const std::string& intention,
+                             const uint64_t payload_version,
+                             const uint64_t payload_version_parent,
+                             const std::string& destination_fname, const bool overwrite);
 
     /**
-     * See {@link #encryptThenSign_RSA1()} for details.
+     * Check cipherpack signature of the source then pass decrypted payload to the destination_fn consumer.
      *
      * @param sign_pub_keys      The potential public keys used by the host (pack provider) to verify the DER-Header-1 signature
      *                           and hence the authenticity of the encrypted file-key. Proves authenticity of the file.
      * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the file-key.
      *                           It shall match one of the keys used to encrypt.
      * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
-     * @param source             The DataSource_Closeable of the ciphertext pack file source, containing the payload.
-     * @param output_fname       The filename of the resulting plaintext target.
-     * @param overwrite If true, overwrite a potentially existing `outfilename`.
+     * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
+     * @param destination_fn     The jau::io::StreamConsumerFunc consumer of the plaintext bytes.
      * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
+     *
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
+     * @see encryptThenSign()
+     *
      */
-    PackInfo checkSignThenDecrypt_RSA1(const std::vector<std::string>& sign_pub_keys,
-                                       const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                       jau::io::ByteInStream &source,
-                                       const std::string &output_fname, const bool overwrite);
-};
+    PackInfo checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
+                                  const std::string &dec_sec_key_fname, const std::string &passphrase,
+                                  jau::io::ByteInStream &source,
+                                  jau::io::StreamConsumerFunc destination_fn);
 
-} // namespace elevator
+    /**
+     * Check cipherpack signature of the source then decrypt into the plaintext destination file.
+     *
+     * @param sign_pub_keys      The potential public keys used by the host (pack provider) to verify the DER-Header-1 signature
+     *                           and hence the authenticity of the encrypted file-key. Proves authenticity of the file.
+     * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the file-key.
+     *                           It shall match one of the keys used to encrypt.
+     * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
+     * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
+     * @param destination_fname  The filename of the plaintext destination file.
+     * @param overwrite If true, overwrite a potentially existing `destination_fname`.
+     * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
+     *
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
+     * @see encryptThenSign()
+     *
+     */
+    PackInfo checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
+                                  const std::string &dec_sec_key_fname, const std::string &passphrase,
+                                  jau::io::ByteInStream &source,
+                                  const std::string &destination_fname, const bool overwrite);
+} // namespace cipherpack
 
-#endif /* CRYPTO_HPP_ */
+#endif /* JAU_CIPHERPACK_HPP_ */
