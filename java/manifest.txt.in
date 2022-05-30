@@ -1,0 +1,28 @@
+Manifest-Version: 1.0
+Bundle-Date: @BUILD_TSTAMP@
+Bundle-ManifestVersion: 2
+Bundle-Name: org.cipherpack
+Bundle-SymbolicName: org.cipherpack
+Bundle-Version: @cipherpack_VERSION_SHORT@
+Export-Package: org.cipherpack
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=1.9))"
+Package-Title: org.cipherpack
+Package-Vendor: Gothel Software
+Package-Version: @cipherpack_VERSION_SHORT@
+Specification-Title: Cipherpack
+Specification-Vendor: Gothel Software
+Specification-Version: @cipherpack_VERSION_API@
+Implementation-Title: Cipherpack
+Implementation-Vendor: Gothel Software
+Implementation-Version: @cipherpack_VERSION_LONG@
+Implementation-Commit: @cipherpack_VERSION_SHA1@
+Implementation-URL: http://www.jausoft.com/
+Extension-Name: org.cipherpack
+Trusted-Library: true
+Permissions: all-permissions
+Application-Library-Allowable-Codebase: *
+Main-Class: org.cipherpack.CPFactory
+
+Name: org/cipherpack/
+Sealed: true
+
