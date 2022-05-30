@@ -118,6 +118,13 @@ please contact [Gothel Software](https://jausoft.com/) to setup a potential supp
 
 * First stable release (TODO)
 
+**0.5.0**
+
+* Renamed from Elevator to Cipherpack
+* namespace elevator::cipherpack -> cipherpack
+* Added pure streaming `encryptThenSign()` and `checkSignThenDecrypt()` base function
+
+
 **0.4.0**
 
 * Working version with universal jau::io::ByteInStream and matured unit testing OK and error cases
