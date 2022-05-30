@@ -445,7 +445,7 @@ namespace cipherpack {
                 return true;
             }
 
-            virtual ~CipherpackListener() noexcept {}
+            ~CipherpackListener() noexcept override {}
 
             std::string toString() const noexcept override { return "CipherpackListener["+jau::to_hexstring(this)+"]"; }
 
