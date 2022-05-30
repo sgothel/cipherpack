@@ -43,6 +43,8 @@ do_test() {
     echo elevator_debug $elevator_debug
     echo elevator_verbose $elevator_verbose
     echo logfile $logfile
+    echo test_exe ${test_exe}
+    echo test_basename ${test_basename}
 
     test_dir=`dirname $test_exe`
     echo "cd ${test_dir}"
@@ -51,6 +53,7 @@ do_test() {
 
     ulimit -c unlimited
     $EXE_WRAPPER ./${test_basename} ${*@Q}
+    #$EXE_WRAPPER ${test_exe} ${*@Q}
     exit $?
 }
 

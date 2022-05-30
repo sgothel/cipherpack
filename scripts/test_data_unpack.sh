@@ -1,9 +1,10 @@
 #!/bin/sh
 
-# export elevator_debug=true
-export elevator_verbose=true
+# export cipherpack_debug=true
+export cipherpack_verbose=true
 
 USE_HTTPD=1
+#USE_HTTPD=0
 
 script_args="$@"
 sdir=`dirname $(readlink -f $0)`
@@ -24,7 +25,7 @@ if [ ! -e ${dist_dir} ] ; then
 fi
 cd ${dist_dir}
 
-if [ ! -e bin/cipherpack -o ! -e lib/libelevator.so ] ; then
+if [ ! -e bin/cipherpack -o ! -e lib/libcipherpack.so ] ; then
     echo build incomplete
     exit 1
 fi
@@ -46,13 +47,14 @@ ulimit -c unlimited
 do_test() {
     echo logfile $logfile
     echo logfile $logfile_httpd
-    echo elevator_debug $elevator_debug
-    echo elevator_verbose $elevator_verbose
+    echo cipherpack_debug $cipherpack_debug
+    echo cipherpack_verbose $cipherpack_verbose
 
     #for i in ../test_data_local/data-10kiB.bin ../test_data_local/data-64kB.bin ../test_data_local/data-382MB.mkv ../test_data_local/data-1GB.mkv ; do
-    #for i in ../test_data_local/*.bin.enc ; do
     #for i in ../test_data_local/data-10kiB.bin.enc ; do
-    for i in ../test_data_local/data-1GB.bin.enc ../test_data_local/data-2GB.bin.enc ; do
+    #for i in ../test_data_local/data-1GB.bin.enc ../test_data_local/data-2GB.bin.enc ; do
+    #for i in ../test_data_local/*.bin.enc ; do
+    for i in ../test_data_local/data-2GB.bin.enc ; do
         bname_file=`basename $i`
         if [ $USE_HTTPD -eq 1 ] ; then
             in_name="http://localhost:8080/test_data_local/${bname_file}"

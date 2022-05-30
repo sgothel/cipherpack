@@ -1,12 +1,12 @@
 #!/bin/sh
 
-# export elevator_debug=true
-export elevator_verbose=true
+# export cipherpack_debug=true
+export cipherpack_verbose=true
 #
 # ../scripts/run-cipherpack.sh some_plaintext_file.bin 
 #
 
-if [ ! -e bin/cipherpack -o ! -e lib/libelevator.so ] ; then
+if [ ! -e bin/cipherpack -o ! -e lib/libcipherpack.so ] ; then
     echo run from dist directory
     exit 1
 fi
@@ -19,8 +19,8 @@ export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 
 echo COMMANDLINE $0 $*
-echo elevator_debug $elevator_debug
-echo elevator_verbose $elevator_verbose
+echo cipherpack_debug $cipherpack_debug
+echo cipherpack_verbose $cipherpack_verbose
 
 #LD_LIBRARY_PATH=`pwd`/lib strace bin/cipherpack $*
 LD_LIBRARY_PATH=`pwd`/lib bin/cipherpack $*
