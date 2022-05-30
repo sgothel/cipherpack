@@ -1,9 +1,14 @@
-# Cipherpack - A Cryprographic Stream Processor in C++ with a Java Binding
+# Cipherpack - A Cryprographic Stream Processor
 
 [Original document location](https://jausoft.com/cgit/cipherpack.git/about/).
 
-## Goals
-This project aims to provide a secure cryptographic stream processor. 
+
+## Git Repository
+This project's canonical repositories is hosted on [Gothel Software](https://jausoft.com/cgit/cipherpack.git/).
+
+## Overview
+*Cipherpack* provides a secure cryptographic stream processor
+implemented in C++ and accessible via C++ and Java through its binding.
 
 Original use-case is a secure update process, elevating your installed firm- and software.<br/>
 Hence original project name was *Elevator*.
