@@ -44,10 +44,13 @@ do_test() {
     echo elevator_verbose $elevator_verbose
     echo logfile $logfile
 
-    cd `dirname $test_exe`
+    test_dir=`dirname $test_exe`
+    echo "cd ${test_dir}"
+    cd ${test_dir}
+    pwd
 
     ulimit -c unlimited
-    $EXE_WRAPPER ${test_exe} ${*@Q}
+    $EXE_WRAPPER ./${test_basename} ${*@Q}
     exit $?
 }
 

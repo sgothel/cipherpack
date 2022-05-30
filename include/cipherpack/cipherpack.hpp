@@ -37,6 +37,7 @@
 #include <jau/byte_stream.hpp>
 #include <jau/io_util.hpp>
 #include <jau/environment.hpp>
+#include <jau/java_uplink.hpp>
 
 /**
  * @anchor cipherpack_overview
@@ -100,6 +101,9 @@
  *
  */
 namespace cipherpack {
+
+
+    #define JAVA_MAIN_PACKAGE "org/cipherpack/"
 
      class Environment {
          public:
@@ -354,13 +358,118 @@ namespace cipherpack {
     std::shared_ptr<Botan::Public_Key> load_public_key(const std::string& pubkey_fname);
     std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
 
-    /**
-     * Encryption stream consumer function
-     * - `bool consumer(bool is_header, secure_vector<uint8_t>& data, bool is_final)`
-     *
-     * Returns true to signal continuation, false to end streaming.
-     */
-    typedef std::function<bool (bool /* is_header */, jau::io::secure_vector<uint8_t>& /* data */, bool /* is_final */)> EncryptionStreamConsumerFunc;
+    class CipherpackListener : public jau::JavaUplink {
+        public:
+            /**
+             * Informal user notification about an error via text message.
+             *
+             * This message will be send before a subsequent notifyHeader() and notifyEnd() with an error indication.
+             * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+             * @param msg the error message
+             */
+            virtual void notifyError(const bool decrypt_mode, const std::string& msg) noexcept {
+                (void)decrypt_mode;
+                (void)msg;
+            }
+
+            /**
+             * User notification of PackHeader
+             * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+             * @param header the PackHeader
+             * @param verified true if header signature is verified and deemed valid, otherwise false regardless of true == PackHeader::isValid().
+             */
+            virtual void notifyHeader(const bool decrypt_mode, const PackHeader& header, const bool verified) noexcept {
+                (void)decrypt_mode;
+                (void)header;
+                (void)verified;
+            }
+
+            /**
+             * User notification about content streaming progress.
+             *
+             * In case contentProcessed() gets called, notifyProgress() is called thereafter.
+             *
+             * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+             * @param content_size the unencrypted content size
+             * @param bytes_processed the number of unencrypted bytes processed
+             * @see contentProcessed()
+             */
+            virtual void notifyProgress(const bool decrypt_mode, const uint64_t content_size, const uint64_t bytes_processed) noexcept {
+                (void)decrypt_mode;
+                (void)content_size;
+                (void)bytes_processed;
+            }
+
+            /**
+             * User notification of process completion.
+             * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+             * @param header the PackHeader
+             * @param success true if process has successfully completed and result is deemed valid, otherwise result is invalid regardless of true == PackHeader::isValid().
+             */
+            virtual void notifyEnd(const bool decrypt_mode, const PackHeader& header, const bool success) noexcept {
+                (void)decrypt_mode;
+                (void)header;
+                (void)success;
+            }
+
+            /**
+             * User provided information whether process shall send the processed content via contentProcessed() or not
+             * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+             * @return true if process shall call contentProcessed(), otherwise false (default)
+             * @see contentProcessed()
+             */
+            virtual bool getSendContent(const bool decrypt_mode) const noexcept {
+                (void)decrypt_mode;
+                return false;
+            }
+
+            /**
+             * User callback to receive the actual processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
+             *
+             * This callback is only enabled if getSendContent() returns true.
+             *
+             * In case contentProcessed() gets called, notifyProgress() is called thereafter.
+             *
+             * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+             * @param is_header true if passed data is part of the header, otherwise false. Always false if decrypt_mode is true.
+             * @param data the processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
+             * @param is_final true if this is the last content call, otherwise false
+             * @return true to signal continuation, false to end streaming.
+             * @see getSendContent()
+             */
+            virtual bool contentProcessed(const bool decrypt_mode, const bool is_header, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept {
+                (void)decrypt_mode;
+                (void)is_header;
+                (void)data;
+                (void)is_final;
+                return true;
+            }
+
+            virtual ~CipherpackListener() noexcept {}
+
+            std::string toString() const noexcept override { return "CipherpackListener["+jau::to_hexstring(this)+"]"; }
+
+            std::string get_java_class() const noexcept override {
+                return java_class();
+            }
+            static std::string java_class() noexcept {
+                return std::string(JAVA_MAIN_PACKAGE "CipherpackListener");
+            }
+
+            /**
+             * Default comparison operator, merely testing for same memory reference.
+             * <p>
+             * Specializations may override.
+             * </p>
+             */
+            virtual bool operator==(const CipherpackListener& rhs) const noexcept
+            { return this == &rhs; }
+
+            bool operator!=(const CipherpackListener& rhs) const noexcept
+            { return !(*this == rhs); }
+
+    };
+    typedef std::shared_ptr<CipherpackListener> CipherpackListenerRef;
 
     /**
      * Encrypt then sign the source producing a cipherpack stream passed to the destination_fn consumer.
@@ -373,7 +482,8 @@ namespace cipherpack {
      * @param target_path            The designated target_path for the decrypted file as written in the DER-Header-1
      * @param payload_version        The version of this payload
      * @param payload_version_parent The version of this payload's parent
-     * @param destination_fn         The EncryptionStreamConsumerFunc consumer of the ciphertext destination bytes.
+     * @param listener               The CipherpackListener listener used for notifications and optionally
+     *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
      * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
@@ -386,7 +496,7 @@ namespace cipherpack {
                              const std::string& target_path, const std::string& intention,
                              const uint64_t payload_version,
                              const uint64_t payload_version_parent,
-                             EncryptionStreamConsumerFunc destination_fn);
+                             CipherpackListenerRef listener);
 
     /**
      * Encrypt then sign the source producing a cipherpack destination file.
@@ -401,6 +511,8 @@ namespace cipherpack {
      * @param payload_version_parent The version of this payload's parent
      * @param destination_fname      The filename of the ciphertext destination file.
      * @param overwrite              If true, overwrite a potentially existing `outfilename`.
+     * @param listener               The CipherpackListener listener used for notifications and optionally
+     *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
      * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
@@ -413,7 +525,8 @@ namespace cipherpack {
                              const std::string& target_path, const std::string& intention,
                              const uint64_t payload_version,
                              const uint64_t payload_version_parent,
-                             const std::string& destination_fname, const bool overwrite);
+                             const std::string& destination_fname, const bool overwrite,
+                             CipherpackListenerRef listener);
 
     /**
      * Check cipherpack signature of the source then pass decrypted payload to the destination_fn consumer.
@@ -424,7 +537,8 @@ namespace cipherpack {
      *                           It shall match one of the keys used to encrypt.
      * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
      * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
-     * @param destination_fn     The jau::io::StreamConsumerFunc consumer of the plaintext bytes.
+     * @param listener           The CipherpackListener listener used for notifications and optionally
+     *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
      * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
@@ -434,7 +548,7 @@ namespace cipherpack {
     PackInfo checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
                                   const std::string &dec_sec_key_fname, const std::string &passphrase,
                                   jau::io::ByteInStream &source,
-                                  jau::io::StreamConsumerFunc destination_fn);
+                                  CipherpackListenerRef listener);
 
     /**
      * Check cipherpack signature of the source then decrypt into the plaintext destination file.
@@ -447,6 +561,8 @@ namespace cipherpack {
      * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
      * @param destination_fname  The filename of the plaintext destination file.
      * @param overwrite If true, overwrite a potentially existing `destination_fname`.
+     * @param listener           The CipherpackListener listener used for notifications and optionally
+     *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
      * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
@@ -456,7 +572,9 @@ namespace cipherpack {
     PackInfo checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
                                   const std::string &dec_sec_key_fname, const std::string &passphrase,
                                   jau::io::ByteInStream &source,
-                                  const std::string &destination_fname, const bool overwrite);
+                                  const std::string &destination_fname, const bool overwrite,
+                                  CipherpackListenerRef listener);
+
 } // namespace cipherpack
 
 #endif /* JAU_CIPHERPACK_HPP_ */

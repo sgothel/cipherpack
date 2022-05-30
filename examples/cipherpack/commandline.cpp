@@ -93,7 +93,8 @@ int main(int argc, char *argv[])
                                                                  enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
                                                                  *source, target_path, intention,
                                                                  payload_version, payload_version_parent,
-                                                                 fname_output, overwrite);
+                                                                 fname_output, overwrite,
+                                                                 std::make_shared<cipherpack::CipherpackListener>());
         jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s\n", source_name.c_str(), fname_output.c_str());
         jau::PLAIN_PRINT(true, "Pack: %s\n", pinfo.toString(true, true).c_str());
         return pinfo.isValid() ? 0 : -1;
@@ -135,7 +136,8 @@ int main(int argc, char *argv[])
             source = std::make_unique<jau::io::ByteInStream_File>(source_name, true /* use_binary */);
         }
         cipherpack::PackInfo pinfo = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
-                                                                      *source, fname_output, overwrite);
+                                                                      *source, fname_output, overwrite,
+                                                                      std::make_shared<cipherpack::CipherpackListener>());
         // dec_sec_key_passphrase.resize(0);
         jau::PLAIN_PRINT(true, "Unpack: Decypted %s to %s\n", source_name.c_str(), fname_output.c_str());
         jau::PLAIN_PRINT(true, "Unpack: %s\n", pinfo.toString(true, true).c_str());
