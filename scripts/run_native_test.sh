@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export elevator_debug=true
-export elevator_verbose=true
+#export cipherpack_debug=true
+export cipherpack_verbose=true
 
 script_args="$@"
 sdir=`dirname $(readlink -f $0)`
@@ -19,7 +19,7 @@ else
     logfile=
 fi
 
-test_exe=${build_dir}/test/elevator/test_01_cipherpack
+test_exe=${build_dir}/test/cipherpack/test_01_cipherpack
 if [ ! -z "$1" ] ; then
     test_exe=$1
     shift 1
@@ -40,8 +40,8 @@ export LANG=en_US.UTF-8
 
 do_test() {
     echo "script invocation: $0 ${script_args}"
-    echo elevator_debug $elevator_debug
-    echo elevator_verbose $elevator_verbose
+    echo cipherpack_debug $cipherpack_debug
+    echo cipherpack_verbose $cipherpack_verbose
     echo logfile $logfile
     echo test_exe ${test_exe}
     echo test_basename ${test_basename}

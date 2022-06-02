@@ -141,19 +141,11 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
     res += "valid "+std::to_string( isValid() )+
            ", file[target_path "+target_path+", content_size "+jau::to_decstring(content_size).c_str()+
            "], creation "+ts_creation.to_iso8601_string(true)+" UTC, intention '"+intention+"', "+
-           " version["+std::to_string(payload_version)+
-           ", parent "+std::to_string(payload_version_parent)+crypto_str+
+           " version["+payload_version+
+           ", parent "+payload_version_parent+crypto_str+
            "], fingerprints[sign/host '"+host_key_fingerprint+
            "', term["+term_fingerprint+
            "]]]";
     return res;
 }
 
-std::string PackInfo::toString(const bool show_crypto_algos, const bool force_all_fingerprints) const noexcept {
-    std::string source_enc_s = source_enc ? " (E)" : "";
-    std::string stored_enc_s = stored_enc ? " (E)" : "";
-    std::string res = "Info["+header.toString(show_crypto_algos, force_all_fingerprints);
-    res += ", src "+source+source_enc_s+
-           ", dst "+destination+stored_enc_s+"]";
-    return res;
-}

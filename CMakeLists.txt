@@ -7,7 +7,11 @@ else()
     message(STATUS "CMake ${CMAKE_VERSION} >= 3.18.0, good.")
 endif()
 
-FIND_PACKAGE (Threads REQUIRED)
+set (THREADS_PREFER_PTHREAD_FLAG ON)
+find_package (Threads REQUIRED)
+
+# set(CMAKE_MESSAGE_LOG_LEVEL DEBUG)
+
 
 if(NOT DEFINED DONT_USE_RTTI)
     set(DONT_USE_RTTI OFF)
@@ -22,18 +26,20 @@ JaulibSetup()
 # Determine amalgamation platform include director, depnding on OS_ARCH
 set(AMALGAMATION_ARCH_INC "${PROJECT_SOURCE_DIR}/include/amalgamation-${OS_ARCH}")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -frtti")
-set(CMAKE_SHARED_LINKER_FLAGS  "${CMAKE_SHARED_LINKER_FLAGS} -frtti")
-set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -frtti")
+# this is the library version, derived from git tag and revision
+set (cipherpack_VERSION_MAJOR      ${VERSION_MAJOR})
+set (cipherpack_VERSION_MINOR      ${VERSION_MINOR})
+set (cipherpack_VERSION_PATCH      ${VERSION_PATCH})
+set (cipherpack_VERSION_COMMITS    ${VERSION_COMMITS})
+set (cipherpack_VERSION_SHA1       ${VERSION_SHA1})
+set (cipherpack_VERSION_SHA1_SHORT ${VERSION_SHA1_SHORT})
+set (cipherpack_GIT_DIRTY          ${GIT_WORKDIR_DIRTY})
+set (cipherpack_VERSION_LONG       ${VERSION_LONG})
+set (cipherpack_VERSION_SHORT      ${VERSION_SHORT})
+set (cipherpack_VERSION_API        ${VERSION_API})
 
 configure_file (${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/version.cpp.in
                 ${CMAKE_CURRENT_BINARY_DIR}/src/version.cpp)
-
-# this is the library version, independant of git revision
-set (cipherpack_VERSION_MAJOR ${VERSION_MAJOR})
-set (cipherpack_VERSION_MINOR ${VERSION_MINOR})
-set (cipherpack_VERSION_PATCH ${VERSION_PATCH})
-set (cipherpack_VERSION_STRING "${cipherpack_VERSION_MAJOR}.${cipherpack_VERSION_MINOR}.${cipherpack_VERSION_PATCH}")
 
 set (CMAKE_SWIG_FLAGS "")
 
@@ -50,7 +56,9 @@ option (BUILDJAVA "Build Java API." OFF)
 
 IF(BUILDJAVA)
     configure_file (${CMAKE_CURRENT_SOURCE_DIR}/java/manifest.txt.in ${CMAKE_CURRENT_BINARY_DIR}/java/manifest.txt)
+    configure_file (${CMAKE_CURRENT_SOURCE_DIR}/java_fat/manifest-fat.txt.in ${CMAKE_CURRENT_BINARY_DIR}/java_fat/manifest-fat.txt)
     add_subdirectory (java)
+    add_subdirectory (java_fat)
 ENDIF(BUILDJAVA)
 
 # add a target to generate API documentation with Doxygen

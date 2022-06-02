@@ -26,7 +26,7 @@ set (cipherpack_LIB_SRCS
 add_library (cipherpack SHARED ${cipherpack_LIB_SRCS})
 target_link_libraries (
   cipherpack
-  unwind
+  ${LIBUNWIND_LIBNAME}
   curl
   ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -38,7 +38,7 @@ target_compile_options(cipherpack PUBLIC "-Wno-cast-align" "-Wno-unused-paramete
 
 if(USE_STRIP)
 add_custom_command(TARGET cipherpack POST_BUILD
-                   COMMAND ${STRIP} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}cipherpack${CMAKE_SHARED_LIBRARY_SUFFIX}.${cipherpack_VERSION_STRING}
+                   COMMAND ${STRIP} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}cipherpack${CMAKE_SHARED_LIBRARY_SUFFIX}.${cipherpack_VERSION_SHORT}
                    COMMENT "stripping cipherpack"
                    VERBATIM
                    )
@@ -48,7 +48,7 @@ set_target_properties(
    cipherpack
    PROPERTIES
    SOVERSION ${cipherpack_VERSION_MAJOR}
-   VERSION ${cipherpack_VERSION_STRING}
+   VERSION ${cipherpack_VERSION_SHORT}
 )
 install (DIRECTORY ${PROJECT_SOURCE_DIR}/include/cipherpack/ DESTINATION include/cipherpack)
 

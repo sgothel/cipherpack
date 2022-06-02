@@ -30,37 +30,48 @@ package org.cipherpack;
  * Only informational native hooks and the active methods
  * to feed the data into the used instance are exposed.
  */
-public class ByteInStream_Feed extends CPNativeDownlink {
+public final class ByteInStream_Feed implements AutoCloseable  {
+    private volatile long nativeInstance;
+    /* pp */ long getNativeInstance() { return nativeInstance; }
+
     /**
      * Construct a ringbuffer backed externally provisioned byte input stream
      * @param id_name arbitrary identifier for this instance
-     * @param timeout maximum duration in fractions of seconds to wait @ check_available() and write(), where fractions_i64::zero waits infinitely
+     * @param timeoutMS maximum duration in milliseconds to wait @ check_available() and write(), zero waits infinitely
      */
-    public ByteInStream_Feed(final String id_name, final long timeout) {
-        super(); // pending native ctor
+    public ByteInStream_Feed(final String id_name, final long timeoutMS) {
         if( CPFactory.isInitialized() ) {
-            initDownlink(ctorImpl(id_name, timeout));
+            nativeInstance = ctorImpl(id_name, timeoutMS);
         } else {
             System.err.println("ByteInStream_Feed.ctor: CPFactory not initialized, no nativeInstance");
         }
     }
-    private native long ctorImpl(final String id_name, final long timeout);
+    private native long ctorImpl(final String id_name, final long timeoutMS);
 
     @Override
-    protected native void deleteImpl(long nativeInstance);
+    public void close() {
+        final long handle;
+        synchronized( this ) {
+            handle = nativeInstance;
+            nativeInstance = 0;
+        }
+        if( 0 != handle ) {
+            dtorImpl(handle);
+        }
+    }
+    private static native void dtorImpl(final long nativeInstance);
 
-    /**
-     * Returns true if native instance is valid, otherwise false.
-     */
-    public final boolean isValid() { return isNativeValid(); }
+    @Override
+    public void finalize() {
+        close();
+    }
+
 
     public native boolean end_of_data();
 
     public native boolean error();
 
     public native String id();
-
-    public native void close();
 
     public native long get_bytes_read();
 
@@ -85,11 +96,11 @@ public class ByteInStream_Feed extends CPNativeDownlink {
      *
      * This method is blocking.
      *
-     * @param n byte count to wait for
      * @param in the byte array to transfer to the async ringbuffer
-     * @param length the length of the byte array in
+     * @param offset offset to in byte array to write
+     * @param length number of in bytes to write starting at offset
      */
-    public native void write(final byte[] in, final long length);
+    public native void write(final byte[] in, final int offset, final int length);
 
     /**
      * Set known content size, informal only.
@@ -102,11 +113,11 @@ public class ByteInStream_Feed extends CPNativeDownlink {
      *
      * Implementation issues interruptReader() to unblock a potentially blocked reader thread.
      *
-     * @param result should be either result_t::FAILED or result_t::SUCCESS.
+     * @param result should be either -1 for FAILED or 1 for SUCCESS.
      *
      * @see interruptReader()
      */
-    public native void set_eof(final byte result);
+    public native void set_eof(final int result);
 
     @Override
     public native String toString();

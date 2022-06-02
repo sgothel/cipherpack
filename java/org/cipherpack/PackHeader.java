@@ -43,10 +43,10 @@ public class PackHeader {
     public final String intention;
 
     /** Payload version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final int payload_version; // FIXME: std::string  VENDOR_VERSION
+    public final String payload_version;
 
     /** Payload's parent version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final int payload_version_parent; // FIXME: std::string VENDOR_VERSION
+    public final String payload_version_parent;
 
     public final CryptoConfig crypto_cfg;
 
@@ -54,7 +54,7 @@ public class PackHeader {
     public final String host_key_fingerprint;
 
     /** List of public keys fingerprints used to encrypt the file-key, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final List<String> term_keys_fingerprint;
+    public final String[] term_keys_fingerprint;
 
     /** Index of the matching public key fingerprints used to decrypt the file-key or -1 if not found or performing the encryption operation.. */
     public final int term_key_fingerprint_used_idx;
@@ -66,11 +66,11 @@ public class PackHeader {
         this.content_size = 0;
         this.ts_creation = 0;
         this.intention = "";
-        this.payload_version = 0;
-        this.payload_version_parent = 0;
+        this.payload_version = "0";
+        this.payload_version_parent = "0";
         this.crypto_cfg = new CryptoConfig();
         this.host_key_fingerprint = "";
-        this.term_keys_fingerprint = new ArrayList<String>();
+        this.term_keys_fingerprint = new String[0];
         this.term_key_fingerprint_used_idx = -1;
         this.valid = false;
     }
@@ -79,10 +79,10 @@ public class PackHeader {
                final long content_size_,
                final long ts_creation_,
                final String intention_,
-               final int pversion, final int pversion_parent,
+               final String pversion, final String pversion_parent,
                final CryptoConfig crypto_cfg_,
                final String host_key_fingerprint_,
-               final List<String> term_keys_fingerprint_,
+               final String[] term_keys_fingerprint_,
                final int term_key_fingerprint_used_idx_,
                final boolean valid_) {
         this.target_path = target_path_;
@@ -110,7 +110,7 @@ public class PackHeader {
         final StringBuilder term_fingerprint = new StringBuilder();
         {
             if( 0 <= term_key_fingerprint_used_idx ) {
-                term_fingerprint.append( "dec '").append(term_keys_fingerprint.get(term_key_fingerprint_used_idx)).append("', ");
+                term_fingerprint.append( "dec '").append(term_keys_fingerprint[term_key_fingerprint_used_idx]).append("', ");
             }
             if( force_all_fingerprints || 0 > term_key_fingerprint_used_idx ) {
                 term_fingerprint.append("enc[");

@@ -1,0 +1,25 @@
+Manifest-Version: 1.0
+Bundle-Date: @BUILD_TSTAMP@
+Bundle-ManifestVersion: 2
+Bundle-Name: org.cipherpack.test
+Bundle-SymbolicName: org.cipherpack.test
+Bundle-Version: @cipherpack_VERSION_SHORT@
+Export-Package: org.cipherpack.test
+Require-Capability: osgi.ee;filter:="(&(osgi.ee=JavaSE)(version=1.9))"
+Package-Title: org.cipherpack.test
+Package-Vendor: Gothel Software
+Package-Version: @cipherpack_VERSION_SHORT@
+Specification-Title: Cipherpack Unit Tests
+Specification-Vendor: Gothel Software
+Specification-Version: @cipherpack_VERSION_API@
+Implementation-Title: Cipherpack Unit Tests
+Implementation-Vendor: Gothel Software
+Implementation-Version: @cipherpack_VERSION_LONG@
+Implementation-Commit: @cipherpack_VERSION_SHA1@
+Implementation-URL: http://www.jausoft.com/
+Extension-Name: org.cipherpack.test
+Trusted-Library: true
+Permissions: all-permissions
+Application-Library-Allowable-Codebase: *
+Class-Path: cipherpack-fat.jar jaulib-test.jar
+Main-Class: test.org.cipherpack.VersionInfo

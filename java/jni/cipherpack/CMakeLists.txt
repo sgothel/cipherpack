@@ -7,6 +7,7 @@ endif (JNI_FOUND)
 
 set (cipherpack_LIB_INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/jaulib/include
+    ${AMALGAMATION_ARCH_INC}
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/include/cipherpack
     ${PROJECT_SOURCE_DIR}/java/jni
@@ -22,10 +23,13 @@ set (cipherpack_JNI_SRCS
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jni_mem.cxx
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/helper_jni.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/helper_base.cxx
-  ${PROJECT_SOURCE_DIR}/java/jni/CPFactory.cxx
-  ${PROJECT_SOURCE_DIR}/java/jni/CPUtils.cxx
+  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/ByteInStream_Feed.cxx  
+  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/Cipherpack.cxx        
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CipherpackListener.cxx
-  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CPNativeDownlink.cxx
+  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CPFactory.cxx
+  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CPNativeDownlink.cxx   
+  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CPUtils.cxx
+  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CipherpackHelper.cxx
 )
 
 set (CMAKE_SHARED_LINKER_FLAGS "-Wl,--as-needed")

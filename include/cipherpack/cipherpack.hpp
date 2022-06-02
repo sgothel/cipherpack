@@ -73,8 +73,8 @@
  *     ASN1_Type::Integer                   content_size           // plain content size, i.e. decrypted payload
  *     ASN1_Type::Integer                   creation_timestamp_sec
  *     ASN1_Type::OctetString               intention              // designated intention of payload for application
- *     ASN1_Type::Integer                   payload_version
- *     ASN1_Type::Integer                   payload_version_parent
+ *     ASN1_Type::OctetString               payload_version
+ *     ASN1_Type::OctetString               payload_version_parent
  *     ASN1_Type::OctetString               pk_type                // public-key type: "RSA"
  *     ASN1_Type::OctetString               pk_fingerprt_hash_algo // public-key fingerprint hash: "SHA-256"
  *     ASN1_Type::OctetString               pk_enc_padding_algo    // public-key encryption padding: "OAEP"
@@ -187,8 +187,8 @@ namespace cipherpack {
             uint64_t content_size;
             jau::fraction_timespec ts_creation;
             std::string intention;
-            uint32_t payload_version; // FIXME: std::string  VENDOR_VERSION
-            uint32_t payload_version_parent; // FIXME: std::string VENDOR_VERSION
+            std::string payload_version;
+            std::string payload_version_parent;
             CryptoConfig crypto_cfg;
             std::string host_key_fingerprint;
             std::vector<std::string> term_keys_fingerprint;
@@ -202,8 +202,8 @@ namespace cipherpack {
               content_size(0),
               ts_creation( jau::getWallClockTime() ),
               intention("none"),
-              payload_version(0),
-              payload_version_parent(0),
+              payload_version(),
+              payload_version_parent(),
               crypto_cfg(),
               host_key_fingerprint(),
               term_keys_fingerprint(),
@@ -212,13 +212,13 @@ namespace cipherpack {
             { }
 
             /** ctor, denoting an invalid package header. */
-            PackHeader(const jau::fraction_timespec ts_creation_)
+            PackHeader(const jau::fraction_timespec& ts_creation_)
             : target_path("none"),
               content_size(0),
               ts_creation( ts_creation_ ),
               intention("none"),
-              payload_version(0),
-              payload_version_parent(0),
+              payload_version(),
+              payload_version_parent(),
               crypto_cfg(),
               host_key_fingerprint(),
               term_keys_fingerprint(),
@@ -228,10 +228,10 @@ namespace cipherpack {
 
             /** Complete ctor, denoting a complete package header, see @ref cipherpack_stream "Cipherpack Data Stream". */
             PackHeader(const std::string& target_path_,
-                       const uint64_t content_size_,
-                       const jau::fraction_timespec ts_creation_,
+                       const uint64_t& content_size_,
+                       const jau::fraction_timespec& ts_creation_,
                        const std::string& intention_,
-                       const uint32_t pversion, const uint32_t pversion_parent,
+                       const std::string& pversion, const std::string& pversion_parent,
                        const CryptoConfig& crypto_cfg_,
                        const std::string& host_key_fingerprint_,
                        const std::vector<std::string>& term_keys_fingerprint_,
@@ -259,15 +259,15 @@ namespace cipherpack {
             constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
 
             /** Returns the intention of the file from DER-Header-1, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            const std::string& getIntention() const noexcept { return intention; }
+            constexpr const std::string& getIntention() const noexcept { return intention; }
 
             /** Returns the payload version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr uint32_t getPayloadVersion() const noexcept { return payload_version;}
+            constexpr const std::string& getPayloadVersion() const noexcept { return payload_version;}
 
             /** Returns the payload's parent version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr uint32_t getPayloadVersionParent() const noexcept { return payload_version_parent;}
+            constexpr const std::string& getPayloadVersionParent() const noexcept { return payload_version_parent;}
 
-            const CryptoConfig& getCryptoConfig() const noexcept { return crypto_cfg; }
+            constexpr const CryptoConfig& getCryptoConfig() const noexcept { return crypto_cfg; }
 
             /**
              * Return the used host key fingerprint used to sign, see @ref cipherpack_stream "Cipherpack Data Stream".
@@ -297,63 +297,7 @@ namespace cipherpack {
             void setValid(const bool v) { valid = v; }
             bool isValid() const noexcept { return valid; }
     };
-
-    /**
-     * Cipherpack info with PackHeader as described in @ref cipherpack_stream "Cipherpack Data Stream"
-     * and additional operational data.
-     */
-    class PackInfo {
-        private:
-            PackHeader header;
-            std::string source;
-            bool source_enc;
-            std::string destination;
-            bool stored_enc;
-
-        public:
-            /** default ctor, denoting an invalid package information */
-            PackInfo()
-            : header(),
-              source("none"), source_enc(false),
-              destination(), stored_enc(false)
-            { }
-
-            /** Source ctor, denoting an invalid package information */
-            PackInfo(const PackHeader& header_, const std::string& source_, const bool source_enc_)
-            : header(header_),
-              source(source_), source_enc(source_enc_),
-              destination(), stored_enc(false)
-            { header.setValid(false); }
-
-            /** Complete ctor, denoting a valid package information */
-            PackInfo(const PackHeader& header_,
-                     const std::string& source_, const bool source_enc_,
-                     const std::string& destination_, bool stored_enc_)
-            : header(header_),
-              source(source_), source_enc(source_enc_),
-              destination(destination_), stored_enc(stored_enc_)
-            { }
-
-            /** Returns the PackHeader information, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            const PackHeader& getHeader() const noexcept { return header; }
-
-            bool isValid() const noexcept { return header.isValid(); }
-
-            const std::string& getSource() const noexcept { return source; }
-            bool isSourceEncrypted() const noexcept { return source_enc; }
-
-            const std::string& getDestination() const noexcept { return destination; }
-            void setDestination(const std::string& v) noexcept { destination=v; }
-            bool isStoredFileEncrypted() const noexcept { return stored_enc; }
-
-            /**
-             * Return a string representation
-             * @param show_crypto_algos pass true if used crypto algos shall be shown, otherwise suppressed (default).
-             * @param force_all_fingerprints if true always show all getTermKeysFingerprint(), otherwise show only the getTermKeysFingerprint() if >= 0 (default).
-             * @return string representation
-             */
-            std::string toString(const bool show_crypto_algos=false, const bool force_all_fingerprints=false) const noexcept;
-    };
+    inline std::string to_string(const PackHeader& ph) noexcept { return ph.toString(true, true); }
 
     std::shared_ptr<Botan::Public_Key> load_public_key(const std::string& pubkey_fname);
     std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
@@ -484,19 +428,19 @@ namespace cipherpack {
      * @param payload_version_parent The version of this payload's parent
      * @param listener               The CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
-     * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
+     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see checkSignThenDecrypt()
      */
-    PackInfo encryptThenSign(const CryptoConfig& crypto_cfg,
-                             const std::vector<std::string>& enc_pub_keys,
-                             const std::string& sign_sec_key_fname, const std::string& passphrase,
-                             jau::io::ByteInStream& source,
-                             const std::string& target_path, const std::string& intention,
-                             const uint64_t payload_version,
-                             const uint64_t payload_version_parent,
-                             CipherpackListenerRef listener);
+    PackHeader encryptThenSign(const CryptoConfig& crypto_cfg,
+                               const std::vector<std::string>& enc_pub_keys,
+                               const std::string& sign_sec_key_fname, const std::string& passphrase,
+                               jau::io::ByteInStream& source,
+                               const std::string& target_path, const std::string& intention,
+                               const std::string& payload_version,
+                               const std::string& payload_version_parent,
+                               CipherpackListenerRef listener);
 
     /**
      * Encrypt then sign the source producing a cipherpack destination file.
@@ -513,20 +457,20 @@ namespace cipherpack {
      * @param overwrite              If true, overwrite a potentially existing `outfilename`.
      * @param listener               The CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
-     * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
+     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see checkSignThenDecrypt()
      */
-    PackInfo encryptThenSign(const CryptoConfig& crypto_cfg,
-                             const std::vector<std::string>& enc_pub_keys,
-                             const std::string& sign_sec_key_fname, const std::string& passphrase,
-                             jau::io::ByteInStream& source,
-                             const std::string& target_path, const std::string& intention,
-                             const uint64_t payload_version,
-                             const uint64_t payload_version_parent,
-                             const std::string& destination_fname, const bool overwrite,
-                             CipherpackListenerRef listener);
+    PackHeader encryptThenSign(const CryptoConfig& crypto_cfg,
+                               const std::vector<std::string>& enc_pub_keys,
+                               const std::string& sign_sec_key_fname, const std::string& passphrase,
+                               jau::io::ByteInStream& source,
+                               const std::string& target_path, const std::string& intention,
+                               const std::string& payload_version,
+                               const std::string& payload_version_parent,
+                               const std::string& destination_fname, const bool overwrite,
+                               CipherpackListenerRef listener);
 
     /**
      * Check cipherpack signature of the source then pass decrypted payload to the destination_fn consumer.
@@ -539,16 +483,16 @@ namespace cipherpack {
      * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
-     * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
+     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see encryptThenSign()
      *
      */
-    PackInfo checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
-                                  const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                  jau::io::ByteInStream &source,
-                                  CipherpackListenerRef listener);
+    PackHeader checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
+                                    const std::string &dec_sec_key_fname, const std::string &passphrase,
+                                    jau::io::ByteInStream &source,
+                                    CipherpackListenerRef listener);
 
     /**
      * Check cipherpack signature of the source then decrypt into the plaintext destination file.
@@ -563,17 +507,17 @@ namespace cipherpack {
      * @param overwrite If true, overwrite a potentially existing `destination_fname`.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
-     * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
+     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see encryptThenSign()
      *
      */
-    PackInfo checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
-                                  const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                  jau::io::ByteInStream &source,
-                                  const std::string &destination_fname, const bool overwrite,
-                                  CipherpackListenerRef listener);
+    PackHeader checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
+                                    const std::string &dec_sec_key_fname, const std::string &passphrase,
+                                    jau::io::ByteInStream &source,
+                                    const std::string &destination_fname, const bool overwrite,
+                                    CipherpackListenerRef listener);
 
 } // namespace cipherpack
 

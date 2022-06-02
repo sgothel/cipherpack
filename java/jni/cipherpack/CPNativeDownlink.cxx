@@ -22,7 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "jau_cipherpack_CPNativeDownlink.h"
+#include "org_cipherpack_CPNativeDownlink.h"
 
 #include <jau/debug.hpp>
 

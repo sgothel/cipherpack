@@ -1,5 +1,5 @@
 #include <cipherpack/version.hpp>
 
-const char* cipherpack::VERSION = "@VERSION@";
-const char* cipherpack::VERSION_SHORT = "@VERSION_SHORT@";
-const char* cipherpack::VERSION_API = "@VERSION_API@";
+const char* cipherpack::VERSION = "@direct_bt_VERSION_LONG@";
+const char* cipherpack::VERSION_SHORT = "@direct_bt_VERSION_SHORT@";
+const char* cipherpack::VERSION_API = "@direct_bt_VERSION_API@";

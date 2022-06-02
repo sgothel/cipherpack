@@ -24,7 +24,7 @@
 
 package org.cipherpack;
 
-public abstract class CipherpackListener extends CPNativeDownlink {
+public class CipherpackListener extends CPNativeDownlink {
     public CipherpackListener() {
         super(); // pending native ctor
         if( CPFactory.isInitialized() ) {

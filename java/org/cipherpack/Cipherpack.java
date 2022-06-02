@@ -59,8 +59,8 @@ import java.util.List;
  *     ASN1_Type::Integer                   content_size           // plain content size, i.e. decrypted payload
  *     ASN1_Type::Integer                   creation_timestamp_sec
  *     ASN1_Type::OctetString               intention              // designated intention of payload for application
- *     ASN1_Type::Integer                   payload_version
- *     ASN1_Type::Integer                   payload_version_parent
+ *     ASN1_Type::OctetString               payload_version
+ *     ASN1_Type::OctetString               payload_version_parent
  *     ASN1_Type::OctetString               pk_type                // public-key type: "RSA"
  *     ASN1_Type::OctetString               pk_fingerprt_hash_algo // public-key fingerprint hash: "SHA-256"
  *     ASN1_Type::OctetString               pk_enc_padding_algo    // public-key encryption padding: "OAEP"
@@ -86,7 +86,105 @@ import java.util.List;
  * @see checkSignThenDecrypt()
  *
  */
-public class Cipherpack {
+public final class Cipherpack {
+
+    /**
+     * Encrypt then sign the source producing a cipherpack stream passed to the destination_fn consumer.
+     *
+     * @param crypto_cfg             The used CryptoConfig, consider using CryptoConfig::getDefault()
+     * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the file-key for multiple parties.
+     * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted file-key for authenticity.
+     * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
+     * @param source_feed            The source ByteInStream_Feed of the cipherpack containing the encrypted payload.
+     * @param target_path            The designated target_path for the decrypted file as written in the DER-Header-1
+     * @param payload_version        The version of this payload
+     * @param payload_version_parent The version of this payload's parent
+     * @param destination_fname      The filename of the plaintext destination file.
+     * @param overwrite              If true, overwrite a potentially existing `destination_fname`.
+     * @param listener               The CipherpackListener listener used for notifications and optionally
+     *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
+     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
+     *
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
+     * @see checkSignThenDecrypt()
+     */
+    public static PackHeader encryptThenSign(final CryptoConfig crypto_cfg,
+                                             final List<String> enc_pub_keys,
+                                             final String sign_sec_key_fname, final String passphrase,
+                                             final ByteInStream_Feed source_feed,
+                                             final String target_path, final String intention,
+                                             final String payload_version,
+                                             final String payload_version_parent,
+                                             final String destination_fname, final boolean overwrite,
+                                             final CipherpackListener listener) {
+        return encryptThenSignImpl(crypto_cfg,
+                                   (String[])enc_pub_keys.toArray(),
+                                   sign_sec_key_fname, passphrase,
+                                   source_feed,
+                                   target_path, intention,
+                                   payload_version,
+                                   payload_version_parent,
+                                   destination_fname, overwrite,
+                                   listener);
+    }
+    private static native PackHeader encryptThenSignImpl(final CryptoConfig crypto_cfg,
+                                                         final String[] enc_pub_keys,
+                                                         final String sign_sec_key_fname, final String passphrase,
+                                                         final ByteInStream_Feed source_feed,
+                                                         final String target_path, final String intention,
+                                                         final String payload_version,
+                                                         final String payload_version_parent,
+                                                         final String destination_fname, final boolean overwrite,
+                                                         final CipherpackListener listener);
+
+    /**
+     * Encrypt then sign the source producing a cipherpack stream passed to the destination_fn consumer.
+     *
+     * @param crypto_cfg             The used CryptoConfig, consider using CryptoConfig::getDefault()
+     * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the file-key for multiple parties.
+     * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted file-key for authenticity.
+     * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
+     * @param source_loc             The source location of the cipherpack containing the encrypted payload, either a filename or a URL.
+     * @param target_path            The designated target_path for the decrypted file as written in the DER-Header-1
+     * @param payload_version        The version of this payload
+     * @param payload_version_parent The version of this payload's parent
+     * @param destination_fname      The filename of the plaintext destination file.
+     * @param overwrite              If true, overwrite a potentially existing `destination_fname`.
+     * @param listener               The CipherpackListener listener used for notifications and optionally
+     *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
+     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
+     *
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
+     * @see checkSignThenDecrypt()
+     */
+    public static PackHeader encryptThenSign(final CryptoConfig crypto_cfg,
+                                             final List<String> enc_pub_keys,
+                                             final String sign_sec_key_fname, final String passphrase,
+                                             final String source_loc,
+                                             final String target_path, final String intention,
+                                             final String payload_version,
+                                             final String payload_version_parent,
+                                             final String destination_fname, final boolean overwrite,
+                                             final CipherpackListener listener) {
+        return encryptThenSignImpl(crypto_cfg,
+                                   (String[])enc_pub_keys.toArray(),
+                                   sign_sec_key_fname, passphrase,
+                                   source_loc,
+                                   target_path, intention,
+                                   payload_version,
+                                   payload_version_parent,
+                                   destination_fname, overwrite,
+                                   listener);
+    }
+    private static native PackHeader encryptThenSignImpl(final CryptoConfig crypto_cfg,
+                                                         final String[] enc_pub_keys,
+                                                         final String sign_sec_key_fname, final String passphrase,
+                                                         final String source_loc,
+                                                         final String target_path, final String intention,
+                                                         final String payload_version,
+                                                         final String payload_version_parent,
+                                                         final String destination_fname, final boolean overwrite,
+                                                         final CipherpackListener listener);
 
     /**
      * Check cipherpack signature of the source then decrypt into the plaintext destination file.
@@ -98,7 +196,7 @@ public class Cipherpack {
      * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
      * @param source             The source ByteInStream_Feed of the cipherpack containing the encrypted payload.
      * @param destination_fname  The filename of the plaintext destination file.
-     * @param overwrite If true, overwrite a potentially existing `destination_fname`.
+     * @param overwrite          If true, overwrite a potentially existing `destination_fname`.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
      * @return PackInfo, which is PackInfo::isValid() if successful, otherwise not.
@@ -107,12 +205,12 @@ public class Cipherpack {
      * @see encryptThenSign()
      *
      */
-    boolean checkSignThenDecrypt(final List<String> sign_pub_keys,
-                                 final String dec_sec_key_fname, final String passphrase,
-                                 final ByteInStream_Feed source,
-                                 final String destination_fname, final boolean overwrite,
-                                 final CipherpackListener listener) {
-        return false;
+    public static PackHeader checkSignThenDecrypt(final List<String> sign_pub_keys,
+                                                  final String dec_sec_key_fname, final String passphrase,
+                                                  final ByteInStream_Feed source,
+                                                  final String destination_fname, final boolean overwrite,
+                                                  final CipherpackListener listener) {
+        return null;
     }
 
     /**
@@ -134,11 +232,11 @@ public class Cipherpack {
      * @see encryptThenSign()
      *
      */
-    boolean checkSignThenDecrypt(final List<String> sign_pub_keys,
-                                 final String dec_sec_key_fname, final String passphrase,
-                                 final String source,
-                                 final String destination_fname, final boolean overwrite,
-                                 final CipherpackListener listener) {
-        return false;
+    public static PackHeader checkSignThenDecrypt(final List<String> sign_pub_keys,
+                                                  final String dec_sec_key_fname, final String passphrase,
+                                                  final String source,
+                                                  final String destination_fname, final boolean overwrite,
+                                                  final CipherpackListener listener) {
+        return null;
     }
 }
