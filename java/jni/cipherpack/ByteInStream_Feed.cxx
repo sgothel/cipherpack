@@ -42,10 +42,11 @@ using namespace jau::fractions_i64_literals;
  */
 jlong Java_org_cipherpack_ByteInStream_Feed_ctorImpl(JNIEnv *env, jobject obj, jstring jid_name, jlong jtimeoutMS) {
     try {
+        Environment::env_init();
         (void)obj;
         // new instance
         const std::string id_name = jau::from_jstring_to_string(env, jid_name);
-        const jau::fraction_i64 timeout = jtimeoutMS * 1_ms;
+        const jau::fraction_i64 timeout = (int64_t)jtimeoutMS * 1_ms;
         jau::shared_ptr_ref<ByteInStream_Feed> ref( new ByteInStream_Feed(id_name, timeout) );
         return ref.release_to_jlong();
     } catch(...) {

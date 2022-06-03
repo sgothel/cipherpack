@@ -24,6 +24,10 @@
 package org.cipherpack;
 
 import java.io.PrintStream;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class CPUtils {
     private static long t0;
@@ -85,4 +89,27 @@ public class CPUtils {
         out.printf("[%,9d] %s", elapsedTimeMillis(), msg);
     }
 
+    /**
+     * Convert a non empty list to an array of same type.
+     *
+     * @param <E> the element type of the list
+     * @param list the list instance
+     * @throws IllegalArgumentException if given list instance is empty
+     */
+    @SuppressWarnings("unchecked")
+    public static <E> E[] toArray(final List<E> list) throws IllegalArgumentException {
+        if( 0 == list.size() ) {
+            throw new IllegalArgumentException("Given list is empty");
+        }
+        final Class<E> clazz;
+        {
+            final E e0 = list.get(0);
+            clazz = (Class<E>) e0.getClass();
+        }
+        final E[] res = (E[]) Array.newInstance(clazz, list.size());
+        for(int i=0; i < res.length; ++i) {
+            res[i] = list.get(i);
+        }
+        return res;
+    }
 }

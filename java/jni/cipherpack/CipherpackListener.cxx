@@ -33,7 +33,7 @@
 
 using namespace cipherpack;
 
-static const std::string _notifyErrorMethodArgs("(Lorg/cipherpack/BTAdapter;Lorg/cipherpack/cryptoConfig;Lorg/cipherpack/cryptoConfig;Lorg/cipherpack/cryptoConfig;J)V");
+static const std::string _notifyErrorMethodArgs("(ZLjava/lang/String;)V");
 static const std::string _notifyHeaderMethodArgs("(ZLorg/cipherpack/PackHeader;Z)V");
 static const std::string _notifyProgressMethodArgs("(ZJJ)V");
 static const std::string _notifyEndMethodArgs("(ZLorg/cipherpack/PackHeader;Z)V");
@@ -67,12 +67,12 @@ class JNICipherpackListener : public CipherpackListener {
     {
         jclass cpListenerClazz = jau::search_class(env, cpListenerObj);
 
-        mNotifyError = jau::search_method(env, cpListenerClazz, "adapterSettingsChanged", _notifyErrorMethodArgs.c_str(), false);
-        mNotifyHeader = jau::search_method(env, cpListenerClazz, "discoveringChanged", _notifyHeaderMethodArgs.c_str(), false);
-        mNotifyProgress = jau::search_method(env, cpListenerClazz, "deviceFound", _notifyProgressMethodArgs.c_str(), false);
-        mNotifyEnd = jau::search_method(env, cpListenerClazz, "deviceUpdated", _notifyEndMethodArgs.c_str(), false);
-        mGetSendContent = jau::search_method(env, cpListenerClazz, "deviceConnected", _getSendContentMethodArgs.c_str(), false);
-        mContentProcessed = jau::search_method(env, cpListenerClazz, "devicePairingState", _contentProcessedMethodArgs.c_str(), false);
+        mNotifyError = jau::search_method(env, cpListenerClazz, "notifyError", _notifyErrorMethodArgs.c_str(), false);
+        mNotifyHeader = jau::search_method(env, cpListenerClazz, "notifyHeader", _notifyHeaderMethodArgs.c_str(), false);
+        mNotifyProgress = jau::search_method(env, cpListenerClazz, "notifyProgress", _notifyProgressMethodArgs.c_str(), false);
+        mNotifyEnd = jau::search_method(env, cpListenerClazz, "notifyEnd", _notifyEndMethodArgs.c_str(), false);
+        mGetSendContent = jau::search_method(env, cpListenerClazz, "getSendContent", _getSendContentMethodArgs.c_str(), false);
+        mContentProcessed = jau::search_method(env, cpListenerClazz, "contentProcessed", _contentProcessedMethodArgs.c_str(), false);
     }
 
     void notifyError(const bool decrypt_mode, const std::string& msg) noexcept override {
@@ -168,6 +168,8 @@ std::atomic<int> JNICipherpackListener::iname_next(0);
  */
 jlong Java_org_cipherpack_CipherpackListener_ctorImpl(JNIEnv *env, jobject obj) {
     try {
+        Environment::env_init();
+
         // new instance
         jau::shared_ptr_ref<JNICipherpackListener> ref( new JNICipherpackListener(env, obj) );
 

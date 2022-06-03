@@ -34,7 +34,7 @@ static const std::string _cryptoConfigClassName("org/cipherpack/CryptoConfig");
 static const std::string _cryptoConfigClazzCtorArgs("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V");
 
 static const std::string _packHeaderClassName("org/cipherpack/PackHeader");
-static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJLjava/lang/String;IILorg/cipherpack/CryptoConfig;Ljava/lang/String;[Ljava/lang/String;IZ)V");
+static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lorg/cipherpack/CryptoConfig;Ljava/lang/String;Ljava/util/List;IZ)V");
 
 CryptoConfig jcipherpack::to_CryptoConfig(JNIEnv *env, jobject jccfg) {
     std::string pk_type_ = jau::getStringFieldValue(env, jccfg, "pk_type");
@@ -98,7 +98,7 @@ jobject jcipherpack::to_jPackHeader(JNIEnv *env, const PackHeader& ph) {
     //            final String pversion, final String pversion_parent,
     //            final CryptoConfig crypto_cfg_,
     //            final String host_key_fingerprint_,
-    //            final String[] term_keys_fingerprint_,
+    //            final List<String> term_keys_fingerprint_,
     //            final int term_key_fingerprint_used_idx_,
     //            final boolean valid_) {
     jstring jtarget_path = jau::from_string_to_jstring(env, ph.getTargetPath());

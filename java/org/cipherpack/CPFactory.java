@@ -38,10 +38,10 @@ import java.util.jar.Manifest;
 import org.jau.util.VersionUtil;
 
 /**
- * One stop {@link BTManager} API entry point.
+ * Cipherpack Factory, called by automatically to load the native library.
  * <p>
  * Further provides access to certain property settings,
- * see {@link #DEBUG}, {@link #VERBOSE}, {@link #DEFAULT_BTMODE} and {@link BTManager.Settings}.
+ * see {@link #DEBUG}, {@link #VERBOSE}.
  * </p>
  */
 public class CPFactory {
@@ -61,7 +61,7 @@ public class CPFactory {
     /**
      * Verbose logging enabled or disabled.
      * <p>
-     * System property {@code org.direct_bt.verbose}, boolean, default {@code false}.
+     * System property {@code org.cipherpack.verbose}, boolean, default {@code false}.
      * </p>
      */
     public static final boolean VERBOSE;
@@ -69,7 +69,7 @@ public class CPFactory {
     /**
      * Debug logging enabled or disabled.
      * <p>
-     * System property {@code org.direct_bt.debug}, boolean, default {@code false}.
+     * System property {@code org.cipherpack.debug}, boolean, default {@code false}.
      * </p>
      */
     public static final boolean DEBUG;
@@ -103,13 +103,13 @@ public class CPFactory {
 
     static {
         {
-            final String v = System.getProperty("org.direct_bt.debug", "false");
+            final String v = System.getProperty("org.cipherpack.debug", "false");
             DEBUG = Boolean.valueOf(v);
         }
         if( DEBUG ) {
             VERBOSE = true;
         } else  {
-            final String v = System.getProperty("org.direct_bt.verbose", "false");
+            final String v = System.getProperty("org.cipherpack.verbose", "false");
             VERBOSE = Boolean.valueOf(v);
         }
 
@@ -118,7 +118,7 @@ public class CPFactory {
             isJaulibAvail = null != Class.forName("org.jau.sys.PlatformProps", true /* initializeClazz */, CPFactory.class.getClassLoader());
         } catch( final Throwable t ) {
             if( DEBUG ) {
-                System.err.println("BTFactory Caught: "+t.getMessage());
+                System.err.println("CPFactory Caught: "+t.getMessage());
                 t.printStackTrace();
             }
         }
@@ -140,7 +140,7 @@ public class CPFactory {
                 try {
                     org.jau.pkg.JNIJarLibrary.addNativeJarLibs(new Class<?>[] { CPFactory.class }, null);
                 } catch (final Exception e0) {
-                    System.err.println("BTFactory Caught "+e0.getClass().getSimpleName()+": "+e0.getMessage()+", while JNILibLoaderBase.addNativeJarLibs(..)");
+                    System.err.println("CPFactory Caught "+e0.getClass().getSimpleName()+": "+e0.getMessage()+", while JNILibLoaderBase.addNativeJarLibs(..)");
                     if( DEBUG ) {
                         e0.printStackTrace();
                     }
@@ -181,10 +181,10 @@ public class CPFactory {
             }
         }
 
-        // Map all Java properties '[org.]direct_bt.*' and 'direct_bt.*' to native environment.
+        // Map all Java properties '[org.]cipherpack.*' and 'cipherpack.*' to native environment.
         try {
             if( DEBUG ) {
-                System.err.println("BlootoothFactory: Mapping '[org.|jau.]direct_bt.*' properties to native environment");
+                System.err.println("CPFactory: Mapping '[org.|jau.]cipherpack.*' properties to native environment");
             }
             final Properties props = doPrivileged(new PrivilegedAction<Properties>() {
                   @Override
@@ -195,8 +195,8 @@ public class CPFactory {
             final Enumeration<?> enums = props.propertyNames();
             while (enums.hasMoreElements()) {
               final String key = (String) enums.nextElement();
-              if( key.startsWith("org.direct_bt.") || key.startsWith("jau.direct_bt.") ||
-                  key.startsWith("direct_bt.") )
+              if( key.startsWith("org.cipherpack.") || key.startsWith("jau.cipherpack.") ||
+                  key.startsWith("cipherpack.") )
               {
                   final String value = props.getProperty(key);
                   if( DEBUG ) {
@@ -211,7 +211,7 @@ public class CPFactory {
         }
 
         try {
-            final Manifest manifest = getManifest(cl, new String[] { "org.direct_bt" } );
+            final Manifest manifest = getManifest(cl, new String[] { "org.cipherpack" } );
             final Attributes mfAttributes = null != manifest ? manifest.getMainAttributes() : null;
 
             // major.minor must match!
@@ -239,9 +239,9 @@ public class CPFactory {
             APIVersion = JAPIVersion;
             ImplVersion = null != mfAttributes ? mfAttributes.getValue(Attributes.Name.IMPLEMENTATION_VERSION) : null;
             if( VERBOSE ) {
-                System.err.println("direct_bt loaded");
-                System.err.println("direct_bt java api version "+JAPIVersion);
-                System.err.println("direct_bt native api version "+NAPIVersion);
+                System.err.println("Cipherpack loaded");
+                System.err.println("Cipherpack java api version "+JAPIVersion);
+                System.err.println("Cipherpack native api version "+NAPIVersion);
                 if( null != mfAttributes ) {
                     final Attributes.Name[] versionAttributeNames = new Attributes.Name[] {
                             Attributes.Name.SPECIFICATION_TITLE,
@@ -337,7 +337,7 @@ public class CPFactory {
             System.err.println(v.getFullManifestInfo(null));
         } else {
             System.err.println("Full Manifest:");
-            final Manifest manifest = getManifest(CPFactory.class.getClassLoader(), new String[] { "org.direct_bt" } );
+            final Manifest manifest = getManifest(CPFactory.class.getClassLoader(), new String[] { "org.cipherpack" } );
             final Attributes attr = manifest.getMainAttributes();
             final Set<Object> keys = attr.keySet();
             final StringBuilder sb = new StringBuilder();
@@ -364,42 +364,12 @@ public class CPFactory {
     private native static void setenv(String name, String value, boolean overwrite);
 }
 
-/** \example DBTScanner10.java
- * This Java scanner {@link BTRole::Master} GATT client example uses an event driven workflow
- * and multithreading, i.e. one thread processes each found device when notified.
- * <p>
- * This example represents the recommended utilization of Direct-BT.
- * </p>
- * <p>
- * See `dbt_scanner10.cpp` for invocation examples, since both apps are fully compatible.
- * </p>
+/** \example Cipherpack.java
+ * This is the commandline version to convert a source from and to a cipherpack, i.e. encrypt and decrypt.
  */
 
-/** \example DBTPeripheral00.java
- * This Java peripheral {@link BTRole::Slave} GATT server example uses an event driven workflow.
- * <p>
- * See `dbt_peripheral00.cpp` for invocation examples, since both apps are fully compatible.
- * </p>
- */
-
-/** \example TestDBTClientServer00.java
- * Unit test, trial using actual BT adapter.
+/** \example Test01Cipherpack.java
+ * Unit test, testing encrypting to and decrypting from a cipherpack stream using different sources.
  *
- * Basic client and server Bluetooth tests, requiring one BT adapter:
- * - start server advertising
- * - server stop advertising
- * - reuse server-adapter for client-mode discovery (just toggle on/off)
- */
-
-/** \example TestDBTClientServer10.java
- * Unit test, trial using actual BT adapter.
- *
- * Testing a full Bluetooth server and client lifecycle of operations, requiring two BT adapter:
- * - start server advertising
- * - start client discovery and connect to server when discovered
- * - client/server processing of connection when ready
- * - client disconnect
- * - server stop advertising
- * - security-level: NONE, ENC_ONLY freshly-paired and ENC_ONLY pre-paired
- * - reuse server-adapter for client-mode discovery (just toggle on/off)
+ * Unit test also covers error cases.
  */
