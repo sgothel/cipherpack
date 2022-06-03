@@ -71,7 +71,7 @@ if (DOXYGEN_FOUND)
       COMMAND ${CMAKE_COMMAND} -E make_directory ${cipherpack_DOCS_DIR}
       COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile.cpp.out
       COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile.java.out
-      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/api/tinyb/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/api/cipherpack/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/java/org/cipherpack/*.java ${CMAKE_CURRENT_SOURCE_DIR}/java/tinyb/dbus/*java ${CMAKE_CURRENT_SOURCE_DIR}/java/jau/cipherpack/*java
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/ ${CMAKE_CURRENT_SOURCE_DIR}/java/org/cipherpack/*.java
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
@@ -81,7 +81,7 @@ if (DOXYGEN_FOUND)
     add_custom_command (OUTPUT ${cipherpack_DOCS_DIR}/cpp
       COMMAND ${CMAKE_COMMAND} -E make_directory ${cipherpack_DOCS_DIR}
       COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile.cpp.out
-      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/api/
+      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/include/
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       COMMENT "Generating API documentation with Doxygen" VERBATIM
     )
