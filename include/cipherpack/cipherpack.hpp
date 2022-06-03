@@ -39,69 +39,71 @@
 #include <jau/environment.hpp>
 #include <jau/java_uplink.hpp>
 
-/**
- * @anchor cipherpack_overview
- * ### Cipherpack Overview
- * Cipherpack, a secure packaging utility utilizing RSA encryption and signatures to ensure
- * privacy and authenticity of the package's source.
- *
- * The package's header handle the personalized public- and private-key mechanism,
- * securing the high-performance symmetric encryption for the high volume payload.
- *
- * Implementation uses an Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo,
- * i.e. {@link cipherpack::constants::aead_cipher_algo}.
- *
- * ### Cipherpack Implementation
- * #### Implementation Status
- * READY TO USE
- *
- * #### Cipherpack Operations
- * The following RSA encryption + signature and symmetric payload operations are performed:
- * - Writing a DER Header-1, containing the encrypted symmetric file-keys for each public terminal key and further {@link PackInfo} details.
- * - Writing a DER Header-2, containing the DER-Header-1 signature using.
- * - The encrypted payload, i.e. the ciphertext using the symmetric file-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
- *
- * Implementation performs all operation `in-place` without redundant copies.
- *
- * @anchor cipherpack_stream
- * #### Cipherpack Data Stream
- * The cipherpack stream will be produced as follows:
- * ```
- * DER Header 1 {
- *     ASN1_Type::OctetString               package_magic
- *     ASN1_Type::OctetString               target_path            // designated target path for file
- *     ASN1_Type::Integer                   content_size           // plain content size, i.e. decrypted payload
- *     ASN1_Type::Integer                   creation_timestamp_sec
- *     ASN1_Type::OctetString               intention              // designated intention of payload for application
- *     ASN1_Type::OctetString               payload_version
- *     ASN1_Type::OctetString               payload_version_parent
- *     ASN1_Type::OctetString               pk_type                // public-key type: "RSA"
- *     ASN1_Type::OctetString               pk_fingerprt_hash_algo // public-key fingerprint hash: "SHA-256"
- *     ASN1_Type::OctetString               pk_enc_padding_algo    // public-key encryption padding: "OAEP"
- *     ASN1_Type::OctetString               pk_enc_hash_algo       // public-key encryption hash: "SHA-256"
- *     ASN1_Type::OctetString               pk_sign_algo           // "EMSA1(SHA-256)",
- *     ASN1_Type::ObjectId                  sym_enc_mac_oid        // "ChaCha20Poly1305",
- *     ASN1_Type::OctetString               nonce,
- *     ASN1_Type::OctetString               fingerprt_host         // fingerprint of public host key used for header signature
- *     ASN1_Type::Integer                   encrypted_fkey_count,  // number of encrypted file-keys
- *     ASN1_Type::OctetString               fingerprt_term_1,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_1
- *     ASN1_Type::OctetString               encrypted_fkey_term_1, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
- *     ASN1_Type::OctetString               fingerprt_term_2,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_2
- *     ASN1_Type::OctetString               encrypted_fkey_term_2, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
- *     ....
- * },
- * DER Header 2 {
- *     ASN1_Type::OctetString               header_sign_host       // signed with secret host key and using public host key to verify, matching fingerprt_host
- * },
- * uint8_t encrypted_data[]
- * ```
- *
- * @see encryptThenSign()
- * @see checkSignThenDecrypt()
- *
- */
 namespace cipherpack {
 
+     /** @defgroup CipherpackAPI Cipherpack General User Level API
+      *  General User level Cipherpack API types and functionality, see @ref cipherpack_stream "Cipherpack Data Stream",
+      *
+      * @anchor cipherpack_overview
+      * ### Cipherpack Overview
+      * Cipherpack, a secure packaging utility utilizing RSA encryption and signatures to ensure
+      * privacy and authenticity of the package's source.
+      *
+      * The package's header handle the personalized public- and private-key mechanism,
+      * securing the high-performance symmetric encryption for the high volume payload.
+      *
+      * Implementation uses an Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo,
+      * i.e. {@link cipherpack::constants::aead_cipher_algo}.
+      *
+      * ### Cipherpack Implementation
+      * #### Implementation Status
+      * READY TO USE
+      *
+      * #### Cipherpack Operations
+      * The following RSA encryption + signature and symmetric payload operations are performed:
+      * - Writing a DER Header-1, containing the encrypted symmetric file-keys for each public terminal key and further {@link PackInfo} details.
+      * - Writing a DER Header-2, containing the DER-Header-1 signature using.
+      * - The encrypted payload, i.e. the ciphertext using the symmetric file-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
+      *
+      * Implementation performs all operation `in-place` without redundant copies.
+      *
+      * @anchor cipherpack_stream
+      * #### Cipherpack Data Stream
+      * The cipherpack stream will be produced as follows:
+      * ```
+      * DER Header 1 {
+      *     ASN1_Type::OctetString               package_magic
+      *     ASN1_Type::OctetString               target_path            // designated target path for file
+      *     ASN1_Type::Integer                   content_size           // plain content size, i.e. decrypted payload
+      *     ASN1_Type::Integer                   creation_timestamp_sec
+      *     ASN1_Type::OctetString               intention              // designated intention of payload for application
+      *     ASN1_Type::OctetString               payload_version
+      *     ASN1_Type::OctetString               payload_version_parent
+      *     ASN1_Type::OctetString               pk_type                // public-key type: "RSA"
+      *     ASN1_Type::OctetString               pk_fingerprt_hash_algo // public-key fingerprint hash: "SHA-256"
+      *     ASN1_Type::OctetString               pk_enc_padding_algo    // public-key encryption padding: "OAEP"
+      *     ASN1_Type::OctetString               pk_enc_hash_algo       // public-key encryption hash: "SHA-256"
+      *     ASN1_Type::OctetString               pk_sign_algo           // "EMSA1(SHA-256)",
+      *     ASN1_Type::ObjectId                  sym_enc_mac_oid        // "ChaCha20Poly1305",
+      *     ASN1_Type::OctetString               nonce,
+      *     ASN1_Type::OctetString               fingerprt_host         // fingerprint of public host key used for header signature
+      *     ASN1_Type::Integer                   encrypted_fkey_count,  // number of encrypted file-keys
+      *     ASN1_Type::OctetString               fingerprt_term_1,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_1
+      *     ASN1_Type::OctetString               encrypted_fkey_term_1, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
+      *     ASN1_Type::OctetString               fingerprt_term_2,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_2
+      *     ASN1_Type::OctetString               encrypted_fkey_term_2, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
+      *     ....
+      * },
+      * DER Header 2 {
+      *     ASN1_Type::OctetString               header_sign_host       // signed with secret host key and using public host key to verify, matching fingerprt_host
+      * },
+      * uint8_t encrypted_data[]
+      * ```
+      *
+      * @see encryptThenSign()
+      * @see checkSignThenDecrypt()
+      *  @{
+      */
 
     #define JAVA_MAIN_PACKAGE "org/cipherpack/"
 
@@ -468,6 +470,18 @@ namespace cipherpack {
                                     CipherpackListenerRef listener,
                                     const std::string destination_fname = "");
 
+    /**@}*/
+
 } // namespace cipherpack
+
+ /** \example commandline.cpp
+  * This is the commandline version to convert a source from and to a cipherpack, i.e. encrypt and decrypt.
+  */
+
+ /** \example test_01_cipherpack.cpp
+  * Unit test, testing encrypting to and decrypting from a cipherpack stream using different sources.
+  *
+  * Unit test also covers error cases.
+  */
 
 #endif /* JAU_CIPHERPACK_HPP_ */
