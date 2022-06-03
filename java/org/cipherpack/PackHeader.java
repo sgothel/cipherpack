@@ -30,17 +30,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PackHeader {
-    /** Designated decrypted target path of the file from DER-Header-1, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    /** Designated target path for message, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final String target_path;
 
     /** Plaintext content size in bytes, i.e. decrypted payload size, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final long content_size;
 
-    /** Creation time in milliseconds since Unix epoch, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final long ts_creation;
+    /** Creation time since Unix epoch, second component, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    public final long ts_creation_sec;
 
-    /** Intention of the file from DER-Header-1, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final String intention;
+    /** Creation time since Unix epoch, nanosecond component, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    public final long ts_creation_nsec;
+
+    /** Designated subject of message, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    public final String subject;
 
     /** Payload version, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final String payload_version;
@@ -50,14 +53,14 @@ public class PackHeader {
 
     public final CryptoConfig crypto_cfg;
 
-    /** Used host key fingerprint used to sign, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final String host_key_fingerprint;
+    /** Sender's public-key fingerprint used to sign, see @ref cipherpack_stream "Cipherpack Data Stream".. */
+    public final String sender_fingerprint;
 
-    /** List of public keys fingerprints used to encrypt the file-key, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final List<String> term_keys_fingerprint;
+    /** List of receiver's public-keys fingerprints used to encrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    public final List<String> recevr_fingerprints;
 
-    /** Index of the matching public key fingerprints used to decrypt the file-key or -1 if not found or performing the encryption operation.. */
-    public final int term_key_fingerprint_used_idx;
+    /** Index of the matching receiver's public-key fingerprint used to decrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream", -1 if not found or not decrypting. */
+    public final int used_recevr_key_idx;
 
     /** True if packet is valid, otherwise false. */
     public final boolean valid;
@@ -65,37 +68,40 @@ public class PackHeader {
     PackHeader() {
         this.target_path = "";
         this.content_size = 0;
-        this.ts_creation = 0;
-        this.intention = "";
+        this.ts_creation_sec = 0;
+        this.ts_creation_nsec = 0;
+        this.subject = "";
         this.payload_version = "0";
         this.payload_version_parent = "0";
         this.crypto_cfg = new CryptoConfig();
-        this.host_key_fingerprint = "";
-        this.term_keys_fingerprint = new ArrayList<String>();
-        this.term_key_fingerprint_used_idx = -1;
+        this.sender_fingerprint = "";
+        this.recevr_fingerprints = new ArrayList<String>();
+        this.used_recevr_key_idx = -1;
         this.valid = false;
     }
 
     PackHeader(final String target_path_,
                final long content_size_,
-               final long ts_creation_,
-               final String intention_,
+               final long ts_creation_sec_,
+               final long ts_creation_nsec_,
+               final String subject_,
                final String pversion, final String pversion_parent,
                final CryptoConfig crypto_cfg_,
-               final String host_key_fingerprint_,
-               final List<String> term_keys_fingerprint_,
-               final int term_key_fingerprint_used_idx_,
+               final String sender_key_fingerprint_,
+               final List<String> recevr_fingerprint_,
+               final int used_recevr_key_idx_,
                final boolean valid_) {
         this.target_path = target_path_;
         this.content_size = content_size_;
-        this.ts_creation = ts_creation_;
-        this.intention = intention_;
+        this.ts_creation_sec = ts_creation_sec_;
+        this.ts_creation_nsec = ts_creation_nsec_;
+        this.subject = subject_;
         this.payload_version = pversion;
         this.payload_version_parent = pversion_parent;
         this.crypto_cfg = crypto_cfg_;
-        this.host_key_fingerprint = host_key_fingerprint_;
-        this.term_keys_fingerprint = term_keys_fingerprint_;
-        this.term_key_fingerprint_used_idx = term_key_fingerprint_used_idx_;
+        this.sender_fingerprint = sender_key_fingerprint_;
+        this.recevr_fingerprints = recevr_fingerprint_;
+        this.used_recevr_key_idx = used_recevr_key_idx_;
         this.valid = valid_;
     }
 
@@ -108,32 +114,32 @@ public class PackHeader {
     public String toString(final boolean show_crypto_algos, final boolean force_all_fingerprints) {
         final String crypto_str = show_crypto_algos ? crypto_cfg.toString() : "";
 
-        final StringBuilder term_fingerprint = new StringBuilder();
+        final StringBuilder recevr_fingerprint = new StringBuilder();
         {
-            if( 0 <= term_key_fingerprint_used_idx ) {
-                term_fingerprint.append( "dec '").append(term_keys_fingerprint.get(term_key_fingerprint_used_idx)).append("', ");
+            if( 0 <= used_recevr_key_idx ) {
+                recevr_fingerprint.append( "dec '").append(recevr_fingerprints.get(used_recevr_key_idx)).append("', ");
             }
-            if( force_all_fingerprints || 0 > term_key_fingerprint_used_idx ) {
-                term_fingerprint.append("enc[");
+            if( force_all_fingerprints || 0 > used_recevr_key_idx ) {
+                recevr_fingerprint.append("enc[");
                 int i = 0;
-                for(final String tkf : term_keys_fingerprint) {
+                for(final String tkf : recevr_fingerprints) {
                     if( 0 < i ) {
-                        term_fingerprint.append(", ");
+                        recevr_fingerprint.append(", ");
                     }
-                    term_fingerprint.append("'").append(tkf).append("'");
+                    recevr_fingerprint.append("'").append(tkf).append("'");
                     ++i;
                 }
-                term_fingerprint.append("]");
+                recevr_fingerprint.append("]");
             }
         }
-        final ZonedDateTime utc_creation = Instant.ofEpochMilli(ts_creation).atZone(ZoneOffset.UTC);
+        final ZonedDateTime utc_creation = Instant.ofEpochSecond(ts_creation_sec, ts_creation_nsec).atZone(ZoneOffset.UTC);
         final String res = "Header[valid "+valid+
                ", file[target_path "+target_path+", content_size "+String.format("%,d", content_size)+
-               "], creation "+utc_creation.toString()+" , intention '"+intention+"', "+
+               "], creation "+utc_creation.toString()+" , subject '"+subject+"', "+
                " version["+payload_version+
                ", parent "+payload_version_parent+crypto_str+
-               "], fingerprints[sign/host '"+host_key_fingerprint+
-               "', term["+term_fingerprint+
+               "], fingerprints[sender '"+sender_fingerprint+
+               "', recevr["+recevr_fingerprint+
                "]]]";
         return res;
     }

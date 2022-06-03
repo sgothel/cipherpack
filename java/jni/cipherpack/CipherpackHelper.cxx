@@ -34,7 +34,7 @@ static const std::string _cryptoConfigClassName("org/cipherpack/CryptoConfig");
 static const std::string _cryptoConfigClazzCtorArgs("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V");
 
 static const std::string _packHeaderClassName("org/cipherpack/PackHeader");
-static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lorg/cipherpack/CryptoConfig;Ljava/lang/String;Ljava/util/List;IZ)V");
+static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lorg/cipherpack/CryptoConfig;Ljava/lang/String;Ljava/util/List;IZ)V");
 
 CryptoConfig jcipherpack::to_CryptoConfig(JNIEnv *env, jobject jccfg) {
     std::string pk_type_ = jau::getStringFieldValue(env, jccfg, "pk_type");
@@ -55,13 +55,6 @@ CryptoConfig jcipherpack::to_CryptoConfig(JNIEnv *env, jobject jccfg) {
 }
 
 jobject jcipherpack::to_jCryptoConfig(JNIEnv *env, const CryptoConfig& ccfg) {
-    // public CryptoConfig(final String pk_type_,
-    //          final String pk_fingerprt_hash_algo_,
-    //          final String pk_enc_padding_algo_,
-    //          final String pk_enc_hash_algo_,
-    //          final String pk_sign_algo_,
-    //          final String sym_enc_algo_,
-    //          final long sym_enc_nonce_bytes_) {
     jstring jpk_type = jau::from_string_to_jstring(env, ccfg.pk_type);
     jstring jpk_fingerprt_hash_algo = jau::from_string_to_jstring(env, ccfg.pk_fingerprt_hash_algo);
     jstring jpk_enc_padding_algo = jau::from_string_to_jstring(env, ccfg.pk_enc_padding_algo);
@@ -91,27 +84,17 @@ jobject jcipherpack::to_jCryptoConfig(JNIEnv *env, const CryptoConfig& ccfg) {
 }
 
 jobject jcipherpack::to_jPackHeader(JNIEnv *env, const PackHeader& ph) {
-    // PackHeader(final String target_path_,
-    //            final long content_size_,
-    //            final long ts_creation_,
-    //            final String intention_,
-    //            final String pversion, final String pversion_parent,
-    //            final CryptoConfig crypto_cfg_,
-    //            final String host_key_fingerprint_,
-    //            final List<String> term_keys_fingerprint_,
-    //            final int term_key_fingerprint_used_idx_,
-    //            final boolean valid_) {
     jstring jtarget_path = jau::from_string_to_jstring(env, ph.getTargetPath());
-    jstring jintention = jau::from_string_to_jstring(env, ph.getIntention());
+    jstring jsubject = jau::from_string_to_jstring(env, ph.getSubject());
     jstring jpversion = jau::from_string_to_jstring(env, ph.getPayloadVersion());
     jstring jpversion_parent = jau::from_string_to_jstring(env, ph.getPayloadVersionParent());
 
     const CryptoConfig& ccfg = ph.getCryptoConfig();
     jobject jccfg = to_jCryptoConfig(env, ccfg);
 
-    jstring jpk_host_key_fprint = jau::from_string_to_jstring(env, ph.getHostKeyFingerprint());
-    const std::vector<std::string>& termKeysFingerprint = ph.getTermKeysFingerprint();
-    jobject jtermKeysFingerprint = jau::convert_vector_string_to_jarraylist(env, termKeysFingerprint);
+    jstring jsender_fprint = jau::from_string_to_jstring(env, ph.getSenderFingerprint());
+    const std::vector<std::string>& recevr_fprints = ph.getReceiverFingerprints();
+    jobject jrecevr_fprints = jau::convert_vector_string_to_jarraylist(env, recevr_fprints);
     jau::java_exception_check_and_throw(env, E_FILE_LINE);
 
     jclass packHeaderClazz = jau::search_class(env, _packHeaderClassName.c_str());
@@ -120,25 +103,26 @@ jobject jcipherpack::to_jPackHeader(JNIEnv *env, const PackHeader& ph) {
     jobject jph = env->NewObject(packHeaderClazz, packHeaderClazzCtor,
             jtarget_path,
             static_cast<jlong>(ph.getContentSize()),
-            static_cast<jlong>(ph.getCreationTime().to_fraction_i64().to_ms()),
-            jintention,
+            static_cast<jlong>(ph.getCreationTime().tv_sec),
+            static_cast<jlong>(ph.getCreationTime().tv_nsec),
+            jsubject,
             jpversion, jpversion_parent,
             jccfg,
-            jpk_host_key_fprint,
-            jtermKeysFingerprint,
-            ph.getUsedTermKeyFingerprintIndex(),
+            jsender_fprint,
+            jrecevr_fprints,
+            ph.getUsedReceiverKeyIndex(),
             ph.isValid());
     jau::java_exception_check_and_throw(env, E_FILE_LINE);
 
     env->DeleteLocalRef(packHeaderClazz);
 
     env->DeleteLocalRef(jtarget_path);
-    env->DeleteLocalRef(jintention);
+    env->DeleteLocalRef(jsubject);
     env->DeleteLocalRef(jpversion);
     env->DeleteLocalRef(jpversion_parent);
     env->DeleteLocalRef(jccfg);
-    env->DeleteLocalRef(jpk_host_key_fprint);
-    env->DeleteLocalRef(jtermKeysFingerprint);
+    env->DeleteLocalRef(jsender_fprint);
+    env->DeleteLocalRef(jrecevr_fprints);
     return jph;
 }
 

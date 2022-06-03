@@ -38,7 +38,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         jobject jccfg, jobject jenc_pub_keys,
         jstring jsign_sec_key_fname, jstring jpassphrase,
         jobject jsource_feed,
-        jstring jtarget_path, jstring jintention,
+        jstring jtarget_path, jstring jsubject,
         jstring jpayload_version,
         jstring jpayload_version_parent,
         jobject cpListener, jstring jdestination_fname)
@@ -52,13 +52,13 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         std::string sign_sec_key_fname = jau::from_jstring_to_string(env, jsign_sec_key_fname);
         std::string passphrase = jau::from_jstring_to_string(env, jpassphrase);
         std::string target_path = jau::from_jstring_to_string(env, jtarget_path);
-        std::string intention = jau::from_jstring_to_string(env, jintention);
+        std::string subject = jau::from_jstring_to_string(env, jsubject);
         std::string payload_version = jau::from_jstring_to_string(env, jpayload_version);
         std::string payload_version_parent = jau::from_jstring_to_string(env, jpayload_version_parent);
         std::string destination_fname = nullptr != jdestination_fname ? jau::from_jstring_to_string(env, jdestination_fname) : "";
 
         PackHeader ph = encryptThenSign(ccfg, enc_pub_keys, sign_sec_key_fname, passphrase, *refFeed,
-                                        target_path, intention, payload_version, payload_version_parent,
+                                        target_path, subject, payload_version, payload_version_parent,
                                         refListener.shared_ptr(), destination_fname);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);
@@ -74,7 +74,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl2(JNIEnv *env, jclass 
         jobject jccfg, jobject jenc_pub_keys,
         jstring jsign_sec_key_fname, jstring jpassphrase,
         jstring jsource_loc, jlong jsource_timeout_ms,
-        jstring jtarget_path, jstring jintention,
+        jstring jtarget_path, jstring jsubject,
         jstring jpayload_version,
         jstring jpayload_version_parent,
         jobject cpListener, jstring jdestination_fname)
@@ -95,13 +95,13 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl2(JNIEnv *env, jclass 
             source = std::make_unique<jau::io::ByteInStream_File>(source_loc, true /* use_binary */);
         }
         std::string target_path = jau::from_jstring_to_string(env, jtarget_path);
-        std::string intention = jau::from_jstring_to_string(env, jintention);
+        std::string subject = jau::from_jstring_to_string(env, jsubject);
         std::string payload_version = jau::from_jstring_to_string(env, jpayload_version);
         std::string payload_version_parent = jau::from_jstring_to_string(env, jpayload_version_parent);
         std::string destination_fname = nullptr != jdestination_fname ? jau::from_jstring_to_string(env, jdestination_fname) : "";
 
         PackHeader ph = encryptThenSign(ccfg, enc_pub_keys, sign_sec_key_fname, passphrase, *source,
-                                        target_path, intention, payload_version, payload_version_parent,
+                                        target_path, subject, payload_version, payload_version_parent,
                                         refListener.shared_ptr(), destination_fname);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);

@@ -46,63 +46,89 @@ namespace cipherpack {
       *
       * @anchor cipherpack_overview
       * ### Cipherpack Overview
-      * Cipherpack, a secure packaging utility utilizing RSA encryption and signatures to ensure
-      * privacy and authenticity of the package's source.
+      * *Cipherpack*, a secure stream processor utilizing public-key signatures to
+      * authenticate the sender and public-key encryption of a symmetric-key for multiple receiver
+      * ensuring their privacy and high-performance payload encryption.
       *
-      * The package's header handle the personalized public- and private-key mechanism,
-      * securing the high-performance symmetric encryption for the high volume payload.
+      * A *Cipherpack* can be understood as a message, which can be streamed
+      * via any media while file and all [*libcurl* notwork protocols](https://curl.se/libcurl/) are *build-in* and supported.
       *
-      * Implementation uses an Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo,
-      * i.e. {@link cipherpack::constants::aead_cipher_algo}.
+      * A user may utilize the media agnostic API, a [ByteInStream_Feed](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__Feed.html)
+      * to produce the input stream
+      * and a CipherpackListener to receive the processed output stream.
+      *
+      * *Cipherpack* is implemented using C++17 and accessible via C++ and Java.
       *
       * ### Cipherpack Implementation
       * #### Implementation Status
       * READY TO USE
       *
       * #### Cipherpack Operations
-      * The following RSA encryption + signature and symmetric payload operations are performed:
-      * - Writing a DER Header-1, containing the encrypted symmetric file-keys for each public terminal key and further {@link PackInfo} details.
-      * - Writing a DER Header-2, containing the DER-Header-1 signature using.
-      * - The encrypted payload, i.e. the ciphertext using the symmetric file-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
+      * The following public-key signature and encryption, as well as symmetric-key payload encryption operations are performed:
+      * - Writing a DER Header-1, containing the general message information and receiver count, see {@link PackHeader} details.
+      * - Writing a DER Header for each recevr, containing the fingerprint, encrypted symmetric-key and encrypted symmetric-nonce.
+      * - Writing a DER Header-2, containing the sender's signature over the whole header
+      * - Writing the symmetrically encrypted payload, using the symmetric-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
       *
-      * Implementation performs all operation `in-place` without redundant copies.
+      * Implementation performs all operation `in-place` without redundant copies, processing the stream.
       *
       * @anchor cipherpack_stream
       * #### Cipherpack Data Stream
+      * The stream's header contains the sender's public-key fingerprint
+      * and its signature for authentication by the receiving parties.
+      *
+      * Further, the stream contains triples per receiver, its public-key fingerprint,
+      * the encrypted symmetric-key and the encrypted symmetric-nonce for each receiver,
+      * allowing a secure messaging between multiple parties:
+      * - Symmetric encryption of the actual payload ensures high-performance processing.
+      * - Symmetric stream-key is unique for each message
+      *
+      * Implementation uses an Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo,
+      * i.e. {@link cipherpack::constants::aead_cipher_algo}.
+      *
+      * The random nonce, unique for one message and used for the symmetric encryption is not a secret and doesn't have to be confidential.
+      * However, since we already encrypt the symmetric-key for each receiver, we transmit the nonce with it, encrypted.
+      *
       * The cipherpack stream will be produced as follows:
       * ```
       * DER Header 1 {
-      *     ASN1_Type::OctetString               package_magic
-      *     ASN1_Type::OctetString               target_path            // designated target path for file
-      *     ASN1_Type::Integer                   content_size           // plain content size, i.e. decrypted payload
-      *     ASN1_Type::Integer                   creation_timestamp_sec
-      *     ASN1_Type::OctetString               intention              // designated intention of payload for application
-      *     ASN1_Type::OctetString               payload_version
-      *     ASN1_Type::OctetString               payload_version_parent
-      *     ASN1_Type::OctetString               pk_type                // public-key type: "RSA"
-      *     ASN1_Type::OctetString               pk_fingerprt_hash_algo // public-key fingerprint hash: "SHA-256"
-      *     ASN1_Type::OctetString               pk_enc_padding_algo    // public-key encryption padding: "OAEP"
-      *     ASN1_Type::OctetString               pk_enc_hash_algo       // public-key encryption hash: "SHA-256"
-      *     ASN1_Type::OctetString               pk_sign_algo           // "EMSA1(SHA-256)",
-      *     ASN1_Type::ObjectId                  sym_enc_mac_oid        // "ChaCha20Poly1305",
-      *     ASN1_Type::OctetString               nonce,
-      *     ASN1_Type::OctetString               fingerprt_host         // fingerprint of public host key used for header signature
-      *     ASN1_Type::Integer                   encrypted_fkey_count,  // number of encrypted file-keys
-      *     ASN1_Type::OctetString               fingerprt_term_1,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_1
-      *     ASN1_Type::OctetString               encrypted_fkey_term_1, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
-      *     ASN1_Type::OctetString               fingerprt_term_2,      // fingerprint of public terminal key_1 used for encrypted_fkey_term_2
-      *     ASN1_Type::OctetString               encrypted_fkey_term_2, // encrypted file-key with public terminal key_1, decrypted with secret terminal key_1
-      *     ....
+      *     ASN1_Type::OctetString               stream_magic              // simple stream identifier to be matched
+      *     ASN1_Type::OctetString               target_path               // designated target path for message
+      *     ASN1_Type::Integer                   content_size              // content size of plaintext payload
+      *     ASN1_Type::Integer                   creation_timestamp_sec    // message creation timestamp, second component
+      *     ASN1_Type::Integer                   creation_timestamp_nsec   // message creation timestamp, nanoseconds component
+      *     ASN1_Type::OctetString               subject                   // designated subject of message
+      *     ASN1_Type::OctetString               payload_version           // version of this message's payload
+      *     ASN1_Type::OctetString               payload_version_parent    // version of the parent's message payload
+      *     ASN1_Type::OctetString               pk_type                   // public-key type: "RSA"
+      *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash: "SHA-256"
+      *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding: "OAEP"
+      *     ASN1_Type::OctetString               pk_enc_hash_algo          // public-key encryption hash: "SHA-256"
+      *     ASN1_Type::OctetString               pk_sign_algo              // public-key signature algorithm: "EMSA1(SHA-256)",
+      *     ASN1_Type::ObjectId                  sym_enc_mac_oid           // symmetric-key encryption+MAC algorithm: "ChaCha20Poly1305",
+      *     ASN1_Type::OctetString               fingerprt_sender          // fingerprint of public sender key used for header signature
+      *     ASN1_Type::Integer                   receiver_count,           // number of receiver triples { fingerprint, encrypted-symmetric-keys, encrypted-nonce }
+      * }
+      * DER Header recevr_1 {
+      *     ASN1_Type::OctetString               fingerprt_recevr_1,       // fingerprint of receiver's public-key_1 used for encrypted_skey_recevr_1
+      *     ASN1_Type::OctetString               encrypted_skey_recevr_1,  // encrypted symmetric-key with receiver's public-key_1
+      *     ASN1_Type::OctetString               encrypted_nonce_recevr_1, // encrypted symmetric-encryption nonce with receiver's public-key_1
       * },
+      * DER Header recevr_2 {
+      *     ASN1_Type::OctetString               fingerprt_recevr_2,       // fingerprint of receiver's public-key_1 used for encrypted_skey_recevr_2
+      *     ASN1_Type::OctetString               encrypted_skey_recevr_2,  // encrypted symmetric-key with receiver's public-key_2
+      *     ASN1_Type::OctetString               encrypted_nonce_recevr_2, // encrypted symmetric-encryption nonce with receiver's public-key_2
+      * } ...
       * DER Header 2 {
-      *     ASN1_Type::OctetString               header_sign_host       // signed with secret host key and using public host key to verify, matching fingerprt_host
+      *     ASN1_Type::OctetString               sign_sender               // sender's signature over whole header, matching fingerprt_sender
       * },
       * uint8_t encrypted_data[]
       * ```
       *
       * @see encryptThenSign()
       * @see checkSignThenDecrypt()
-      *  @{
+      *
+      * @{
       */
 
     #define JAVA_MAIN_PACKAGE "org/cipherpack/"
@@ -132,7 +158,7 @@ namespace cipherpack {
          * - Public-Key hash algorithm is {@code SHA-256}.
          * - Public-Key hash algorithm is {@code EMSA1(SHA-256)}.
          * - Symmetric Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo is {@code ChaCha20Poly1305}.
-         * - Symmetric AEAD ChaCha Nonce Sizes are usually: 64-bit classic, 96-bit IETF, 192-bit big for one message per file-key.
+         * - Symmetric AEAD ChaCha Nonce Sizes are usually: 64-bit classic, 96-bit IETF, 192-bit big for one message per symmetric-key.
          */
         static CryptoConfig getDefault() noexcept;
 
@@ -173,7 +199,7 @@ namespace cipherpack {
             constexpr static const size_t buffer_size = 4096;
 
             /**
-             * Package magic {@code CIPHERPACK_0002}.
+             * Package magic {@code CIPHERPACK_0003}.
              */
             static const std::string package_magic;
     };
@@ -188,13 +214,13 @@ namespace cipherpack {
             std::string target_path;
             uint64_t content_size;
             jau::fraction_timespec ts_creation;
-            std::string intention;
+            std::string subject;
             std::string payload_version;
             std::string payload_version_parent;
             CryptoConfig crypto_cfg;
-            std::string host_key_fingerprint;
-            std::vector<std::string> term_keys_fingerprint;
-            ssize_t term_key_fingerprint_used_idx;
+            std::string sender_fingerprint;
+            std::vector<std::string> recevr_fingerprints;
+            ssize_t used_recevr_key_idx;
             bool valid;
 
         public:
@@ -203,13 +229,13 @@ namespace cipherpack {
             : target_path("none"),
               content_size(0),
               ts_creation( jau::getWallClockTime() ),
-              intention("none"),
+              subject("none"),
               payload_version(),
               payload_version_parent(),
               crypto_cfg(),
-              host_key_fingerprint(),
-              term_keys_fingerprint(),
-              term_key_fingerprint_used_idx(-1),
+              sender_fingerprint(),
+              recevr_fingerprints(),
+              used_recevr_key_idx(-1),
               valid(false)
             { }
 
@@ -218,13 +244,13 @@ namespace cipherpack {
             : target_path("none"),
               content_size(0),
               ts_creation( ts_creation_ ),
-              intention("none"),
+              subject("none"),
               payload_version(),
               payload_version_parent(),
               crypto_cfg(),
-              host_key_fingerprint(),
-              term_keys_fingerprint(),
-              term_key_fingerprint_used_idx(-1),
+              sender_fingerprint(),
+              recevr_fingerprints(),
+              used_recevr_key_idx(-1),
               valid(false)
             { }
 
@@ -232,26 +258,26 @@ namespace cipherpack {
             PackHeader(const std::string& target_path_,
                        const uint64_t& content_size_,
                        const jau::fraction_timespec& ts_creation_,
-                       const std::string& intention_,
+                       const std::string& subject_,
                        const std::string& pversion, const std::string& pversion_parent,
                        const CryptoConfig& crypto_cfg_,
-                       const std::string& host_key_fingerprint_,
-                       const std::vector<std::string>& term_keys_fingerprint_,
-                       const size_t term_key_fingerprint_used_idx_,
+                       const std::string& sender_fingerprint_,
+                       const std::vector<std::string>& recevr_fingerprints_,
+                       const size_t used_recevr_key_idx_,
                        const bool valid_)
             : target_path(target_path_),
               content_size(content_size_),
               ts_creation(ts_creation_),
-              intention(intention_),
+              subject(subject_),
               payload_version(pversion), payload_version_parent(pversion_parent),
               crypto_cfg(crypto_cfg_),
-              host_key_fingerprint(host_key_fingerprint_),
-              term_keys_fingerprint(term_keys_fingerprint_),
-              term_key_fingerprint_used_idx(term_key_fingerprint_used_idx_),
+              sender_fingerprint(sender_fingerprint_),
+              recevr_fingerprints(recevr_fingerprints_),
+              used_recevr_key_idx(used_recevr_key_idx_),
               valid(valid_)
             { }
 
-            /** Returns the designated decrypted target path of the file from DER-Header-1, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            /** Returns the designated target path for message, see @ref cipherpack_stream "Cipherpack Data Stream". */
             const std::string& getTargetPath() const noexcept { return target_path; }
 
             /** Returns the plaintext content size in bytes, i.e. decrypted payload size, see @ref cipherpack_stream "Cipherpack Data Stream". */
@@ -260,8 +286,8 @@ namespace cipherpack {
             /** Returns the creation time since Unix epoch, see @ref cipherpack_stream "Cipherpack Data Stream". */
             constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
 
-            /** Returns the intention of the file from DER-Header-1, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr const std::string& getIntention() const noexcept { return intention; }
+            /** Returns the designated subject of message, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            constexpr const std::string& getSubject() const noexcept { return subject; }
 
             /** Returns the payload version, see @ref cipherpack_stream "Cipherpack Data Stream". */
             constexpr const std::string& getPayloadVersion() const noexcept { return payload_version;}
@@ -272,21 +298,21 @@ namespace cipherpack {
             constexpr const CryptoConfig& getCryptoConfig() const noexcept { return crypto_cfg; }
 
             /**
-             * Return the used host key fingerprint used to sign, see @ref cipherpack_stream "Cipherpack Data Stream".
+             * Return the sender's public-key fingerprint used to sign, see @ref cipherpack_stream "Cipherpack Data Stream".
              */
-            const std::string& getHostKeyFingerprint() const noexcept { return host_key_fingerprint; }
+            const std::string& getSenderFingerprint() const noexcept { return sender_fingerprint; }
 
             /**
-             * Return the list of public keys fingerprints used to encrypt the file-key, see @ref cipherpack_stream "Cipherpack Data Stream".
+             * Return the list of receiver's public-keys fingerprints used to encrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream".
              */
-            const std::vector<std::string>& getTermKeysFingerprint() const noexcept { return term_keys_fingerprint; }
+            const std::vector<std::string>& getReceiverFingerprints() const noexcept { return recevr_fingerprints; }
 
             /**
-             * Return the index of the matching public key fingerprints used to decrypt the file-key, see @ref cipherpack_stream "Cipherpack Data Stream".
+             * Return the index of the matching receiver's public-key fingerprint used to decrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream".
              *
-             * @return the fingerprint index of getTermKeysFingerprint(), or -1 if not found or performing the encryption operation.
+             * @return the receiver's key index of getReceiverFingerprints(), or -1 if not found or not decrypting.
              */
-            ssize_t getUsedTermKeyFingerprintIndex() const noexcept { return term_key_fingerprint_used_idx; }
+            ssize_t getUsedReceiverKeyIndex() const noexcept { return used_recevr_key_idx; }
 
             /**
              * Return a string representation
@@ -418,17 +444,18 @@ namespace cipherpack {
     typedef std::shared_ptr<CipherpackListener> CipherpackListenerRef;
 
     /**
-     * Encrypt then sign the source producing a cipherpack destination file.
+     * Encrypt then sign the source producing a cipherpack stream passed to the CipherpackListener if opt-in and also optionally store into destination_fname.
      *
-     * @param crypto_cfg             The used CryptoConfig, consider using CryptoConfig::getDefault()
-     * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the file-key for multiple parties.
-     * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted file-key for authenticity.
-     * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
+     * @param crypto_cfg             Used CryptoConfig, consider using CryptoConfig::getDefault()
+     * @param enc_pub_keys           Public keys of the receiver, used to encrypt the symmetric-key for multiple parties.
+     * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
+     * @param passphrase             Passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
      * @param source                 The source jau::io::ByteInStream of the plaintext payload.
-     * @param designated_fname       The designated filename for the decrypted file as written in the DER-Header-1
-     * @param payload_version        The version of this payload
-     * @param payload_version_parent The version of this payload's parent
-     * @param listener               The CipherpackListener listener used for notifications and optionally
+     * @param target_path            Designated target path for the message
+     * @param subject                Designated subject of payload from sender
+     * @param payload_version        Version of this message's payload
+     * @param payload_version_parent Version of the parent's message payload
+     * @param listener               CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
      * @param destination_fname      Optional filename of the ciphertext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
@@ -440,18 +467,18 @@ namespace cipherpack {
                                const std::vector<std::string>& enc_pub_keys,
                                const std::string& sign_sec_key_fname, const std::string& passphrase,
                                jau::io::ByteInStream& source,
-                               const std::string& target_path, const std::string& intention,
+                               const std::string& target_path, const std::string& subject,
                                const std::string& payload_version,
                                const std::string& payload_version_parent,
                                CipherpackListenerRef listener,
                                const std::string destination_fname = "");
 
     /**
-     * Check cipherpack signature of the source then decrypt into the plaintext destination file.
+     * Verify signature then decrypt the source passing to the CipherpackListener if opt-in and also optionally store into destination file.
      *
-     * @param sign_pub_keys      The potential public keys used by the host (pack provider) to verify the DER-Header-1 signature
-     *                           and hence the authenticity of the encrypted file-key. Proves authenticity of the file.
-     * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the file-key.
+     * @param sign_pub_keys      Authorized sender public-keys to verify the sender's signature
+     *                           and hence the authenticity of the message incl. encrypted symmetric-key and payload.
+     * @param dec_sec_key_fname  Private key of the receiver, used to decrypt the symmetric-key.
      *                           It shall match one of the keys used to encrypt.
      * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
      * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.

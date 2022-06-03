@@ -39,7 +39,7 @@ void Environment::env_init() noexcept {
     curl_global_init(CURL_GLOBAL_ALL);
 }
 
-const std::string Constants::package_magic              = "CIPHERPACK_0002";
+const std::string Constants::package_magic              = "CIPHERPACK_0003";
 
 static const std::string default_pk_type                = "RSA";
 static const std::string default_pk_fingerprt_hash_algo = "SHA-256";
@@ -79,7 +79,7 @@ bool CryptoConfig::valid() const noexcept {
 std::string CryptoConfig::to_string() const noexcept {
     return "CCfg[pk[type '"+pk_type+"', fingerprt_hash '"+pk_fingerprt_hash_algo+"', enc_padding '"+pk_enc_padding_algo+
             "', enc_hash '"+pk_enc_hash_algo+"', sign '"+pk_sign_algo+
-            "'], sym['"+sym_enc_algo+"', nonce "+std::to_string(sym_enc_nonce_bytes)+" byte]]";
+            "'], sym['"+sym_enc_algo+"', nonce "+std::to_string(sym_enc_nonce_bytes)+" bytes]]";
 }
 
 std::shared_ptr<Botan::Public_Key> cipherpack::load_public_key(const std::string& pubkey_fname) {
@@ -118,33 +118,33 @@ std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::stri
 std::string PackHeader::toString(const bool show_crypto_algos, const bool force_all_fingerprints) const noexcept {
     const std::string crypto_str = show_crypto_algos ? crypto_cfg.to_string() : "";
 
-    std::string term_fingerprint;
+    std::string recevr_fingerprint_str;
     {
-        if( 0 <= term_key_fingerprint_used_idx ) {
-            term_fingerprint += "dec '"+term_keys_fingerprint.at(term_key_fingerprint_used_idx)+"', ";
+        if( 0 <= used_recevr_key_idx ) {
+            recevr_fingerprint_str += "dec '"+recevr_fingerprints.at(used_recevr_key_idx)+"', ";
         }
-        if( force_all_fingerprints || 0 > term_key_fingerprint_used_idx ) {
-            term_fingerprint += "enc[";
+        if( force_all_fingerprints || 0 > used_recevr_key_idx ) {
+            recevr_fingerprint_str += "enc[";
             int i = 0;
-            for(const std::string& tkf : term_keys_fingerprint) {
+            for(const std::string& tkf : recevr_fingerprints) {
                 if( 0 < i ) {
-                    term_fingerprint += ", ";
+                    recevr_fingerprint_str += ", ";
                 }
-                term_fingerprint += "'"+tkf+"'";
+                recevr_fingerprint_str += "'"+tkf+"'";
                 ++i;
             }
-            term_fingerprint += "]";
+            recevr_fingerprint_str += "]";
         }
     }
 
     std::string res = "Header[";
     res += "valid "+std::to_string( isValid() )+
            ", file[target_path "+target_path+", content_size "+jau::to_decstring(content_size).c_str()+
-           "], creation "+ts_creation.to_iso8601_string(true)+" UTC, intention '"+intention+"', "+
+           "], creation "+ts_creation.to_iso8601_string(true)+" UTC, subject '"+subject+"', "+
            " version["+payload_version+
            ", parent "+payload_version_parent+crypto_str+
-           "], fingerprints[sign/host '"+host_key_fingerprint+
-           "', term["+term_fingerprint+
+           "], fingerprints[sender '"+sender_fingerprint+
+           "', recevr["+recevr_fingerprint_str+
            "]]]";
     return res;
 }
