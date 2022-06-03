@@ -194,9 +194,9 @@ class Test01Cipherpack : public TestData {
             jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: %s\n", ph1.toString(true, true).c_str());
             REQUIRE( ph1.isValid() == true );
 
-            const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
             {
                 // Error: Not encrypted for terminal key 4
+                const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
                 jau::io::ByteInStream_File enc_stream(fname_payload_encrypted_lst[file_idx], true /* use_binary */);
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
