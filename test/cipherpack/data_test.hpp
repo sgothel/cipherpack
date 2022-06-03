@@ -39,7 +39,6 @@ class TestData {
     public:
         static constexpr const jau::fraction_i64 io_timeout = 10_s;
 
-        static constexpr const bool overwrite = true;
         static const std::string enc_pub_key1_fname;
         static const std::string dec_sec_key1_fname;
 

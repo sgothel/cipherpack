@@ -51,9 +51,9 @@ public class Cipherpack {
         }
         CPFactory.checkInitialized();
 
-        CPUtils.println(System.err, "Direct-BT BluetoothManager initialized!");
-        CPUtils.println(System.err, "Direct-BT Native Version "+CPFactory.getNativeVersion()+" (API "+CPFactory.getNativeAPIVersion()+")");
-        CPUtils.println(System.err, "Direct-BT Java Version "+CPFactory.getImplVersion()+" (API "+CPFactory.getAPIVersion()+")");
+        CPUtils.println(System.err, "Cipherpack initialized!");
+        CPUtils.println(System.err, "Cipherpack Native Version "+CPFactory.getNativeVersion()+" (API "+CPFactory.getNativeAPIVersion()+")");
+        CPUtils.println(System.err, "Cipherpack Java Version "+CPFactory.getImplVersion()+" (API "+CPFactory.getAPIVersion()+")");
 
         CPUtils.fprintf_td(System.err, "Called with %d arguments: ", argc);
         for(int i=0; i<argc; i++) {
@@ -66,8 +66,8 @@ public class Cipherpack {
             print_usage();
             return;
         }
-        final boolean overwrite = true;
         final String command = args[++argi];
+        final long source_timeout_ms = 10000;
 
         if( command.equals( "pack" ) ) {
             final List<String> enc_pub_keys = new ArrayList<String>();
@@ -116,9 +116,10 @@ public class Cipherpack {
             final PackHeader ph = org.cipherpack.Cipherpack.encryptThenSign(
                                                 CryptoConfig.getDefault(),
                                                 enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
-                                                source_loc, target_path, intention,
+                                                source_loc, source_timeout_ms,
+                                                target_path, intention,
                                                 payload_version, payload_version_parent,
-                                                fname_output, overwrite, new CipherpackListener());
+                                                new CipherpackListener(), fname_output);
 
             CPUtils.fprintf_td(System.err, "Pack: Encrypted %s to %s\n", source_loc, fname_output);
             CPUtils.fprintf_td(System.err, "Pack: %s\n", ph.toString(true, true));
@@ -157,8 +158,8 @@ public class Cipherpack {
 
             final PackHeader ph = org.cipherpack.Cipherpack.checkSignThenDecrypt(
                                         sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
-                                        source_loc, fname_output, overwrite,
-                                        new CipherpackListener());
+                                        source_loc, source_timeout_ms,
+                                        new CipherpackListener(), fname_output);
 
             // dec_sec_key_passphrase.resize(0);
             CPUtils.fprintf_td(System.err, "Unpack: Decypted %s to %s\n", source_loc, fname_output);

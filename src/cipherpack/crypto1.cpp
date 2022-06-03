@@ -339,31 +339,24 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                        const std::string& target_path, const std::string& intention,
                                        const std::string& payload_version,
                                        const std::string& payload_version_parent,
-                                       CipherpackListenerRef listener) {
-    const bool decrypt_mode = false;
-    PackHeader ph = encryptThenSign_Impl(crypto_cfg,
-                                         enc_pub_keys,
-                                         sign_sec_key_fname, passphrase,
-                                         source,
-                                         target_path, intention,
-                                         payload_version,
-                                         payload_version_parent,
-                                         listener);
-    listener->notifyEnd(decrypt_mode, ph, ph.isValid());
-    return ph;
-}
-
-PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
-                                       const std::vector<std::string>& enc_pub_keys,
-                                       const std::string& sign_sec_key_fname, const std::string& passphrase,
-                                       jau::io::ByteInStream& source,
-                                       const std::string& target_path, const std::string& intention,
-                                       const std::string& payload_version,
-                                       const std::string& payload_version_parent,
-                                       const std::string& destination_fname, const bool overwrite,
-                                       CipherpackListenerRef listener) {
-    const bool decrypt_mode = false;
+                                       CipherpackListenerRef listener,
+                                       const std::string destination_fname) {
     Environment::env_init();
+    const bool decrypt_mode = false;
+
+    if( destination_fname.empty() ) {
+        PackHeader ph = encryptThenSign_Impl(crypto_cfg,
+                                             enc_pub_keys,
+                                             sign_sec_key_fname, passphrase,
+                                             source,
+                                             target_path, intention,
+                                             payload_version,
+                                             payload_version_parent,
+                                             listener);
+        listener->notifyEnd(decrypt_mode, ph, ph.isValid());
+        return ph;
+    }
+
     const jau::fraction_timespec ts_creation = jau::getWallClockTime();
 
     PackHeader header(target_path,
@@ -423,14 +416,14 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
     {
         const jau::fs::file_stats output_stats(destination_fname);
         if( output_stats.exists() ) {
-            if( overwrite && output_stats.is_file() ) {
+            if( output_stats.is_file() ) {
                 if( !jau::fs::remove(destination_fname, false /* recursive */) ) {
                     ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
                 }
             } else {
-                ERR_PRINT2("Encrypt failed: Not overwriting existing output file %s", output_stats.to_string(true).c_str());
+                ERR_PRINT2("Encrypt failed: Not overwriting existing %s", output_stats.to_string(true).c_str());
                 my_listener->notifyEnd(decrypt_mode, header, false);
                 return header;
             }
@@ -835,22 +828,19 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
                                             const std::string& dec_sec_key_fname, const std::string& passphrase,
                                             jau::io::ByteInStream& source,
-                                            CipherpackListenerRef listener) {
-    const bool decrypt_mode = true;
-    PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
-                                            dec_sec_key_fname, passphrase,
-                                            source, listener);
-    listener->notifyEnd(decrypt_mode, ph, ph.isValid());
-    return ph;
-}
-
-PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
-                                            const std::string& dec_sec_key_fname, const std::string& passphrase,
-                                            jau::io::ByteInStream& source,
-                                            const std::string& destination_fname, const bool overwrite,
-                                            CipherpackListenerRef listener) {
-    const bool decrypt_mode = true;
+                                            CipherpackListenerRef listener,
+                                            const std::string destination_fname) {
     Environment::env_init();
+    const bool decrypt_mode = true;
+
+    if( destination_fname.empty() ) {
+        PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
+                                                dec_sec_key_fname, passphrase,
+                                                source, listener);
+        listener->notifyEnd(decrypt_mode, ph, ph.isValid());
+        return ph;
+    }
+
     jau::fraction_timespec ts_creation;
     PackHeader header(ts_creation);
 
@@ -895,14 +885,14 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     {
         const jau::fs::file_stats output_stats(destination_fname);
         if( output_stats.exists() ) {
-            if( overwrite && output_stats.is_file() ) {
+            if( output_stats.is_file() ) {
                 if( !jau::fs::remove(destination_fname, false /* recursive */) ) {
-                    ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", destination_fname.c_str());
+                    ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
                 }
             } else {
-                ERR_PRINT2("Decrypt failed: Not overwriting existing output file %s", destination_fname.c_str());
+                ERR_PRINT2("Decrypt failed: Not overwriting existing %s", output_stats.to_string(true).c_str());
                 my_listener->notifyEnd(decrypt_mode, header, false);
                 return header;
             }

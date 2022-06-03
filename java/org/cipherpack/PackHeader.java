@@ -54,11 +54,12 @@ public class PackHeader {
     public final String host_key_fingerprint;
 
     /** List of public keys fingerprints used to encrypt the file-key, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final String[] term_keys_fingerprint;
+    public final List<String> term_keys_fingerprint;
 
     /** Index of the matching public key fingerprints used to decrypt the file-key or -1 if not found or performing the encryption operation.. */
     public final int term_key_fingerprint_used_idx;
 
+    /** True if packet is valid, otherwise false. */
     public final boolean valid;
 
     PackHeader() {
@@ -70,7 +71,7 @@ public class PackHeader {
         this.payload_version_parent = "0";
         this.crypto_cfg = new CryptoConfig();
         this.host_key_fingerprint = "";
-        this.term_keys_fingerprint = new String[0];
+        this.term_keys_fingerprint = new ArrayList<String>();
         this.term_key_fingerprint_used_idx = -1;
         this.valid = false;
     }
@@ -82,7 +83,7 @@ public class PackHeader {
                final String pversion, final String pversion_parent,
                final CryptoConfig crypto_cfg_,
                final String host_key_fingerprint_,
-               final String[] term_keys_fingerprint_,
+               final List<String> term_keys_fingerprint_,
                final int term_key_fingerprint_used_idx_,
                final boolean valid_) {
         this.target_path = target_path_;
@@ -110,7 +111,7 @@ public class PackHeader {
         final StringBuilder term_fingerprint = new StringBuilder();
         {
             if( 0 <= term_key_fingerprint_used_idx ) {
-                term_fingerprint.append( "dec '").append(term_keys_fingerprint[term_key_fingerprint_used_idx]).append("', ");
+                term_fingerprint.append( "dec '").append(term_keys_fingerprint.get(term_key_fingerprint_used_idx)).append("', ");
             }
             if( force_all_fingerprints || 0 > term_key_fingerprint_used_idx ) {
                 term_fingerprint.append("enc[");
@@ -136,6 +137,8 @@ public class PackHeader {
                "]]]";
         return res;
     }
+
+    public final boolean isValid() { return valid; }
 
     /**
      * Return a string representation

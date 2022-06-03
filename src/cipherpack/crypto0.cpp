@@ -39,7 +39,7 @@ void Environment::env_init() noexcept {
     curl_global_init(CURL_GLOBAL_ALL);
 }
 
-const std::string Constants::package_magic              = "CIPHERPACK_0001";
+const std::string Constants::package_magic              = "CIPHERPACK_0002";
 
 static const std::string default_pk_type                = "RSA";
 static const std::string default_pk_fingerprt_hash_algo = "SHA-256";

@@ -171,7 +171,7 @@ namespace cipherpack {
             constexpr static const size_t buffer_size = 4096;
 
             /**
-             * Package magic {@code CIPHERPACK_0001}.
+             * Package magic {@code CIPHERPACK_0002}.
              */
             static const std::string package_magic;
     };
@@ -416,33 +416,6 @@ namespace cipherpack {
     typedef std::shared_ptr<CipherpackListener> CipherpackListenerRef;
 
     /**
-     * Encrypt then sign the source producing a cipherpack stream passed to the destination_fn consumer.
-     *
-     * @param crypto_cfg             The used CryptoConfig, consider using CryptoConfig::getDefault()
-     * @param enc_pub_keys           The public keys of the receiver (terminal device), used to encrypt the file-key for multiple parties.
-     * @param sign_sec_key_fname     The private key of the host (pack provider), used to sign the DER-Header-1 incl encrypted file-key for authenticity.
-     * @param passphrase             The passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
-     * @param source                 The source jau::io::ByteInStream of the plaintext payload.
-     * @param target_path            The designated target_path for the decrypted file as written in the DER-Header-1
-     * @param payload_version        The version of this payload
-     * @param payload_version_parent The version of this payload's parent
-     * @param listener               The CipherpackListener listener used for notifications and optionally
-     *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
-     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
-     *
-     * @see @ref cipherpack_stream "Cipherpack Data Stream"
-     * @see checkSignThenDecrypt()
-     */
-    PackHeader encryptThenSign(const CryptoConfig& crypto_cfg,
-                               const std::vector<std::string>& enc_pub_keys,
-                               const std::string& sign_sec_key_fname, const std::string& passphrase,
-                               jau::io::ByteInStream& source,
-                               const std::string& target_path, const std::string& intention,
-                               const std::string& payload_version,
-                               const std::string& payload_version_parent,
-                               CipherpackListenerRef listener);
-
-    /**
      * Encrypt then sign the source producing a cipherpack destination file.
      *
      * @param crypto_cfg             The used CryptoConfig, consider using CryptoConfig::getDefault()
@@ -453,10 +426,9 @@ namespace cipherpack {
      * @param designated_fname       The designated filename for the decrypted file as written in the DER-Header-1
      * @param payload_version        The version of this payload
      * @param payload_version_parent The version of this payload's parent
-     * @param destination_fname      The filename of the ciphertext destination file.
-     * @param overwrite              If true, overwrite a potentially existing `outfilename`.
      * @param listener               The CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
+     * @param destination_fname      Optional filename of the ciphertext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
@@ -469,30 +441,8 @@ namespace cipherpack {
                                const std::string& target_path, const std::string& intention,
                                const std::string& payload_version,
                                const std::string& payload_version_parent,
-                               const std::string& destination_fname, const bool overwrite,
-                               CipherpackListenerRef listener);
-
-    /**
-     * Check cipherpack signature of the source then pass decrypted payload to the destination_fn consumer.
-     *
-     * @param sign_pub_keys      The potential public keys used by the host (pack provider) to verify the DER-Header-1 signature
-     *                           and hence the authenticity of the encrypted file-key. Proves authenticity of the file.
-     * @param dec_sec_key_fname  The private key of the receiver (terminal device), used to decrypt the file-key.
-     *                           It shall match one of the keys used to encrypt.
-     * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
-     * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
-     * @param listener           The CipherpackListener listener used for notifications and optionally
-     *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
-     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
-     *
-     * @see @ref cipherpack_stream "Cipherpack Data Stream"
-     * @see encryptThenSign()
-     *
-     */
-    PackHeader checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
-                                    const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                    jau::io::ByteInStream &source,
-                                    CipherpackListenerRef listener);
+                               CipherpackListenerRef listener,
+                               const std::string destination_fname = "");
 
     /**
      * Check cipherpack signature of the source then decrypt into the plaintext destination file.
@@ -503,10 +453,9 @@ namespace cipherpack {
      *                           It shall match one of the keys used to encrypt.
      * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
      * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
-     * @param destination_fname  The filename of the plaintext destination file.
-     * @param overwrite If true, overwrite a potentially existing `destination_fname`.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
+     * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
@@ -516,8 +465,8 @@ namespace cipherpack {
     PackHeader checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
                                     const std::string &dec_sec_key_fname, const std::string &passphrase,
                                     jau::io::ByteInStream &source,
-                                    const std::string &destination_fname, const bool overwrite,
-                                    CipherpackListenerRef listener);
+                                    CipherpackListenerRef listener,
+                                    const std::string destination_fname = "");
 
 } // namespace cipherpack
 
