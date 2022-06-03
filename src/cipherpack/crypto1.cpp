@@ -313,11 +313,12 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                     source.to_string().c_str());
             return header;
         } else if( jau::environment::get().verbose ) {
-            jau::PLAIN_PRINT(true, "Encrypt: Writing done, %s header + %s payload for %s bytes written, ratio %lf out/in",
+            WORDY_PRINT("Encrypt: Reading done from %s", source.to_string().c_str());
+            WORDY_PRINT("Encrypt: Writing done, %s header + %s payload for %s bytes written, ratio %lf out/in",
                     jau::to_decstring(out_bytes_header).c_str(),
                     jau::to_decstring(out_bytes_payload).c_str(),
                     jau::to_decstring(in_bytes_total).c_str(), (double)(out_bytes_header+out_bytes_payload)/(double)in_bytes_total);
-            jau::PLAIN_PRINT(true, "Encrypt: Writing done: source: %s", source.to_string().c_str());
+            WORDY_PRINT("Encrypt: Writing done: source: %s", source.to_string().c_str());
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
@@ -472,7 +473,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         return header;
     }
 
-    jau::PLAIN_PRINT(true, "Encrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
+    WORDY_PRINT("Encrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
     my_listener->notifyEnd(decrypt_mode, ph, true);
     return ph;
 }
@@ -709,9 +710,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                 term_keys_fingerprint,
                                 encrypted_key_idx,
                                 false /* valid */);
-            DBG_PRINT("Decrypt: DER Header1 Size %zu bytes, enc_key %zu/%zu (size %zd): %s",
+            DBG_PRINT("Decrypt: DER Header1 Size %zu bytes, enc_key %zu/%zu (size %zd): %s from %s",
                     header1_buffer.size(), encrypted_key_idx, encrypted_key_count, encrypted_file_key.size(),
-                    header.toString(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
+                    header.toString(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str(), source.to_string().c_str());
             {
                 Botan::BER_Decoder ber(input);
                 ber.start_sequence()
@@ -801,11 +802,12 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             return header;
         }
         if( out_bytes_payload != content_size ) {
-            ERR_PRINT2("Decrypt: Writing done, %s output payload != %s header files size",
+            ERR_PRINT2("Decrypt: Writing done, %s output payload != %s header files size from %s",
                     jau::to_decstring(out_bytes_payload).c_str(),
-                    jau::to_decstring(content_size).c_str());
+                    jau::to_decstring(content_size).c_str(), source.to_string().c_str());
             return header;
         } else {
+            WORDY_PRINT("Decrypt: Reading done from %s", source.to_string().c_str());
             WORDY_PRINT("Decrypt: Writing done, %s total bytes from %s bytes input, ratio %lf in/out",
                     jau::to_decstring(out_bytes_payload).c_str(),
                     jau::to_decstring(in_bytes_total).c_str(),
@@ -935,7 +937,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         return ph;
     }
 
-    jau::PLAIN_PRINT(true, "Decrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
+    WORDY_PRINT("Decrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
     my_listener->notifyEnd(decrypt_mode, ph, true);
     return ph;
 }
