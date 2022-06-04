@@ -160,6 +160,11 @@ please contact [Gothel Software](https://jausoft.com/) to setup a potential supp
 
 * First stable release (TODO)
 
+**0.6.0**
+
+* Completed restructuring incl. stream `CIPHERPACK_0003` and API doc
+* Completed Java binding, all tests passed
+
 **0.5.0**
 
 * Renamed from Elevator to Cipherpack
