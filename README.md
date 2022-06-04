@@ -20,7 +20,9 @@ are *build-in* and supported.
 
 A user may use the media agnostic
 [ByteInStream_Feed](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__Feed.html)
-to produce the input stream by injecting data off-thread and a CipherpackListener to receive the processed output stream.
+to produce the input stream by injecting data off-thread and a 
+[CipherpackListener](https://jausoft.com/projects/cipherpack/build/documentation/cpp/html/classcipherpack_1_1CipherpackListener.html)
+to receive the processed output stream.
 
 *Cipherpack* is implemented using C++17 and accessible via C++ and Java.
 

@@ -29,6 +29,12 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Cipherpack header less encrypted keys or signatures as described in @ref cipherpack_stream "Cipherpack Data Stream"
+ *
+ * @see @ref cipherpack_overview "Cipherpack Overview"
+ * @see @ref cipherpack_stream "Cipherpack Data Stream"
+ */
 public class PackHeader {
     /** Designated target path for message, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final String target_path;

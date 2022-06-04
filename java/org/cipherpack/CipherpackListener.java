@@ -24,6 +24,12 @@
 
 package org.cipherpack;
 
+/**
+ * Listener for events occurring while processing a cipherpack message via encryptThenSign() and checkSignThenDecrypt().
+ *
+ * @see @ref cipherpack_overview "Cipherpack Overview"
+ * @see @ref cipherpack_stream "Cipherpack Data Stream"
+ */
 public class CipherpackListener extends CPNativeDownlink {
     public CipherpackListener() {
         super(); // pending native ctor

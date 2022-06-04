@@ -42,7 +42,7 @@
 namespace cipherpack {
 
      /** @defgroup CipherpackAPI Cipherpack General User Level API
-      *  General User level Cipherpack API types and functionality, see @ref cipherpack_stream "Cipherpack Data Stream",
+      *  General User level Cipherpack API types and functionality, see @ref cipherpack_overview "Cipherpack Overview".
       *
       * @anchor cipherpack_overview
       * ### Cipherpack Overview
@@ -143,8 +143,11 @@ namespace cipherpack {
      };
 
     /**
-     * CryptoConfig, contains crypto algorithms settings given at encryption wired via the @see @ref cipherpack_stream "Cipherpack Data Stream",
+     * CryptoConfig, contains crypto algorithms settings given at encryption wired via the @ref cipherpack_stream "Cipherpack Data Stream",
      * hence received and used at decryption if matching keys are available.
+     *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
      */
     struct CryptoConfig {
         std::string pk_type;
@@ -212,6 +215,7 @@ namespace cipherpack {
      * Cipherpack header less encrypted keys or signatures as described in @ref cipherpack_stream "Cipherpack Data Stream"
      *
      * @see @ref cipherpack_overview "Cipherpack Overview"
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
      */
     class PackHeader {
         private:
@@ -334,6 +338,12 @@ namespace cipherpack {
     std::shared_ptr<Botan::Public_Key> load_public_key(const std::string& pubkey_fname);
     std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
 
+    /**
+     * Listener for events occurring while processing a cipherpack message via encryptThenSign() and checkSignThenDecrypt().
+     *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
+     * @see @ref cipherpack_stream "Cipherpack Data Stream"
+     */
     class CipherpackListener : public jau::JavaUplink {
         public:
             /**
@@ -464,8 +474,11 @@ namespace cipherpack {
      * @param destination_fname      Optional filename of the ciphertext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see checkSignThenDecrypt()
+     * @see CipherpackListener
+     * @see [jau::io::ByteInStream](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream.html#details)
      */
     PackHeader encryptThenSign(const CryptoConfig& crypto_cfg,
                                const std::vector<std::string>& enc_pub_keys,
@@ -491,9 +504,11 @@ namespace cipherpack {
      * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see encryptThenSign()
-     *
+     * @see CipherpackListener
+     * @see [jau::io::ByteInStream](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream.html#details)
      */
     PackHeader checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
                                     const std::string &dec_sec_key_fname, const std::string &passphrase,

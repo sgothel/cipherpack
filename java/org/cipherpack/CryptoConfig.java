@@ -23,6 +23,13 @@
  */
 package org.cipherpack;
 
+/**
+ * CryptoConfig, contains crypto algorithms settings given at encryption wired via the @ref cipherpack_stream "Cipherpack Data Stream",
+ * hence received and used at decryption if matching keys are available.
+ *
+ * @see @ref cipherpack_overview "Cipherpack Overview"
+ * @see @ref cipherpack_stream "Cipherpack Data Stream"
+ */
 public class CryptoConfig {
     public final String pk_type;
     public final String pk_fingerprt_hash_algo;

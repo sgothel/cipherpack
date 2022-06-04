@@ -128,8 +128,11 @@ public final class Cipherpack {
      * @param destination_fname      Optional filename of the plaintext destination file, not used if null or empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see checkSignThenDecrypt()
+     * @see ByteInStream_Feed
+     * @see CipherpackListener
      */
     public static PackHeader encryptThenSign(final CryptoConfig crypto_cfg,
                                              final List<String> enc_pub_keys,
@@ -175,8 +178,10 @@ public final class Cipherpack {
      * @param destination_fname      Optional filename of the plaintext destination file, not used if null or empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see checkSignThenDecrypt()
+     * @see CipherpackListener
      */
     public static PackHeader encryptThenSign(final CryptoConfig crypto_cfg,
                                              final List<String> enc_pub_keys,
@@ -218,9 +223,11 @@ public final class Cipherpack {
      * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see encryptThenSign()
-     *
+     * @see ByteInStream_Feed
+     * @see CipherpackListener
      */
     public static PackHeader checkSignThenDecrypt(final List<String> sign_pub_keys,
                                                   final String dec_sec_key_fname, final String passphrase,
@@ -251,9 +258,10 @@ public final class Cipherpack {
      * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
+     * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see encryptThenSign()
-     *
+     * @see CipherpackListener
      */
     public static PackHeader checkSignThenDecrypt(final List<String> sign_pub_keys,
                                                   final String dec_sec_key_fname, final String passphrase,
