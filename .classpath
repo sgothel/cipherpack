@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="java"/>
+	<classpathentry kind="src" path="jaulib/java_net"/>
 	<classpathentry kind="src" path="jaulib/test/java"/>
 	<classpathentry kind="src" path="jaulib/java_base"/>
 	<classpathentry kind="src" path="jaulib/java_jni"/>

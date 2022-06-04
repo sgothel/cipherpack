@@ -50,12 +50,16 @@ namespace cipherpack {
       * authenticate the sender and public-key encryption of a symmetric-key for multiple receiver
       * ensuring their privacy and high-performance payload encryption.
       *
-      * A *Cipherpack* can be understood as a message, which can be streamed
-      * via any media while file and all [*libcurl* notwork protocols](https://curl.se/libcurl/) are *build-in* and supported.
+      * A *Cipherpack* can be understood as a message, which can be streamed via any media while,
+      * file via
+      * [ByteInStream_File](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__File.html)
+      * and all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html) via
+      * [ByteInStream_URL](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__URL.html)
+      * are *build-in* and supported.
       *
-      * A user may utilize the media agnostic API, a [ByteInStream_Feed](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__Feed.html)
-      * to produce the input stream
-      * and a CipherpackListener to receive the processed output stream.
+      * A user may use the media agnostic
+      * [ByteInStream_Feed](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__Feed.html)
+      * to produce the input stream by injecting data off-thread and a CipherpackListener to receive the processed output stream.
       *
       * *Cipherpack* is implemented using C++17 and accessible via C++ and Java.
       *

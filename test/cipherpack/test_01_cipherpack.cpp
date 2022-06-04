@@ -107,13 +107,14 @@ class Test01Cipherpack : public TestData {
 
         ~Test01Cipherpack() {
             std::system("killall mini_httpd");
-            std::system("killall mini_httpd");
         }
 
         static void httpd_start() {
             std::system("killall mini_httpd");
-            std::system("killall mini_httpd");
-            std::system("/usr/sbin/mini_httpd -p 8080");
+            const std::string cwd = jau::fs::get_cwd();
+            const std::string cmd = "/usr/sbin/mini_httpd -p 8080 -l "+cwd+"/mini_httpd.log";
+            jau::PLAIN_PRINT(true, "%s", cmd.c_str());
+            std::system(cmd.c_str());
         }
 
         void test01_enc_dec_file_ok() {

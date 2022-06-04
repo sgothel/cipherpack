@@ -32,12 +32,11 @@ import java.util.List;
  * authenticate the sender and public-key encryption of a symmetric-key for multiple receiver
  * ensuring their privacy and high-performance payload encryption.
  *
- * A *Cipherpack* can be understood as a message, which can be streamed
- * via any media while file and all [*libcurl* notwork protocols](https://curl.se/libcurl/) are *build-in* and supported.
+ * A *Cipherpack* can be understood as a message, which can be streamed via any media,
+ * while file and all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html) are *build-in* via a location string and supported.
  *
- * A user may utilize the media agnostic API, a ByteInStream_Feed
- * to produce the input stream
- * and a CipherpackListener to receive the processed output stream.
+ * A user may use the media agnostic ByteInStream_Feed
+ * to produce the input stream by injecting data off-thread and a CipherpackListener to receive the processed output stream.
  *
  * *Cipherpack* is implemented using C++17 and accessible via C++ and Java.
  *

@@ -81,13 +81,7 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        std::unique_ptr<jau::io::ByteInStream> source;
-        const std::string proto = source_name.substr(0, 5);
-        if( proto == "http:" ) {
-            source = std::make_unique<jau::io::ByteInStream_URL>(source_name, 10_s);
-        } else {
-            source = std::make_unique<jau::io::ByteInStream_File>(source_name, true /* use_binary */);
-        }
+        std::unique_ptr<jau::io::ByteInStream> source = jau::io::to_ByteInStream(source_name); // 20_s default
         cipherpack::PackHeader ph = cipherpack::encryptThenSign(cipherpack::CryptoConfig::getDefault(),
                                                                 enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
                                                                 *source, target_path, intention,
@@ -127,13 +121,7 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        std::unique_ptr<jau::io::ByteInStream> source;
-        const std::string proto = source_name.substr(0, 5);
-        if( proto == "http:" ) {
-            source = std::make_unique<jau::io::ByteInStream_URL>(source_name, 10_s);
-        } else {
-            source = std::make_unique<jau::io::ByteInStream_File>(source_name, true /* use_binary */);
-        }
+        std::unique_ptr<jau::io::ByteInStream> source = jau::io::to_ByteInStream(source_name); // 20_s default
         cipherpack::PackHeader ph = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                                                      *source,
                                                                      std::make_shared<cipherpack::CipherpackListener>(),

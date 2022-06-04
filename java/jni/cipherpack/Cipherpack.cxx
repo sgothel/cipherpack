@@ -87,13 +87,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl2(JNIEnv *env, jclass 
         std::string sign_sec_key_fname = jau::from_jstring_to_string(env, jsign_sec_key_fname);
         std::string passphrase = jau::from_jstring_to_string(env, jpassphrase);
         std::string source_loc = jau::from_jstring_to_string(env, jsource_loc);
-        std::unique_ptr<jau::io::ByteInStream> source;
-        const std::string proto = source_loc.substr(0, 5);
-        if( proto == "http:" ) {
-            source = std::make_unique<jau::io::ByteInStream_URL>(source_loc, (int64_t)jsource_timeout_ms * 1_ms);
-        } else {
-            source = std::make_unique<jau::io::ByteInStream_File>(source_loc, true /* use_binary */);
-        }
+        std::unique_ptr<jau::io::ByteInStream> source = jau::io::to_ByteInStream(source_loc, (int64_t)jsource_timeout_ms * 1_ms);
         std::string target_path = jau::from_jstring_to_string(env, jtarget_path);
         std::string subject = jau::from_jstring_to_string(env, jsubject);
         std::string payload_version = jau::from_jstring_to_string(env, jpayload_version);
@@ -154,13 +148,7 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt2(JNIEnv *env, jclass
         std::string dec_sec_key_fname = jau::from_jstring_to_string(env, jdec_sec_key_fname);
         std::string passphrase = jau::from_jstring_to_string(env, jpassphrase);
         std::string source_loc = jau::from_jstring_to_string(env, jsource_loc);
-        std::unique_ptr<jau::io::ByteInStream> source;
-        const std::string proto = source_loc.substr(0, 5);
-        if( proto == "http:" ) {
-            source = std::make_unique<jau::io::ByteInStream_URL>(source_loc, (int64_t)jsource_timeout_ms * 1_ms);
-        } else {
-            source = std::make_unique<jau::io::ByteInStream_File>(source_loc, true /* use_binary */);
-        }
+        std::unique_ptr<jau::io::ByteInStream> source = jau::io::to_ByteInStream(source_loc, (int64_t)jsource_timeout_ms * 1_ms);
         std::string destination_fname = nullptr != jdestination_fname ? jau::from_jstring_to_string(env, jdestination_fname) : "";
 
         PackHeader ph = checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, passphrase, *source,

@@ -29,6 +29,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -145,13 +147,15 @@ public class Test01Cipherpack extends data_test {
     @AfterClass
     public static void httpd_stop() {
         Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
-        Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
     }
 
     static void httpd_start() {
         Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
-        Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
-        Assert.assertTrue( system(new String[]{"/usr/sbin/mini_httpd", "-p", "8080"}) );
+        final Path path = Paths.get("");
+        final String directoryName = path.toAbsolutePath().toString();
+        final String[] cmd = new String[]{"/usr/sbin/mini_httpd", "-p", "8080", "-l", directoryName+"/mini_httpd.log"};
+        CPUtils.fprintf_td(System.err, "%s\n", Arrays.toString(cmd));
+        Assert.assertTrue( system(cmd) );
     }
 
     CipherpackListener silentListener = new CipherpackListener();
