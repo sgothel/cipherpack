@@ -27,7 +27,7 @@ package org.cipherpack;
  * ByteInStream_Feed represents the user side active part of
  * its native C++ implementation.
  *
- * Only informational native hooks and the active methods
+ * Informational native hooks and the active methods
  * to feed the data into the used instance are exposed.
  */
 public final class ByteInStream_Feed implements AutoCloseable  {

@@ -22,7 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "org_cipherpack_CPNativeDownlink.h"
+#include "org_cipherpack_ByteInStream_Feed.h"
 
 #include <jau/debug.hpp>
 
@@ -35,12 +35,7 @@ using namespace jau;
 using namespace jau::io;
 using namespace jau::fractions_i64_literals;
 
-/*
- * Class:     org_direct_bt_ByteInStream_Feed
- * Method:    ctorImpl
- * Signature: (Ljava/lang/String;J)J
- */
-jlong Java_org_cipherpack_ByteInStream_Feed_ctorImpl(JNIEnv *env, jobject obj, jstring jid_name, jlong jtimeoutMS) {
+jlong Java_org_cipherpack_ByteInStream_1Feed_ctorImpl(JNIEnv *env, jobject obj, jstring jid_name, jlong jtimeoutMS) {
     try {
         Environment::env_init();
         (void)obj;
@@ -55,12 +50,7 @@ jlong Java_org_cipherpack_ByteInStream_Feed_ctorImpl(JNIEnv *env, jobject obj, j
     return (jlong) (intptr_t)nullptr;
 }
 
-/*
- * Class:     org_direct_bt_ByteInStream_Feed
- * Method:    dtorImpl
- * Signature: (J)V
- */
-void Java_org_cipherpack_ByteInStream_Feed_dtorImpl(JNIEnv *env, jclass clazz, jlong nativeInstance) {
+void Java_org_cipherpack_ByteInStream_1Feed_dtorImpl(JNIEnv *env, jclass clazz, jlong nativeInstance) {
     (void)clazz;
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> sref(nativeInstance, false /* throw_on_nullptr */); // hold copy until done
@@ -73,7 +63,7 @@ void Java_org_cipherpack_ByteInStream_Feed_dtorImpl(JNIEnv *env, jclass clazz, j
     }
 }
 
-jboolean Java_org_cipherpack_ByteInStream_Feed_end_of_data(JNIEnv *env, jobject obj) {
+jboolean Java_org_cipherpack_ByteInStream_1Feed_end_1of_1data(JNIEnv *env, jobject obj) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         return ref->end_of_data() ? JNI_TRUE : JNI_FALSE;
@@ -83,7 +73,7 @@ jboolean Java_org_cipherpack_ByteInStream_Feed_end_of_data(JNIEnv *env, jobject 
     return JNI_TRUE;
 }
 
-jboolean Java_org_cipherpack_ByteInStream_Feed_error(JNIEnv *env, jobject obj) {
+jboolean Java_org_cipherpack_ByteInStream_1Feed_error(JNIEnv *env, jobject obj) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         return ref->error() ? JNI_TRUE : JNI_FALSE;
@@ -93,12 +83,7 @@ jboolean Java_org_cipherpack_ByteInStream_Feed_error(JNIEnv *env, jobject obj) {
     return JNI_TRUE;
 }
 
-/*
- * Class:     org_direct_bt_ByteInStream_Feed
- * Method:    id
- * Signature: ()Ljava/lang/String;
- */
-jstring Java_org_cipherpack_ByteInStream_Feed_id(JNIEnv *env, jobject obj) {
+jstring Java_org_cipherpack_ByteInStream_1Feed_id(JNIEnv *env, jobject obj) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         return jau::from_string_to_jstring(env, ref->id());
@@ -108,13 +93,7 @@ jstring Java_org_cipherpack_ByteInStream_Feed_id(JNIEnv *env, jobject obj) {
     return nullptr;
 }
 
-
-/*
- * Class:     org_direct_bt_ByteInStream_Feed
- * Method:    get_bytes_read
- * Signature: ()J
- */
-jlong Java_org_cipherpack_ByteInStream_Feed_get_bytes_read(JNIEnv *env, jobject obj) {
+jlong Java_org_cipherpack_ByteInStream_1Feed_get_1bytes_1read(JNIEnv *env, jobject obj) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         return static_cast<jlong>( ref->get_bytes_read() );
@@ -124,7 +103,7 @@ jlong Java_org_cipherpack_ByteInStream_Feed_get_bytes_read(JNIEnv *env, jobject 
     return 0;
 }
 
-jboolean Java_org_cipherpack_ByteInStream_Feed_has_content_size(JNIEnv *env, jobject obj) {
+jboolean Java_org_cipherpack_ByteInStream_1Feed_has_1content_1size(JNIEnv *env, jobject obj) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         return ref->has_content_size() ? JNI_TRUE : JNI_FALSE;
@@ -134,7 +113,7 @@ jboolean Java_org_cipherpack_ByteInStream_Feed_has_content_size(JNIEnv *env, job
     return JNI_TRUE;
 }
 
-jlong Java_org_cipherpack_ByteInStream_Feed_content_size(JNIEnv *env, jobject obj) {
+jlong Java_org_cipherpack_ByteInStream_1Feed_content_1size(JNIEnv *env, jobject obj) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         return static_cast<jlong>( ref->content_size() );
@@ -144,7 +123,7 @@ jlong Java_org_cipherpack_ByteInStream_Feed_content_size(JNIEnv *env, jobject ob
     return 0;
 }
 
-void Java_org_cipherpack_ByteInStream_Feed_interruptReader(JNIEnv *env, jobject obj) {
+void Java_org_cipherpack_ByteInStream_1Feed_interruptReader(JNIEnv *env, jobject obj) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         ref->interruptReader();
@@ -153,12 +132,7 @@ void Java_org_cipherpack_ByteInStream_Feed_interruptReader(JNIEnv *env, jobject 
     }
 }
 
-/*
- * Class:     org_direct_bt_ByteInStream_Feed
- * Method:    write
- * Signature: ([BII)V
- */
-void Java_org_cipherpack_ByteInStream_Feed_write(JNIEnv *env, jobject obj, jbyteArray jin, jint joffset, jint jlength) {
+void Java_org_cipherpack_ByteInStream_1Feed_write(JNIEnv *env, jobject obj, jbyteArray jin, jint joffset, jint jlength) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
 
@@ -180,11 +154,31 @@ void Java_org_cipherpack_ByteInStream_Feed_write(JNIEnv *env, jobject obj, jbyte
     }
 }
 
-void Java_org_cipherpack_ByteInStream_Feed_set_eof(JNIEnv *env, jobject obj, jint jresult) {
+void Java_org_cipherpack_ByteInStream_1Feed_set_1content_1size(JNIEnv *env, jobject obj, jlong jcontent_size) {
+    try {
+        jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
+        ref->set_content_size( static_cast<uint64_t>( jcontent_size ) );
+    } catch(...) {
+        rethrow_and_raise_java_exception(env);
+    }
+}
+
+void Java_org_cipherpack_ByteInStream_1Feed_set_1eof(JNIEnv *env, jobject obj, jint jresult) {
     try {
         jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
         ref->set_eof(static_cast<async_io_result_t>(jresult));
     } catch(...) {
         rethrow_and_raise_java_exception(env);
     }
+}
+
+jstring Java_org_cipherpack_ByteInStream_1Feed_toString(JNIEnv *env, jobject obj) {
+    try {
+        jau::shared_ptr_ref<ByteInStream_Feed> ref(env, obj); // hold until done
+        std::string str = ref->to_string();
+        return jau::from_string_to_jstring(env, str);
+    } catch(...) {
+        rethrow_and_raise_java_exception(env);
+    }
+    return nullptr;
 }
