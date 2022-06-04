@@ -363,7 +363,7 @@ class Test01Cipherpack : public TestData {
                     jau::sleep_for( 16_ms );
                 }
             }
-            // probably set after decryption due to above sleep, which also ends when total size has been reached.
+            // probably set after transfering due to above sleep, which also ends when total size has been reached.
             enc_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
         }
 
@@ -385,7 +385,7 @@ class Test01Cipherpack : public TestData {
                 }
             }
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
+            enc_feed->set_eof( xfer_total == file_size ? jau::io::async_io_result_t::SUCCESS : jau::io::async_io_result_t::FAILED );
         }
 
         // full speed, with content size
@@ -400,7 +400,6 @@ class Test01Cipherpack : public TestData {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
-                    // jau::sleep_for( 100_ms );
                     xfer_total += count;
                     enc_feed->write(buffer, count);
                 }
@@ -409,47 +408,43 @@ class Test01Cipherpack : public TestData {
         }
 
         // full speed, no content size, interrupting @ 1024 bytes within our header
-        static void feed_source_20(jau::io::ByteInStream_Feed * data_feed) {
+        static void feed_source_20(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
-            jau::io::ByteInStream_File enc_stream(data_feed->id(), true /* use_binary */);
+            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
             while( !enc_stream.end_of_data() ) {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    data_feed->write(buffer, count);
+                    enc_feed->write(buffer, count);
                     if( xfer_total >= 1024 ) {
-                        data_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
+                        enc_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
                         return;
                     }
                 }
             }
-            // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            data_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
         }
 
         // full speed, with content size, interrupting 1/4 way
-        static void feed_source_21(jau::io::ByteInStream_Feed * data_feed) {
-            jau::fs::file_stats fs_feed(data_feed->id());
+        static void feed_source_21(jau::io::ByteInStream_Feed * enc_feed) {
+            jau::fs::file_stats fs_feed(enc_feed->id());
             const uint64_t file_size = fs_feed.size();
-            data_feed->set_content_size( file_size );
+            enc_feed->set_content_size( file_size );
 
             uint64_t xfer_total = 0;
-            jau::io::ByteInStream_File enc_stream(data_feed->id(), true /* use_binary */);
+            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
             while( !enc_stream.end_of_data() ) {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    data_feed->write(buffer, count);
+                    enc_feed->write(buffer, count);
                     if( xfer_total >= file_size/4 ) {
-                        data_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
+                        enc_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
                         return;
                     }
                 }
             }
-            // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            data_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
         }
 
         void test21_enc_dec_fed_ok() {
