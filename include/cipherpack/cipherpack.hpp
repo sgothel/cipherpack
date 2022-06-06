@@ -344,7 +344,7 @@ namespace cipherpack {
      * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      */
-    class CipherpackListener : public jau::JavaUplink {
+    class CipherpackListener : public jau::jni::JavaUplink {
         public:
             /**
              * Informal user notification about an error via text message.

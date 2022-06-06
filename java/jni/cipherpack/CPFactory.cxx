@@ -28,7 +28,6 @@
 
 #include "helper_base.hpp"
 
-using namespace jau;
 
 jstring Java_org_cipherpack_CPFactory_getNativeVersion(JNIEnv *env, jclass clazz)
 {
@@ -61,8 +60,8 @@ void Java_org_cipherpack_CPFactory_setenv(JNIEnv *env, jclass clazz, jstring jna
     try {
         (void) clazz;
 
-        std::string name = from_jstring_to_string(env, jname);
-        std::string value = from_jstring_to_string(env, jval);
+        std::string name = jau::jni::from_jstring_to_string(env, jname);
+        std::string value = jau::jni::from_jstring_to_string(env, jval);
         if( name.length() > 0 ) {
             if( value.length() > 0 ) {
                 setenv(name.c_str(), value.c_str(), overwrite);

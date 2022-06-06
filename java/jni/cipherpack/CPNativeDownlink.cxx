@@ -30,27 +30,24 @@
 
 #include "cipherpack/cipherpack.hpp"
 
-using namespace cipherpack;
-using namespace jau;
-
 void Java_org_cipherpack_CPNativeDownlink_initNativeJavaObject(JNIEnv *env, jobject obj, jlong nativeInstance)
 {
     try {
-        shared_ptr_ref<JavaUplink> javaUplink(nativeInstance); // hold copy until done
+        jau::jni::shared_ptr_ref<jau::jni::JavaUplink> javaUplink(nativeInstance); // hold copy until done
         javaUplink.null_check2();
-        JNIGlobalRef global_obj(obj); // lock instance first (global reference), inserted below
-        jclass javaClazz = search_class(env, global_obj.getObject());
-        java_exception_check_and_throw(env, E_FILE_LINE);
+        jau::jni::JNIGlobalRef global_obj(obj); // lock instance first (global reference), inserted below
+        jclass javaClazz = jau::jni::search_class(env, global_obj.getObject());
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
         if( nullptr == javaClazz ) {
-            throw InternalError("CPNativeDownlink class not found", E_FILE_LINE);
+            throw jau::InternalError("CPNativeDownlink class not found", E_FILE_LINE);
         }
-        jmethodID  mNotifyDeleted = search_method(env, javaClazz, "notifyDeleted", "()V", false);
-        java_exception_check_and_throw(env, E_FILE_LINE);
+        jmethodID  mNotifyDeleted = jau::jni::search_method(env, javaClazz, "notifyDeleted", "()V", false);
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
         if( nullptr == mNotifyDeleted ) {
-            throw InternalError("CPNativeDownlink class has no notifyDeleted() method, for "+javaUplink->toString(), E_FILE_LINE);
+            throw jau::InternalError("CPNativeDownlink class has no notifyDeleted() method, for "+javaUplink->toString(), E_FILE_LINE);
         }
-        javaUplink->setJavaObject( std::make_shared<jau::JavaGlobalObj>( std::move(global_obj), mNotifyDeleted ) );
-        JavaGlobalObj::check(javaUplink->getJavaObject(), E_FILE_LINE);
+        javaUplink->setJavaObject( std::make_shared<jau::jni::JavaGlobalObj>( std::move(global_obj), mNotifyDeleted ) );
+        jau::jni::JavaGlobalObj::check(javaUplink->getJavaObject(), E_FILE_LINE);
         DBG_JNI_PRINT("Java_org_cipherpack_CPNativeDownlink_initNativeJavaObject %p -> %s", javaUplink.shared_ptr().get(), javaUplink->toString().c_str());
     } catch(...) {
         rethrow_and_raise_java_exception(env);
@@ -61,7 +58,7 @@ void Java_org_cipherpack_CPNativeDownlink_deleteNativeJavaObject(JNIEnv *env, jo
 {
     (void)obj;
     try {
-        shared_ptr_ref<JavaUplink> javaUplink(nativeInstance); // hold copy until done
+        jau::jni::shared_ptr_ref<jau::jni::JavaUplink> javaUplink(nativeInstance); // hold copy until done
         javaUplink.null_check2();
         DBG_JNI_PRINT("Java_org_cipherpack_CPNativeDownlink_deleteNativeJavaObject %p -> %s", javaUplink.shared_ptr().get(), javaUplink->toString().c_str());
         javaUplink->setJavaObject();

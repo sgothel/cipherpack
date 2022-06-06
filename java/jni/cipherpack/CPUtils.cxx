@@ -102,10 +102,10 @@ jboolean Java_org_cipherpack_CPUtils_zeroString(JNIEnv *env, jclass clazz, jstri
         }
         if( nullptr == str_u16 || JNI_TRUE == is_copy ) {
             // try harder ..
-            jclass string_clazz = jau::search_class(env, "java/lang/String");
-            jfieldID f_value = jau::search_field(env, string_clazz, "value", "[B", false /* is_static */);
+            jclass string_clazz = jau::jni::search_class(env, "java/lang/String");
+            jfieldID f_value = jau::jni::search_field(env, string_clazz, "value", "[B", false /* is_static */);
             jbyteArray jstr_value = (jbyteArray)env->GetObjectField(jstr, f_value);
-            jau::java_exception_check_and_throw(env, E_FILE_LINE);
+            jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 
             if( nullptr == jstr_value ) {
                 ERR_PRINT("GetObjectField(value) is null");
@@ -116,7 +116,7 @@ jboolean Java_org_cipherpack_CPUtils_zeroString(JNIEnv *env, jclass clazz, jstri
                 ERR_PRINT("GetArrayLength(address byte array) is null");
                 return JNI_FALSE;
             }
-            jau::JNICriticalArray<uint8_t, jbyteArray> criticalArray(env); // RAII - release
+            jau::jni::JNICriticalArray<uint8_t, jbyteArray> criticalArray(env); // RAII - release
             uint8_t * ptr = criticalArray.get(jstr_value, criticalArray.Mode::UPDATE_AND_RELEASE);
             DBG_PRINT("zeroString.1: value: %p, len %zu, is_copy %d", ptr, jstr_value_size, criticalArray.getIsCopy());
             if( NULL == ptr ) {
@@ -168,9 +168,9 @@ jobject Java_org_cipherpack_CPUtils_toByteBufferImpl(JNIEnv *env, jclass clazz, 
     ::explicit_bzero((void*)str_u16.data(), str_u16.size() * sizeof(char16_t));
     const size_t u8_size = u8_conv.size();
 
-    jmethodID buffer_new = jau::search_method(env, clazz, "newDirectByteBuffer", "(I)Ljava/nio/ByteBuffer;", true);
+    jmethodID buffer_new = jau::jni::search_method(env, clazz, "newDirectByteBuffer", "(I)Ljava/nio/ByteBuffer;", true);
     jobject jdest = env->CallStaticObjectMethod(clazz, buffer_new, (jint)u8_size);
-    jau::java_exception_check_and_throw(env, E_FILE_LINE);
+    jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
     if( nullptr == jdest ) {
         ERR_PRINT("Couldn't allocated ByteBuffer w/ capacity %zu", u8_size);
         return nullptr;

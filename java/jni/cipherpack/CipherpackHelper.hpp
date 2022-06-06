@@ -26,14 +26,12 @@
 
 #include "cipherpack/cipherpack.hpp"
 
-using namespace cipherpack;
-
 namespace jcipherpack {
 
-    CryptoConfig to_CryptoConfig(JNIEnv *env, jobject jccfg);
+    cipherpack::CryptoConfig to_CryptoConfig(JNIEnv *env, jobject jccfg);
 
-    jobject to_jCryptoConfig(JNIEnv *env, const CryptoConfig& ccfg);
-    jobject to_jPackHeader(JNIEnv *env, const PackHeader& ph);
+    jobject to_jCryptoConfig(JNIEnv *env, const cipherpack::CryptoConfig& ccfg);
+    jobject to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& ph);
 
 } /* namespace jcipherpack */
 
