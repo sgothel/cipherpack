@@ -336,7 +336,7 @@ namespace cipherpack {
     inline std::string to_string(const PackHeader& ph) noexcept { return ph.toString(true, true); }
 
     std::shared_ptr<Botan::Public_Key> load_public_key(const std::string& pubkey_fname);
-    std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const std::string& passphrase);
+    std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const jau::io::secure_string& passphrase);
 
     /**
      * Listener for events occurring while processing a cipherpack message via encryptThenSign() and checkSignThenDecrypt().
@@ -463,7 +463,7 @@ namespace cipherpack {
      * @param crypto_cfg             Used CryptoConfig, consider using CryptoConfig::getDefault()
      * @param enc_pub_keys           Public keys of the receiver, used to encrypt the symmetric-key for multiple parties.
      * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
-     * @param passphrase             Passphrase for `sign_sec_key_fname`, may be an empty string for no passphrase.
+     * @param passphrase             Passphrase for `sign_sec_key_fname`, may be an empty secure_string for no passphrase.
      * @param source                 The source jau::io::ByteInStream of the plaintext payload.
      * @param target_path            Designated target path for the message
      * @param subject                Designated subject of payload from sender
@@ -482,7 +482,7 @@ namespace cipherpack {
      */
     PackHeader encryptThenSign(const CryptoConfig& crypto_cfg,
                                const std::vector<std::string>& enc_pub_keys,
-                               const std::string& sign_sec_key_fname, const std::string& passphrase,
+                               const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
                                jau::io::ByteInStream& source,
                                const std::string& target_path, const std::string& subject,
                                const std::string& payload_version,
@@ -497,7 +497,7 @@ namespace cipherpack {
      *                           and hence the authenticity of the message incl. encrypted symmetric-key and payload.
      * @param dec_sec_key_fname  Private key of the receiver, used to decrypt the symmetric-key.
      *                           It shall match one of the keys used to encrypt.
-     * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty string for no passphrase.
+     * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty secure_string for no passphrase.
      * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
@@ -511,8 +511,8 @@ namespace cipherpack {
      * @see [jau::io::ByteInStream](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream.html#details)
      */
     PackHeader checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
-                                    const std::string &dec_sec_key_fname, const std::string &passphrase,
-                                    jau::io::ByteInStream &source,
+                                    const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
+                                    jau::io::ByteInStream& source,
                                     CipherpackListenerRef listener,
                                     const std::string destination_fname = "");
 

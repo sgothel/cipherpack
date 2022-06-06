@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     if( command == "pack") {
         std::vector<std::string> enc_pub_keys;
         std::string sign_sec_key_fname;
-        std::string sign_sec_key_passphrase;
+        jau::io::secure_string sign_sec_key_passphrase;
         std::string source_name;
         std::string target_path;
         std::string intention;
@@ -55,7 +55,10 @@ int main(int argc, char *argv[])
             } else if( 0 == strcmp("-ssk", argv[i]) ) {
                 sign_sec_key_fname = argv[++i];
             } else if( 0 == strcmp("-sskp", argv[i]) ) {
-                sign_sec_key_passphrase = argv[++i];
+                char* argv_pp = argv[++i];
+                size_t pp_len = strlen(argv_pp);
+                sign_sec_key_passphrase = jau::io::secure_string(argv_pp, pp_len);
+                ::explicit_bzero(argv_pp, pp_len);
             } else if( 0 == strcmp("-in", argv[i]) ) {
                 source_name = argv[++i];
             } else if( 0 == strcmp("-target_path", argv[i]) ) {
@@ -95,7 +98,7 @@ int main(int argc, char *argv[])
     if( command == "unpack") {
         std::vector<std::string> sign_pub_keys;
         std::string dec_sec_key_fname;
-        std::string dec_sec_key_passphrase;
+        jau::io::secure_string dec_sec_key_passphrase;
         std::string source_name;
         std::string fname_output;
         for(int i=argi; i + 1 < argc; ++i) {
@@ -104,7 +107,10 @@ int main(int argc, char *argv[])
             } else if( 0 == strcmp("-dsk", argv[i]) ) {
                 dec_sec_key_fname = argv[++i];
             } else if( 0 == strcmp("-dskp", argv[i]) ) {
-                dec_sec_key_passphrase = argv[++i];
+                char* argv_pp = argv[++i];
+                size_t pp_len = strlen(argv_pp);
+                dec_sec_key_passphrase = jau::io::secure_string(argv_pp, pp_len);
+                ::explicit_bzero(argv_pp, pp_len);
             } else if( 0 == strcmp("-in", argv[i]) ) {
                 source_name = argv[++i];
             } else if( 0 == strcmp("-out", argv[i]) ) {

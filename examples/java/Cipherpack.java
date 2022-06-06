@@ -22,6 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,7 +73,7 @@ public class Cipherpack {
         if( command.equals( "pack" ) ) {
             final List<String> enc_pub_keys = new ArrayList<String>();
             String sign_sec_key_fname = new String();
-            String sign_sec_key_passphrase = new String();
+            final ByteBuffer sign_sec_key_passphrase = null;
             String source_loc = new String();
             String target_path = new String();
             String intention = new String();
@@ -87,7 +88,8 @@ public class Cipherpack {
                 } else if( arg.equals("-ssk") ) {
                     sign_sec_key_fname = args[++i];
                 } else if( arg.equals("-sskp") ) {
-                    sign_sec_key_passphrase = args[++i];
+                    // FIXME
+                    // sign_sec_key_passphrase = args[++i];
                 } else if( arg.equals("-in") ) {
                     source_loc = args[++i];
                 } else if( arg.equals("-target_path") ) {
@@ -128,7 +130,7 @@ public class Cipherpack {
         if( command == "unpack") {
             final List<String> sign_pub_keys = new ArrayList<String>();
             String dec_sec_key_fname = new String();
-            String dec_sec_key_passphrase = new String();
+            final ByteBuffer dec_sec_key_passphrase = null;
             String source_loc = new String();
             String fname_output = new String();
             for(int i=argi; i + 1 < argc; ++i) {
@@ -139,7 +141,8 @@ public class Cipherpack {
                 } else if( arg.equals("-dsk") ) {
                     dec_sec_key_fname = args[++i];
                 } else if( arg.equals("-dskp") ) {
-                    dec_sec_key_passphrase = args[++i];
+                    // FIXME
+                    // dec_sec_key_passphrase = args[++i];
                 } else if( arg.equals("-in") ) {
                     source_loc = args[++i];
                 } else if( arg.equals("-out") ) {

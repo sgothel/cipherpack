@@ -99,7 +99,7 @@ class WrappingCipherpackListener : public CipherpackListener{
 
 static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                                        const std::vector<std::string>& enc_pub_keys,
-                                       const std::string& sign_sec_key_fname, const std::string& passphrase,
+                                       const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
                                        jau::io::ByteInStream& source,
                                        const std::string& target_path, const std::string& subject,
                                        const std::string& payload_version,
@@ -355,7 +355,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
 
 PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                        const std::vector<std::string>& enc_pub_keys,
-                                       const std::string& sign_sec_key_fname, const std::string& passphrase,
+                                       const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
                                        jau::io::ByteInStream& source,
                                        const std::string& target_path, const std::string& subject,
                                        const std::string& payload_version,
@@ -500,7 +500,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
 
 
 static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign_pub_keys,
-                                            const std::string& dec_sec_key_fname, const std::string& passphrase,
+                                            const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                             jau::io::ByteInStream& source,
                                             CipherpackListenerRef listener) {
     const bool decrypt_mode = true;
@@ -882,7 +882,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 }
 
 PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
-                                            const std::string& dec_sec_key_fname, const std::string& passphrase,
+                                            const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                             jau::io::ByteInStream& source,
                                             CipherpackListenerRef listener,
                                             const std::string destination_fname) {
@@ -891,8 +891,8 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
 
     if( destination_fname.empty() ) {
         PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
-                                                dec_sec_key_fname, passphrase,
-                                                source, listener);
+                                                  dec_sec_key_fname, passphrase,
+                                                  source, listener);
         listener->notifyEnd(decrypt_mode, ph, ph.isValid());
         return ph;
     }

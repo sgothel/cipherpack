@@ -36,7 +36,7 @@ using namespace jau::fractions_i64_literals;
 
 jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass jclazz,
         jobject jccfg, jobject jenc_pub_keys,
-        jstring jsign_sec_key_fname, jstring jpassphrase,
+        jstring jsign_sec_key_fname, jobject jpassphrase,
         jobject jsource_feed,
         jstring jtarget_path, jstring jsubject,
         jstring jpayload_version,
@@ -50,7 +50,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         CryptoConfig ccfg = jcipherpack::to_CryptoConfig(env, jccfg);
         std::vector<std::string> enc_pub_keys = jau::convert_jlist_string_to_vector(env, jenc_pub_keys);
         std::string sign_sec_key_fname = jau::from_jstring_to_string(env, jsign_sec_key_fname);
-        std::string passphrase = jau::from_jstring_to_string(env, jpassphrase);
+        jau::io::secure_string passphrase = nullptr != jpassphrase ? jau::from_jbytebuffer_to_sstring(env, jpassphrase) : jau::io::secure_string();
         std::string target_path = jau::from_jstring_to_string(env, jtarget_path);
         std::string subject = jau::from_jstring_to_string(env, jsubject);
         std::string payload_version = jau::from_jstring_to_string(env, jpayload_version);
@@ -72,7 +72,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
 
 jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl2(JNIEnv *env, jclass jclazz,
         jobject jccfg, jobject jenc_pub_keys,
-        jstring jsign_sec_key_fname, jstring jpassphrase,
+        jstring jsign_sec_key_fname, jobject jpassphrase,
         jstring jsource_loc, jlong jsource_timeout_ms,
         jstring jtarget_path, jstring jsubject,
         jstring jpayload_version,
@@ -85,7 +85,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl2(JNIEnv *env, jclass 
         CryptoConfig ccfg = jcipherpack::to_CryptoConfig(env, jccfg);
         std::vector<std::string> enc_pub_keys = jau::convert_jlist_string_to_vector(env, jenc_pub_keys);
         std::string sign_sec_key_fname = jau::from_jstring_to_string(env, jsign_sec_key_fname);
-        std::string passphrase = jau::from_jstring_to_string(env, jpassphrase);
+        jau::io::secure_string passphrase = nullptr != jpassphrase ? jau::from_jbytebuffer_to_sstring(env, jpassphrase) : jau::io::secure_string();
         std::string source_loc = jau::from_jstring_to_string(env, jsource_loc);
         std::unique_ptr<jau::io::ByteInStream> source = jau::io::to_ByteInStream(source_loc, (int64_t)jsource_timeout_ms * 1_ms);
         std::string target_path = jau::from_jstring_to_string(env, jtarget_path);
@@ -110,7 +110,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl2(JNIEnv *env, jclass 
 
 jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass jclazz,
         jobject jsign_pub_keys,
-        jstring jdec_sec_key_fname, jstring jpassphrase,
+        jstring jdec_sec_key_fname, jobject jpassphrase,
         jobject jsource_feed,
         jobject cpListener, jstring jdestination_fname)
 {
@@ -120,7 +120,7 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
 
         std::vector<std::string> sign_pub_keys = jau::convert_jlist_string_to_vector(env, jsign_pub_keys);
         std::string dec_sec_key_fname = jau::from_jstring_to_string(env, jdec_sec_key_fname);
-        std::string passphrase = jau::from_jstring_to_string(env, jpassphrase);
+        jau::io::secure_string passphrase = nullptr != jpassphrase ? jau::from_jbytebuffer_to_sstring(env, jpassphrase) : jau::io::secure_string();
         std::string destination_fname = nullptr != jdestination_fname ? jau::from_jstring_to_string(env, jdestination_fname) : "";
 
         PackHeader ph = checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, passphrase, *refFeed,
@@ -137,7 +137,7 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
 
 jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt2(JNIEnv *env, jclass jclazz,
         jobject jsign_pub_keys,
-        jstring jdec_sec_key_fname, jstring jpassphrase,
+        jstring jdec_sec_key_fname, jobject jpassphrase,
         jstring jsource_loc, jlong jsource_timeout_ms,
         jobject cpListener, jstring jdestination_fname)
 {
@@ -146,7 +146,7 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt2(JNIEnv *env, jclass
 
         std::vector<std::string> sign_pub_keys = jau::convert_jlist_string_to_vector(env, jsign_pub_keys);
         std::string dec_sec_key_fname = jau::from_jstring_to_string(env, jdec_sec_key_fname);
-        std::string passphrase = jau::from_jstring_to_string(env, jpassphrase);
+        jau::io::secure_string passphrase = nullptr != jpassphrase ? jau::from_jbytebuffer_to_sstring(env, jpassphrase) : jau::io::secure_string();
         std::string source_loc = jau::from_jstring_to_string(env, jsource_loc);
         std::unique_ptr<jau::io::ByteInStream> source = jau::io::to_ByteInStream(source_loc, (int64_t)jsource_timeout_ms * 1_ms);
         std::string destination_fname = nullptr != jdestination_fname ? jau::from_jstring_to_string(env, jdestination_fname) : "";

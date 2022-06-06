@@ -32,6 +32,7 @@
 #include <cstring>
 
 #include <jau/fraction_type.hpp>
+#include <jau/io_util.hpp>
 
 using namespace jau::fractions_i64_literals;
 
@@ -51,7 +52,7 @@ class TestData {
         static const std::string enc_pub_key4_fname;
         static const std::string dec_sec_key4_fname;
 
-        static const std::string dec_sec_key_passphrase;
+        static const jau::io::secure_string dec_sec_key_passphrase;
 
         static const std::string sign_pub_key1_fname;
         static const std::string sign_sec_key1_fname;
@@ -65,7 +66,7 @@ class TestData {
         static const std::string sign_pub_key4_fname;
         static const std::string sign_sec_key4_fname;
 
-        static const std::string sign_sec_key_passphrase;
+        static const jau::io::secure_string sign_sec_key_passphrase;
 
         static const std::string url_input_root;
 };

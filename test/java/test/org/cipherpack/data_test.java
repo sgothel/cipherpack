@@ -24,9 +24,24 @@
  */
 package test.org.cipherpack;
 
+import java.nio.ByteBuffer;
+
+import org.cipherpack.CPFactory;
+import org.cipherpack.CPUtils;
+
 import jau.test.junit.util.SingletonJunitCase;
 
 public class data_test extends SingletonJunitCase {
+    static {
+        {
+            // System.setProperty("org.cipherpack.debug", "true"); // java
+            // System.setProperty("org.cipherpack.verbose", "true"); // java
+            // System.setProperty("cipherpack.debug", "true"); // native
+            System.setProperty("cipherpack.verbose", "true"); // native
+        }
+        CPFactory.checkInitialized();
+    }
+
     public static final long io_timeout = 10000; // 10_s;
 
     public static final String enc_pub_key1_fname = "../../../test_keys/terminal_rsa1.pub.pem";
@@ -41,7 +56,7 @@ public class data_test extends SingletonJunitCase {
     public static final String enc_pub_key4_fname = "../../../test_keys/terminal_rsa4.pub.pem";
     public static final String dec_sec_key4_fname = "../../../test_keys/terminal_rsa4";
 
-    public static final String dec_sec_key_passphrase = "";
+    public static final ByteBuffer dec_sec_key_passphrase = null;
 
     public static final String sign_pub_key1_fname = "../../../test_keys/host_rsa1.pub.pem";
     public static final String sign_sec_key1_fname = "../../../test_keys/host_rsa1";
@@ -55,7 +70,7 @@ public class data_test extends SingletonJunitCase {
     public static final String sign_pub_key4_fname = "../../../test_keys/host_rsa4.pub.pem";
     public static final String sign_sec_key4_fname = "../../../test_keys/host_rsa4";
 
-    public static final String sign_sec_key_passphrase = "";
+    public static final ByteBuffer sign_sec_key_passphrase = CPUtils.newDirectByteBuffer(0);
 
     public static final String url_input_root = "http://localhost:8080/";
 }

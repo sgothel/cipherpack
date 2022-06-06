@@ -120,12 +120,6 @@ public class Test01Cipherpack extends data_test {
     }
 
     static {
-        {
-            // System.setProperty("org.cipherpack.debug", "true"); // java
-            // System.setProperty("org.cipherpack.verbose", "true"); // java
-            // System.setProperty("cipherpack.debug", "true"); // native
-            System.setProperty("cipherpack.verbose", "true"); // native
-        }
         add_test_file("test_cipher_01_11kiB.bin", 1024*11);
         add_test_file("test_cipher_02_65MiB.bin", 1024*1024*65);
     }
