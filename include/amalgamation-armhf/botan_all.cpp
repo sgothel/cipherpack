@@ -400,6 +400,297 @@ class BOTAN_TEST_API calendar_point
 namespace Botan {
 
 /**
+* Block Cipher Mode Padding Method
+* This class is pretty limited, it cannot deal well with
+* randomized padding methods, or any padding method that
+* wants to add more than one block. For instance, it should
+* be possible to define cipher text stealing mode as simply
+* a padding mode for CBC, which happens to consume the last
+* two block (and requires use of the block cipher).
+*/
+class BOTAN_TEST_API BlockCipherModePaddingMethod
+   {
+   public:
+      /**
+      * Get a block cipher padding mode by name (eg "NoPadding" or "PKCS7")
+      * @param algo_spec block cipher padding mode name
+      */
+      static std::unique_ptr<BlockCipherModePaddingMethod> create(const std::string& algo_spec);
+
+      /**
+      * Add padding bytes to buffer.
+      * @param buffer data to pad
+      * @param final_block_bytes size of the final block in bytes
+      * @param block_size size of each block in bytes
+      */
+      virtual void add_padding(secure_vector<uint8_t>& buffer,
+                               size_t final_block_bytes,
+                               size_t block_size) const = 0;
+
+      /**
+      * Remove padding bytes from block
+      * @param block the last block
+      * @param len the size of the block in bytes
+      * @return number of data bytes, or if the padding is invalid returns len
+      */
+      virtual size_t unpad(const uint8_t block[], size_t len) const = 0;
+
+      /**
+      * @param block_size of the cipher
+      * @return valid block size for this padding mode
+      */
+      virtual bool valid_blocksize(size_t block_size) const = 0;
+
+      /**
+      * @return name of the mode
+      */
+      virtual std::string name() const = 0;
+
+      /**
+      * virtual destructor
+      */
+      virtual ~BlockCipherModePaddingMethod() = default;
+   };
+
+/**
+* PKCS#7 Padding
+*/
+class BOTAN_TEST_API PKCS7_Padding final : public BlockCipherModePaddingMethod
+   {
+   public:
+      void add_padding(secure_vector<uint8_t>& buffer,
+                       size_t final_block_bytes,
+                       size_t block_size) const override;
+
+      size_t unpad(const uint8_t[], size_t) const override;
+
+      bool valid_blocksize(size_t bs) const override { return (bs > 2 && bs < 256); }
+
+      std::string name() const override { return "PKCS7"; }
+   };
+
+/**
+* ANSI X9.23 Padding
+*/
+class BOTAN_TEST_API ANSI_X923_Padding final : public BlockCipherModePaddingMethod
+   {
+   public:
+      void add_padding(secure_vector<uint8_t>& buffer,
+                       size_t final_block_bytes,
+                       size_t block_size) const override;
+
+      size_t unpad(const uint8_t[], size_t) const override;
+
+      bool valid_blocksize(size_t bs) const override { return (bs > 2 && bs < 256); }
+
+      std::string name() const override { return "X9.23"; }
+   };
+
+/**
+* One And Zeros Padding (ISO/IEC 9797-1, padding method 2)
+*/
+class BOTAN_TEST_API OneAndZeros_Padding final : public BlockCipherModePaddingMethod
+   {
+   public:
+      void add_padding(secure_vector<uint8_t>& buffer,
+                       size_t final_block_bytes,
+                       size_t block_size) const override;
+
+      size_t unpad(const uint8_t[], size_t) const override;
+
+      bool valid_blocksize(size_t bs) const override { return (bs > 2); }
+
+      std::string name() const override { return "OneAndZeros"; }
+   };
+
+/**
+* ESP Padding (RFC 4304)
+*/
+class BOTAN_TEST_API ESP_Padding final : public BlockCipherModePaddingMethod
+   {
+   public:
+      void add_padding(secure_vector<uint8_t>& buffer,
+                       size_t final_block_bytes,
+                       size_t block_size) const override;
+
+      size_t unpad(const uint8_t[], size_t) const override;
+
+      bool valid_blocksize(size_t bs) const override { return (bs > 2 && bs < 256); }
+
+      std::string name() const override { return "ESP"; }
+   };
+
+/**
+* Null Padding
+*/
+class Null_Padding final : public BlockCipherModePaddingMethod
+   {
+   public:
+      void add_padding(secure_vector<uint8_t>&, size_t, size_t) const override
+         {
+         /* no padding */
+         }
+
+      size_t unpad(const uint8_t[], size_t size) const override { return size; }
+
+      bool valid_blocksize(size_t) const override { return true; }
+
+      std::string name() const override { return "NoPadding"; }
+   };
+
+}
+
+namespace Botan {
+
+/**
+* CBC Mode
+*/
+class CBC_Mode : public Cipher_Mode
+   {
+   public:
+      std::string name() const override;
+
+      size_t update_granularity() const override;
+
+      Key_Length_Specification key_spec() const override;
+
+      size_t default_nonce_length() const override;
+
+      bool valid_nonce_length(size_t n) const override;
+
+      void clear() override;
+
+      void reset() override;
+
+   protected:
+      CBC_Mode(std::unique_ptr<BlockCipher> cipher,
+               std::unique_ptr<BlockCipherModePaddingMethod> padding);
+
+      const BlockCipher& cipher() const { return *m_cipher; }
+
+      const BlockCipherModePaddingMethod& padding() const
+         {
+         BOTAN_ASSERT_NONNULL(m_padding);
+         return *m_padding;
+         }
+
+      size_t block_size() const { return m_block_size; }
+
+      secure_vector<uint8_t>& state() { return m_state; }
+
+      uint8_t* state_ptr() { return m_state.data(); }
+
+   private:
+      void start_msg(const uint8_t nonce[], size_t nonce_len) override;
+
+      void key_schedule(const uint8_t key[], size_t length) override;
+
+      std::unique_ptr<BlockCipher> m_cipher;
+      std::unique_ptr<BlockCipherModePaddingMethod> m_padding;
+      secure_vector<uint8_t> m_state;
+      size_t m_block_size;
+   };
+
+/**
+* CBC Encryption
+*/
+class CBC_Encryption : public CBC_Mode
+   {
+   public:
+      /**
+      * @param cipher block cipher to use
+      * @param padding padding method to use
+      */
+      CBC_Encryption(std::unique_ptr<BlockCipher> cipher,
+                     std::unique_ptr<BlockCipherModePaddingMethod> padding) :
+         CBC_Mode(std::move(cipher), std::move(padding)) {}
+
+      size_t process(uint8_t buf[], size_t size) override;
+
+      void finish(secure_vector<uint8_t>& final_block, size_t offset = 0) override;
+
+      size_t output_length(size_t input_length) const override;
+
+      size_t minimum_final_size() const override;
+   };
+
+/**
+* CBC Encryption with ciphertext stealing (CBC-CS3 variant)
+*/
+class CTS_Encryption final : public CBC_Encryption
+   {
+   public:
+      /**
+      * @param cipher block cipher to use
+      */
+      explicit CTS_Encryption(std::unique_ptr<BlockCipher> cipher) :
+         CBC_Encryption(std::move(cipher), nullptr)
+         {}
+
+      size_t output_length(size_t input_length) const override;
+
+      void finish(secure_vector<uint8_t>& final_block, size_t offset = 0) override;
+
+      size_t minimum_final_size() const override;
+
+      bool valid_nonce_length(size_t n) const override;
+   };
+
+/**
+* CBC Decryption
+*/
+class CBC_Decryption : public CBC_Mode
+   {
+   public:
+      /**
+      * @param cipher block cipher to use
+      * @param padding padding method to use
+      */
+      CBC_Decryption(std::unique_ptr<BlockCipher> cipher,
+                     std::unique_ptr<BlockCipherModePaddingMethod> padding) :
+         CBC_Mode(std::move(cipher), std::move(padding)),
+         m_tempbuf(update_granularity())
+         {}
+
+      size_t process(uint8_t buf[], size_t size) override;
+
+      void finish(secure_vector<uint8_t>& final_block, size_t offset = 0) override;
+
+      size_t output_length(size_t input_length) const override;
+
+      size_t minimum_final_size() const override;
+
+      void reset() override;
+
+   private:
+      secure_vector<uint8_t> m_tempbuf;
+   };
+
+/**
+* CBC Decryption with ciphertext stealing (CBC-CS3 variant)
+*/
+class CTS_Decryption final : public CBC_Decryption
+   {
+   public:
+      /**
+      * @param cipher block cipher to use
+      */
+      explicit CTS_Decryption(std::unique_ptr<BlockCipher> cipher) :
+         CBC_Decryption(std::move(cipher), nullptr)
+         {}
+
+      void finish(secure_vector<uint8_t>& final_block, size_t offset = 0) override;
+
+      size_t minimum_final_size() const override;
+
+      bool valid_nonce_length(size_t n) const override;
+   };
+
+}
+
+namespace Botan {
+
+/**
 * DJB's ChaCha (https://cr.yp.to/chacha.html)
 */
 class ChaCha final : public StreamCipher
@@ -2088,6 +2379,26 @@ class EME
 
 namespace Botan {
 
+/**
+* EME from PKCS #1 v1.5
+*/
+class BOTAN_TEST_API EME_PKCS1v15 final : public EME
+   {
+   public:
+      size_t maximum_input_size(size_t) const override;
+
+      secure_vector<uint8_t> pad(const uint8_t[], size_t, size_t,
+                             RandomNumberGenerator&) const override;
+
+      secure_vector<uint8_t> unpad(uint8_t& valid_mask,
+                                const uint8_t in[],
+                                size_t in_len) const override;
+   };
+
+}
+
+namespace Botan {
+
 class EME_Raw final : public EME
    {
    public:
@@ -2261,6 +2572,126 @@ class EMSA1 final : public EMSA
 namespace Botan {
 
 /**
+* PKCS #1 v1.5 signature padding
+* aka PKCS #1 block type 1
+* aka EMSA3 from IEEE 1363
+*/
+class EMSA_PKCS1v15 final : public EMSA
+   {
+   public:
+      /**
+      * @param hash the hash function to use
+      */
+      explicit EMSA_PKCS1v15(std::unique_ptr<HashFunction> hash);
+
+      std::unique_ptr<EMSA> new_object() override
+         {
+         return std::make_unique<EMSA_PKCS1v15>(m_hash->new_object());
+         }
+
+      void update(const uint8_t[], size_t) override;
+
+      secure_vector<uint8_t> raw_data() override;
+
+      secure_vector<uint8_t> encoding_of(const secure_vector<uint8_t>&, size_t,
+                                     RandomNumberGenerator& rng) override;
+
+      bool verify(const secure_vector<uint8_t>&, const secure_vector<uint8_t>&,
+                  size_t) override;
+
+      std::string name() const override
+         { return "EMSA3(" + m_hash->name() + ")"; }
+
+      AlgorithmIdentifier config_for_x509(const Private_Key& key,
+                                          const std::string& cert_hash_name) const override;
+
+      bool requires_message_recovery() const override { return true; }
+   private:
+      std::unique_ptr<HashFunction> m_hash;
+      std::vector<uint8_t> m_hash_id;
+   };
+
+/**
+* EMSA_PKCS1v15_Raw which is EMSA_PKCS1v15 without a hash or digest id
+* (which according to QCA docs is "identical to PKCS#11's CKM_RSA_PKCS
+* mechanism", something I have not confirmed)
+*/
+class EMSA_PKCS1v15_Raw final : public EMSA
+   {
+   public:
+      std::unique_ptr<EMSA> new_object() override { return std::make_unique<EMSA_PKCS1v15_Raw>(); }
+
+      void update(const uint8_t[], size_t) override;
+
+      secure_vector<uint8_t> raw_data() override;
+
+      secure_vector<uint8_t> encoding_of(const secure_vector<uint8_t>&, size_t,
+                                     RandomNumberGenerator& rng) override;
+
+      bool verify(const secure_vector<uint8_t>&, const secure_vector<uint8_t>&,
+                  size_t) override;
+
+      EMSA_PKCS1v15_Raw();
+
+      /**
+      * @param hash_algo t he digest id for that hash is included in
+      * the signature.
+      */
+      EMSA_PKCS1v15_Raw(const std::string& hash_algo);
+
+      std::string name() const override
+         {
+         if(m_hash_name.empty()) return "EMSA3(Raw)";
+         else return "EMSA3(Raw," + m_hash_name + ")";
+         }
+
+      bool requires_message_recovery() const override { return true; }
+   private:
+      size_t m_hash_output_len = 0;
+      std::string m_hash_name;
+      std::vector<uint8_t> m_hash_id;
+      secure_vector<uint8_t> m_message;
+   };
+
+}
+
+namespace Botan {
+
+/**
+* EMSA-Raw - sign inputs directly
+* Don't use this unless you know what you are doing.
+*/
+class EMSA_Raw final : public EMSA
+   {
+   public:
+      std::unique_ptr<EMSA> new_object() override { return std::make_unique<EMSA_Raw>(); }
+
+      explicit EMSA_Raw(size_t expected_hash_size = 0) :
+         m_expected_size(expected_hash_size) {}
+
+      std::string name() const override;
+
+      bool requires_message_recovery() const override { return false; }
+   private:
+      void update(const uint8_t[], size_t) override;
+      secure_vector<uint8_t> raw_data() override;
+
+      secure_vector<uint8_t> encoding_of(const secure_vector<uint8_t>&, size_t,
+                                         RandomNumberGenerator&) override;
+
+      bool verify(const secure_vector<uint8_t>&,
+                  const secure_vector<uint8_t>&,
+                  size_t) override;
+
+      const size_t m_expected_size;
+      secure_vector<uint8_t> m_message;
+   };
+
+}
+
+namespace Botan {
+
+/**
 * No_Filesystem_Access Exception
 */
 class No_Filesystem_Access final : public Exception
@@ -2273,6 +2704,62 @@ class No_Filesystem_Access final : public Exception
 BOTAN_TEST_API bool has_filesystem_impl();
 
 BOTAN_TEST_API std::vector<std::string> get_files_recursive(const std::string& dir);
+
+}
+
+namespace Botan {
+
+/**
+* Return the PKCS #1 hash identifier
+* @see RFC 3447 section 9.2
+* @param hash_name the name of the hash function
+* @return uint8_t sequence identifying the hash
+* @throw Invalid_Argument if the hash has no known PKCS #1 hash id
+*/
+std::vector<uint8_t> BOTAN_TEST_API pkcs_hash_id(const std::string& hash_name);
+
+/**
+* Return the IEEE 1363 hash identifier
+* @param hash_name the name of the hash function
+* @return uint8_t code identifying the hash, or 0 if not known
+*/
+uint8_t ieee1363_hash_id(const std::string& hash_name);
+
+}
+
+namespace Botan {
+
+/**
+* HMAC
+*/
+class HMAC final : public MessageAuthenticationCode
+   {
+   public:
+      void clear() override;
+      std::string name() const override;
+      std::unique_ptr<MessageAuthenticationCode> new_object() const override;
+
+      size_t output_length() const override;
+
+      Key_Length_Specification key_spec() const override;
+
+      /**
+      * @param hash the hash to use for HMACing
+      */
+      explicit HMAC(std::unique_ptr<HashFunction> hash);
+
+      HMAC(const HMAC&) = delete;
+      HMAC& operator=(const HMAC&) = delete;
+   private:
+      void add_data(const uint8_t[], size_t) override;
+      void final_result(uint8_t[]) override;
+      void key_schedule(const uint8_t[], size_t) override;
+
+      std::unique_ptr<HashFunction> m_hash;
+      secure_vector<uint8_t> m_ikey, m_okey;
+      size_t m_hash_output_length;
+      size_t m_hash_block_size;
+   };
 
 }
 
@@ -5252,6 +5739,77 @@ BOTAN_TEST_API
 bool host_wildcard_match(const std::string& wildcard,
                          const std::string& host);
 
+
+}
+
+namespace Botan {
+
+class RandomNumberGenerator;
+
+/**
+* Encrypt with PBES2 from PKCS #5 v2.0
+* @param key_bits the input
+* @param passphrase the passphrase to use for encryption
+* @param msec how many milliseconds to run PBKDF2
+* @param cipher specifies the block cipher to use to encrypt
+* @param digest specifies the PRF to use with PBKDF2 (eg "HMAC(SHA-1)")
+* @param rng a random number generator
+*/
+std::pair<AlgorithmIdentifier, std::vector<uint8_t>>
+pbes2_encrypt(const secure_vector<uint8_t>& key_bits,
+              const std::string& passphrase,
+              std::chrono::milliseconds msec,
+              const std::string& cipher,
+              const std::string& digest,
+              RandomNumberGenerator& rng);
+
+/**
+* Encrypt with PBES2 from PKCS #5 v2.0
+* @param key_bits the input
+* @param passphrase the passphrase to use for encryption
+* @param msec how many milliseconds to run PBKDF2
+* @param out_iterations_if_nonnull if not null, set to the number
+* of PBKDF iterations used
+* @param cipher specifies the block cipher to use to encrypt
+* @param digest specifies the PRF to use with PBKDF2 (eg "HMAC(SHA-1)")
+* @param rng a random number generator
+*/
+std::pair<AlgorithmIdentifier, std::vector<uint8_t>>
+pbes2_encrypt_msec(const secure_vector<uint8_t>& key_bits,
+                   const std::string& passphrase,
+                   std::chrono::milliseconds msec,
+                   size_t* out_iterations_if_nonnull,
+                   const std::string& cipher,
+                   const std::string& digest,
+                   RandomNumberGenerator& rng);
+
+/**
+* Encrypt with PBES2 from PKCS #5 v2.0
+* @param key_bits the input
+* @param passphrase the passphrase to use for encryption
+* @param iterations how many iterations to run PBKDF2
+* @param cipher specifies the block cipher to use to encrypt
+* @param digest specifies the PRF to use with PBKDF2 (eg "HMAC(SHA-1)")
+* @param rng a random number generator
+*/
+std::pair<AlgorithmIdentifier, std::vector<uint8_t>>
+pbes2_encrypt_iter(const secure_vector<uint8_t>& key_bits,
+                   const std::string& passphrase,
+                   size_t iterations,
+                   const std::string& cipher,
+                   const std::string& digest,
+                   RandomNumberGenerator& rng);
+
+/**
+* Decrypt a PKCS #5 v2.0 encrypted stream
+* @param key_bits the input
+* @param passphrase the passphrase to use for decryption
+* @param params the PBES2 parameters
+*/
+secure_vector<uint8_t>
+pbes2_decrypt(const secure_vector<uint8_t>& key_bits,
+              const std::string& passphrase,
+              const std::vector<uint8_t>& params);
 
 }
 /**
@@ -11679,6 +12237,604 @@ void vartime_divide(const BigInt& x, const BigInt& y_arg, BigInt& q_out, BigInt&
 
 }
 /*
+* Block Ciphers
+* (C) 2015 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+#if defined(BOTAN_HAS_AES)
+#endif
+
+#if defined(BOTAN_HAS_ARIA)
+#endif
+
+#if defined(BOTAN_HAS_BLOWFISH)
+#endif
+
+#if defined(BOTAN_HAS_CAMELLIA)
+#endif
+
+#if defined(BOTAN_HAS_CAST_128)
+#endif
+
+#if defined(BOTAN_HAS_CASCADE)
+#endif
+
+#if defined(BOTAN_HAS_DES)
+#endif
+
+#if defined(BOTAN_HAS_GOST_28147_89)
+#endif
+
+#if defined(BOTAN_HAS_IDEA)
+#endif
+
+#if defined(BOTAN_HAS_LION)
+#endif
+
+#if defined(BOTAN_HAS_NOEKEON)
+#endif
+
+#if defined(BOTAN_HAS_SEED)
+#endif
+
+#if defined(BOTAN_HAS_SERPENT)
+#endif
+
+#if defined(BOTAN_HAS_SHACAL2)
+#endif
+
+#if defined(BOTAN_HAS_SM4)
+#endif
+
+#if defined(BOTAN_HAS_TWOFISH)
+#endif
+
+#if defined(BOTAN_HAS_THREEFISH_512)
+#endif
+
+#if defined(BOTAN_HAS_COMMONCRYPTO)
+#endif
+
+namespace Botan {
+
+std::unique_ptr<BlockCipher>
+BlockCipher::create(const std::string& algo,
+                    const std::string& provider)
+   {
+#if defined(BOTAN_HAS_COMMONCRYPTO)
+   if(provider.empty() || provider == "commoncrypto")
+      {
+      if(auto bc = make_commoncrypto_block_cipher(algo))
+         return bc;
+
+      if(!provider.empty())
+         return nullptr;
+      }
+#endif
+
+   // TODO: CryptoAPI
+   // TODO: /dev/crypto
+
+   // Only base providers from here on out
+   if(provider.empty() == false && provider != "base")
+      return nullptr;
+
+#if defined(BOTAN_HAS_AES)
+   if(algo == "AES-128")
+      {
+      return std::make_unique<AES_128>();
+      }
+
+   if(algo == "AES-192")
+      {
+      return std::make_unique<AES_192>();
+      }
+
+   if(algo == "AES-256")
+      {
+      return std::make_unique<AES_256>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_ARIA)
+   if(algo == "ARIA-128")
+      {
+      return std::make_unique<ARIA_128>();
+      }
+
+   if(algo == "ARIA-192")
+      {
+      return std::make_unique<ARIA_192>();
+      }
+
+   if(algo == "ARIA-256")
+      {
+      return std::make_unique<ARIA_256>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_SERPENT)
+   if(algo == "Serpent")
+      {
+      return std::make_unique<Serpent>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_SHACAL2)
+   if(algo == "SHACAL2")
+      {
+      return std::make_unique<SHACAL2>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_TWOFISH)
+   if(algo == "Twofish")
+      {
+      return std::make_unique<Twofish>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_THREEFISH_512)
+   if(algo == "Threefish-512")
+      {
+      return std::make_unique<Threefish_512>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_BLOWFISH)
+   if(algo == "Blowfish")
+      {
+      return std::make_unique<Blowfish>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_CAMELLIA)
+   if(algo == "Camellia-128")
+      {
+      return std::make_unique<Camellia_128>();
+      }
+
+   if(algo == "Camellia-192")
+      {
+      return std::make_unique<Camellia_192>();
+      }
+
+   if(algo == "Camellia-256")
+      {
+      return std::make_unique<Camellia_256>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_DES)
+   if(algo == "DES")
+      {
+      return std::make_unique<DES>();
+      }
+
+   if(algo == "TripleDES" || algo == "3DES" || algo == "DES-EDE")
+      {
+      return std::make_unique<TripleDES>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_NOEKEON)
+   if(algo == "Noekeon")
+      {
+      return std::make_unique<Noekeon>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_CAST_128)
+   if(algo == "CAST-128" || algo == "CAST5")
+      {
+      return std::make_unique<CAST_128>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_IDEA)
+   if(algo == "IDEA")
+      {
+      return std::make_unique<IDEA>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_SEED)
+   if(algo == "SEED")
+      {
+      return std::make_unique<SEED>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_SM4)
+   if(algo == "SM4")
+      {
+      return std::make_unique<SM4>();
+      }
+#endif
+
+   const SCAN_Name req(algo);
+
+#if defined(BOTAN_HAS_GOST_28147_89)
+   if(req.algo_name() == "GOST-28147-89")
+      {
+      return std::make_unique<GOST_28147_89>(req.arg(0, "R3411_94_TestParam"));
+      }
+#endif
+
+#if defined(BOTAN_HAS_CASCADE)
+   if(req.algo_name() == "Cascade" && req.arg_count() == 2)
+      {
+      std::unique_ptr<BlockCipher> c1 = BlockCipher::create(req.arg(0));
+      std::unique_ptr<BlockCipher> c2 = BlockCipher::create(req.arg(1));
+
+      if(c1 && c2)
+         return std::make_unique<Cascade_Cipher>(std::move(c1), std::move(c2));
+      }
+#endif
+
+#if defined(BOTAN_HAS_LION)
+   if(req.algo_name() == "Lion" && req.arg_count_between(2, 3))
+      {
+      std::unique_ptr<HashFunction> hash = HashFunction::create(req.arg(0));
+      std::unique_ptr<StreamCipher> stream = StreamCipher::create(req.arg(1));
+
+      if(hash && stream)
+         {
+         const size_t block_size = req.arg_as_integer(2, 1024);
+         return std::make_unique<Lion>(std::move(hash), std::move(stream), block_size);
+         }
+      }
+#endif
+
+   BOTAN_UNUSED(req);
+   BOTAN_UNUSED(provider);
+
+   return nullptr;
+   }
+
+//static
+std::unique_ptr<BlockCipher>
+BlockCipher::create_or_throw(const std::string& algo,
+                             const std::string& provider)
+   {
+   if(auto bc = BlockCipher::create(algo, provider))
+      {
+      return bc;
+      }
+   throw Lookup_Error("Block cipher", algo, provider);
+   }
+
+std::vector<std::string> BlockCipher::providers(const std::string& algo)
+   {
+   return probe_providers_of<BlockCipher>(algo, { "base", "commoncrypto" });
+   }
+
+}
+/*
+* CBC Mode
+* (C) 1999-2007,2013,2017 Jack Lloyd
+* (C) 2016 Daniel Neus, Rohde & Schwarz Cybersecurity
+* (C) 2018 Ribose Inc
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+CBC_Mode::CBC_Mode(std::unique_ptr<BlockCipher> cipher,
+                   std::unique_ptr<BlockCipherModePaddingMethod> padding) :
+   m_cipher(std::move(cipher)),
+   m_padding(std::move(padding)),
+   m_block_size(m_cipher->block_size())
+   {
+   if(m_padding && !m_padding->valid_blocksize(m_block_size))
+      throw Invalid_Argument("Padding " + m_padding->name() +
+                             " cannot be used with " +
+                             m_cipher->name() + "/CBC");
+   }
+
+void CBC_Mode::clear()
+   {
+   m_cipher->clear();
+   reset();
+   }
+
+void CBC_Mode::reset()
+   {
+   m_state.clear();
+   }
+
+std::string CBC_Mode::name() const
+   {
+   if(m_padding)
+      return cipher().name() + "/CBC/" + padding().name();
+   else
+      return cipher().name() + "/CBC/CTS";
+   }
+
+size_t CBC_Mode::update_granularity() const
+   {
+   return cipher().parallel_bytes();
+   }
+
+Key_Length_Specification CBC_Mode::key_spec() const
+   {
+   return cipher().key_spec();
+   }
+
+size_t CBC_Mode::default_nonce_length() const
+   {
+   return block_size();
+   }
+
+bool CBC_Mode::valid_nonce_length(size_t n) const
+   {
+   return (n == 0 || n == block_size());
+   }
+
+void CBC_Mode::key_schedule(const uint8_t key[], size_t length)
+   {
+   m_cipher->set_key(key, length);
+   m_state.clear();
+   }
+
+void CBC_Mode::start_msg(const uint8_t nonce[], size_t nonce_len)
+   {
+   if(!valid_nonce_length(nonce_len))
+      throw Invalid_IV_Length(name(), nonce_len);
+
+   /*
+   * A nonce of zero length means carry the last ciphertext value over
+   * as the new IV, as unfortunately some protocols require this. If
+   * this is the first message then we use an IV of all zeros.
+   */
+   if(nonce_len)
+      m_state.assign(nonce, nonce + nonce_len);
+   else if(m_state.empty())
+      m_state.resize(m_cipher->block_size());
+   // else leave the state alone
+   }
+
+size_t CBC_Encryption::minimum_final_size() const
+   {
+   return 0;
+   }
+
+size_t CBC_Encryption::output_length(size_t input_length) const
+   {
+   if(input_length == 0)
+      return block_size();
+   else
+      return round_up(input_length, block_size());
+   }
+
+size_t CBC_Encryption::process(uint8_t buf[], size_t sz)
+   {
+   BOTAN_STATE_CHECK(state().empty() == false);
+   const size_t BS = block_size();
+
+   BOTAN_ASSERT(sz % BS == 0, "CBC input is full blocks");
+   const size_t blocks = sz / BS;
+
+   if(blocks > 0)
+      {
+      xor_buf(&buf[0], state_ptr(), BS);
+      cipher().encrypt(&buf[0]);
+
+      for(size_t i = 1; i != blocks; ++i)
+         {
+         xor_buf(&buf[BS*i], &buf[BS*(i-1)], BS);
+         cipher().encrypt(&buf[BS*i]);
+         }
+
+      state().assign(&buf[BS*(blocks-1)], &buf[BS*blocks]);
+      }
+
+   return sz;
+   }
+
+void CBC_Encryption::finish(secure_vector<uint8_t>& buffer, size_t offset)
+   {
+   BOTAN_STATE_CHECK(state().empty() == false);
+   BOTAN_ASSERT(buffer.size() >= offset, "Offset is sane");
+
+   const size_t BS = block_size();
+
+   const size_t bytes_in_final_block = (buffer.size()-offset) % BS;
+
+   padding().add_padding(buffer, bytes_in_final_block, BS);
+
+   BOTAN_ASSERT_EQUAL(buffer.size() % BS, offset % BS, "Padded to block boundary");
+
+   update(buffer, offset);
+   }
+
+bool CTS_Encryption::valid_nonce_length(size_t n) const
+   {
+   return (n == block_size());
+   }
+
+size_t CTS_Encryption::minimum_final_size() const
+   {
+   return block_size() + 1;
+   }
+
+size_t CTS_Encryption::output_length(size_t input_length) const
+   {
+   return input_length; // no ciphertext expansion in CTS
+   }
+
+void CTS_Encryption::finish(secure_vector<uint8_t>& buffer, size_t offset)
+   {
+   BOTAN_STATE_CHECK(state().empty() == false);
+   BOTAN_ASSERT(buffer.size() >= offset, "Offset is sane");
+   uint8_t* buf = buffer.data() + offset;
+   const size_t sz = buffer.size() - offset;
+
+   const size_t BS = block_size();
+
+   if(sz < BS + 1)
+      throw Encoding_Error(name() + ": insufficient data to encrypt");
+
+   if(sz % BS == 0)
+      {
+      update(buffer, offset);
+
+      // swap last two blocks
+      for(size_t i = 0; i != BS; ++i)
+         std::swap(buffer[buffer.size()-BS+i], buffer[buffer.size()-2*BS+i]);
+      }
+   else
+      {
+      const size_t full_blocks = ((sz / BS) - 1) * BS;
+      const size_t final_bytes = sz - full_blocks;
+      BOTAN_ASSERT(final_bytes > BS && final_bytes < 2*BS, "Left over size in expected range");
+
+      secure_vector<uint8_t> last(buf + full_blocks, buf + full_blocks + final_bytes);
+      buffer.resize(full_blocks + offset);
+      update(buffer, offset);
+
+      xor_buf(last.data(), state_ptr(), BS);
+      cipher().encrypt(last.data());
+
+      for(size_t i = 0; i != final_bytes - BS; ++i)
+         {
+         last[i] ^= last[i + BS];
+         last[i + BS] ^= last[i];
+         }
+
+      cipher().encrypt(last.data());
+
+      buffer += last;
+      }
+   }
+
+size_t CBC_Decryption::output_length(size_t input_length) const
+   {
+   return input_length; // precise for CTS, worst case otherwise
+   }
+
+size_t CBC_Decryption::minimum_final_size() const
+   {
+   return block_size();
+   }
+
+size_t CBC_Decryption::process(uint8_t buf[], size_t sz)
+   {
+   BOTAN_STATE_CHECK(state().empty() == false);
+
+   const size_t BS = block_size();
+
+   BOTAN_ASSERT(sz % BS == 0, "Input is full blocks");
+   size_t blocks = sz / BS;
+
+   while(blocks)
+      {
+      const size_t to_proc = std::min(BS * blocks, m_tempbuf.size());
+
+      cipher().decrypt_n(buf, m_tempbuf.data(), to_proc / BS);
+
+      xor_buf(m_tempbuf.data(), state_ptr(), BS);
+      xor_buf(&m_tempbuf[BS], buf, to_proc - BS);
+      copy_mem(state_ptr(), buf + (to_proc - BS), BS);
+
+      copy_mem(buf, m_tempbuf.data(), to_proc);
+
+      buf += to_proc;
+      blocks -= to_proc / BS;
+      }
+
+   return sz;
+   }
+
+void CBC_Decryption::finish(secure_vector<uint8_t>& buffer, size_t offset)
+   {
+   BOTAN_STATE_CHECK(state().empty() == false);
+   BOTAN_ASSERT(buffer.size() >= offset, "Offset is sane");
+   const size_t sz = buffer.size() - offset;
+
+   const size_t BS = block_size();
+
+   if(sz == 0 || sz % BS)
+      throw Decoding_Error(name() + ": Ciphertext not a multiple of block size");
+
+   update(buffer, offset);
+
+   const size_t pad_bytes = BS - padding().unpad(&buffer[buffer.size()-BS], BS);
+   buffer.resize(buffer.size() - pad_bytes); // remove padding
+   if(pad_bytes == 0 && padding().name() != "NoPadding")
+      {
+      throw Decoding_Error("Invalid CBC padding");
+      }
+   }
+
+void CBC_Decryption::reset()
+   {
+   CBC_Mode::reset();
+   zeroise(m_tempbuf);
+   }
+
+bool CTS_Decryption::valid_nonce_length(size_t n) const
+   {
+   return (n == block_size());
+   }
+
+size_t CTS_Decryption::minimum_final_size() const
+   {
+   return block_size() + 1;
+   }
+
+void CTS_Decryption::finish(secure_vector<uint8_t>& buffer, size_t offset)
+   {
+   BOTAN_STATE_CHECK(state().empty() == false);
+   BOTAN_ASSERT(buffer.size() >= offset, "Offset is sane");
+   const size_t sz = buffer.size() - offset;
+   uint8_t* buf = buffer.data() + offset;
+
+   const size_t BS = block_size();
+
+   if(sz < BS + 1)
+      throw Encoding_Error(name() + ": insufficient data to decrypt");
+
+   if(sz % BS == 0)
+      {
+      // swap last two blocks
+
+      for(size_t i = 0; i != BS; ++i)
+         std::swap(buffer[buffer.size()-BS+i], buffer[buffer.size()-2*BS+i]);
+
+      update(buffer, offset);
+      }
+   else
+      {
+      const size_t full_blocks = ((sz / BS) - 1) * BS;
+      const size_t final_bytes = sz - full_blocks;
+      BOTAN_ASSERT(final_bytes > BS && final_bytes < 2*BS, "Left over size in expected range");
+
+      secure_vector<uint8_t> last(buf + full_blocks, buf + full_blocks + final_bytes);
+      buffer.resize(full_blocks + offset);
+      update(buffer, offset);
+
+      cipher().decrypt(last.data());
+
+      xor_buf(last.data(), &last[BS], final_bytes - BS);
+
+      for(size_t i = 0; i != final_bytes - BS; ++i)
+         std::swap(last[i], last[i + BS]);
+
+      cipher().decrypt(last.data());
+      xor_buf(last.data(), state_ptr(), BS);
+
+      buffer += last;
+      }
+   }
+
+}
+/*
 * ChaCha
 * (C) 2014,2018 Jack Lloyd
 *
@@ -13136,6 +14292,111 @@ OAEP::OAEP(std::unique_ptr<HashFunction> hash,
 
 }
 /*
+* PKCS #1 v1.5 Type 2 (encryption) padding
+* (C) 1999-2007,2015,2016 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+/*
+* PKCS1 Pad Operation
+*/
+secure_vector<uint8_t> EME_PKCS1v15::pad(const uint8_t in[], size_t inlen,
+                                     size_t key_length,
+                                     RandomNumberGenerator& rng) const
+   {
+   key_length /= 8;
+
+   if(inlen > maximum_input_size(key_length * 8))
+      {
+      throw Invalid_Argument("PKCS1: Input is too large");
+      }
+
+   secure_vector<uint8_t> out(key_length);
+
+   out[0] = 0x02;
+   rng.randomize(out.data() + 1, (key_length - inlen - 2));
+
+   for(size_t j = 1; j != key_length - inlen - 1; ++j)
+      {
+      if(out[j] == 0)
+         {
+         out[j] = rng.next_nonzero_byte();
+         }
+      }
+
+   buffer_insert(out, key_length - inlen, in, inlen);
+
+   return out;
+   }
+
+/*
+* PKCS1 Unpad Operation
+*/
+secure_vector<uint8_t> EME_PKCS1v15::unpad(uint8_t& valid_mask,
+                                        const uint8_t in[], size_t inlen) const
+   {
+   /*
+   * RSA decryption pads the ciphertext up to the modulus size, so this only
+   * occurs with very (!) small keys, or when fuzzing.
+   *
+   * 11 bytes == 00,02 + 8 bytes mandatory padding + 00
+   */
+   if(inlen < 11)
+      {
+      valid_mask = false;
+      return secure_vector<uint8_t>();
+      }
+
+   CT::poison(in, inlen);
+
+   CT::Mask<uint8_t> bad_input_m = CT::Mask<uint8_t>::cleared();
+   CT::Mask<uint8_t> seen_zero_m = CT::Mask<uint8_t>::cleared();
+   size_t delim_idx = 2; // initial 0002
+
+   bad_input_m |= ~CT::Mask<uint8_t>::is_equal(in[0], 0);
+   bad_input_m |= ~CT::Mask<uint8_t>::is_equal(in[1], 2);
+
+   for(size_t i = 2; i < inlen; ++i)
+      {
+      const auto is_zero_m = CT::Mask<uint8_t>::is_zero(in[i]);
+      delim_idx += seen_zero_m.if_not_set_return(1);
+      seen_zero_m |= is_zero_m;
+      }
+
+   // no zero delim -> bad padding
+   bad_input_m |= ~seen_zero_m;
+   /*
+   delim indicates < 8 bytes padding -> bad padding
+
+   We require 11 here because we are counting also the 00 delim byte
+   */
+   bad_input_m |= CT::Mask<uint8_t>(CT::Mask<size_t>::is_lt(delim_idx, 11));
+
+   valid_mask = (~bad_input_m).unpoisoned_value();
+   auto output = CT::copy_output(bad_input_m, in, inlen, delim_idx);
+
+   CT::unpoison(in, inlen);
+
+   return output;
+   }
+
+/*
+* Return the max input size for a given key size
+*/
+size_t EME_PKCS1v15::maximum_input_size(size_t keybits) const
+   {
+   if(keybits / 8 > 10)
+      return ((keybits / 8) - 10);
+   else
+      return 0;
+   }
+
+}
+/*
 * (C) 2015,2016 Jack Lloyd
 *
 * Botan is released under the Simplified BSD License (see license.txt)
@@ -13291,6 +14552,167 @@ AlgorithmIdentifier EMSA1::config_for_x509(const Private_Key& key,
       }
 
    return AlgorithmIdentifier(oid, parameters);
+   }
+
+}
+/*
+* PKCS #1 v1.5 signature padding
+* (C) 1999-2008 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+namespace {
+
+secure_vector<uint8_t> emsa3_encoding(const secure_vector<uint8_t>& msg,
+                                   size_t output_bits,
+                                   const uint8_t hash_id[],
+                                   size_t hash_id_length)
+   {
+   size_t output_length = output_bits / 8;
+   if(output_length < hash_id_length + msg.size() + 10)
+      throw Encoding_Error("emsa3_encoding: Output length is too small");
+
+   secure_vector<uint8_t> T(output_length);
+   const size_t P_LENGTH = output_length - msg.size() - hash_id_length - 2;
+
+   T[0] = 0x01;
+   set_mem(&T[1], P_LENGTH, 0xFF);
+   T[P_LENGTH+1] = 0x00;
+
+   if(hash_id_length > 0)
+      {
+      BOTAN_ASSERT_NONNULL(hash_id);
+      buffer_insert(T, P_LENGTH+2, hash_id, hash_id_length);
+      }
+
+   buffer_insert(T, output_length-msg.size(), msg.data(), msg.size());
+   return T;
+   }
+
+}
+
+void EMSA_PKCS1v15::update(const uint8_t input[], size_t length)
+   {
+   m_hash->update(input, length);
+   }
+
+secure_vector<uint8_t> EMSA_PKCS1v15::raw_data()
+   {
+   return m_hash->final();
+   }
+
+secure_vector<uint8_t>
+EMSA_PKCS1v15::encoding_of(const secure_vector<uint8_t>& msg,
+                           size_t output_bits,
+                           RandomNumberGenerator& /*rng*/)
+   {
+   if(msg.size() != m_hash->output_length())
+      throw Encoding_Error("EMSA_PKCS1v15::encoding_of: Bad input length");
+
+   return emsa3_encoding(msg, output_bits,
+                         m_hash_id.data(), m_hash_id.size());
+   }
+
+bool EMSA_PKCS1v15::verify(const secure_vector<uint8_t>& coded,
+                           const secure_vector<uint8_t>& raw,
+                           size_t key_bits)
+   {
+   if(raw.size() != m_hash->output_length())
+      return false;
+
+   try
+      {
+      return (coded == emsa3_encoding(raw, key_bits,
+                                      m_hash_id.data(), m_hash_id.size()));
+      }
+   catch(...)
+      {
+      return false;
+      }
+   }
+
+AlgorithmIdentifier EMSA_PKCS1v15::config_for_x509(const Private_Key& key,
+                                    const std::string& cert_hash_name) const
+   {
+   if(cert_hash_name != m_hash->name())
+      throw Invalid_Argument("Hash function from opts and hash_fn argument"
+         " need to be identical");
+   // check that the signature algorithm and the padding scheme fit
+   if(!sig_algo_and_pad_ok(key.algo_name(), "EMSA3"))
+      {
+      throw Invalid_Argument("Encoding scheme with canonical name EMSA3"
+         " not supported for signature algorithm " + key.algo_name());
+      }
+
+   // for RSA PKCSv1.5 parameters "SHALL" be NULL
+
+   const OID oid = OID::from_string(key.algo_name() + "/" + name());
+   return AlgorithmIdentifier(oid, AlgorithmIdentifier::USE_NULL_PARAM);
+   }
+
+EMSA_PKCS1v15::EMSA_PKCS1v15(std::unique_ptr<HashFunction> hash) :
+   m_hash(std::move(hash))
+   {
+   m_hash_id = pkcs_hash_id(m_hash->name());
+   }
+
+EMSA_PKCS1v15_Raw::EMSA_PKCS1v15_Raw()
+   {
+   m_hash_output_len = 0;
+   // m_hash_id, m_hash_name left empty
+   }
+
+EMSA_PKCS1v15_Raw::EMSA_PKCS1v15_Raw(const std::string& hash_algo)
+   {
+   std::unique_ptr<HashFunction> hash(HashFunction::create_or_throw(hash_algo));
+   m_hash_id = pkcs_hash_id(hash_algo);
+   m_hash_name = hash->name();
+   m_hash_output_len = hash->output_length();
+   }
+
+void EMSA_PKCS1v15_Raw::update(const uint8_t input[], size_t length)
+   {
+   m_message += std::make_pair(input, length);
+   }
+
+secure_vector<uint8_t> EMSA_PKCS1v15_Raw::raw_data()
+   {
+   secure_vector<uint8_t> ret;
+   std::swap(ret, m_message);
+
+   if(m_hash_output_len > 0 && ret.size() != m_hash_output_len)
+      throw Encoding_Error("EMSA_PKCS1v15_Raw::encoding_of: Bad input length");
+
+   return ret;
+   }
+
+secure_vector<uint8_t>
+EMSA_PKCS1v15_Raw::encoding_of(const secure_vector<uint8_t>& msg,
+                               size_t output_bits,
+                               RandomNumberGenerator& /*rng*/)
+   {
+   return emsa3_encoding(msg, output_bits, m_hash_id.data(), m_hash_id.size());
+   }
+
+bool EMSA_PKCS1v15_Raw::verify(const secure_vector<uint8_t>& coded,
+                               const secure_vector<uint8_t>& raw,
+                               size_t key_bits)
+   {
+   if(m_hash_output_len > 0 && raw.size() != m_hash_output_len)
+      return false;
+
+   try
+      {
+      return (coded == emsa3_encoding(raw, key_bits, m_hash_id.data(), m_hash_id.size()));
+      }
+   catch(...)
+      {
+      return false;
+      }
    }
 
 }
@@ -13574,6 +14996,96 @@ std::unique_ptr<EMSA> PSSR_Raw::new_object()
 std::string PSSR_Raw::name() const
    {
    return "PSSR_Raw(" + m_hash->name() + ",MGF1," + std::to_string(m_salt_size) + ")";
+   }
+
+}
+/*
+* EMSA-Raw
+* (C) 1999-2007 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+std::string EMSA_Raw::name() const
+   {
+   if(m_expected_size > 0)
+      return "Raw(" + std::to_string(m_expected_size) + ")";
+   return "Raw";
+   }
+
+/*
+* EMSA-Raw Encode Operation
+*/
+void EMSA_Raw::update(const uint8_t input[], size_t length)
+   {
+   m_message += std::make_pair(input, length);
+   }
+
+/*
+* Return the raw (unencoded) data
+*/
+secure_vector<uint8_t> EMSA_Raw::raw_data()
+   {
+   if(m_expected_size && m_message.size() != m_expected_size)
+      throw Invalid_Argument("EMSA_Raw was configured to use a " +
+                             std::to_string(m_expected_size) +
+                             " byte hash but instead was used for a " +
+                             std::to_string(m_message.size()) + " hash");
+
+   secure_vector<uint8_t> output;
+   std::swap(m_message, output);
+   return output;
+   }
+
+/*
+* EMSA-Raw Encode Operation
+*/
+secure_vector<uint8_t>
+EMSA_Raw::encoding_of(const secure_vector<uint8_t>& msg,
+                      size_t /*output_bits*/,
+                      RandomNumberGenerator& /*rng*/)
+   {
+   if(m_expected_size && msg.size() != m_expected_size)
+      throw Invalid_Argument("EMSA_Raw was configured to use a " +
+                             std::to_string(m_expected_size) +
+                             " byte hash but instead was used for a " +
+                             std::to_string(msg.size()) + " hash");
+
+   return msg;
+   }
+
+/*
+* EMSA-Raw Verify Operation
+*/
+bool EMSA_Raw::verify(const secure_vector<uint8_t>& coded,
+                      const secure_vector<uint8_t>& raw,
+                      size_t /*key_bits*/)
+   {
+   if(m_expected_size && raw.size() != m_expected_size)
+      return false;
+
+   if(coded.size() == raw.size())
+      return (coded == raw);
+
+   if(coded.size() > raw.size())
+      return false;
+
+   // handle zero padding differences
+   const size_t leading_zeros_expected = raw.size() - coded.size();
+
+   bool same_modulo_leading_zeros = true;
+
+   for(size_t i = 0; i != leading_zeros_expected; ++i)
+      if(raw[i])
+         same_modulo_leading_zeros = false;
+
+   if(!constant_time_compare(coded.data(), raw.data() + leading_zeros_expected, coded.size()))
+      same_modulo_leading_zeros = false;
+
+   return same_modulo_leading_zeros;
    }
 
 }
@@ -14076,6 +15588,159 @@ std::vector<std::string> HashFunction::providers(const std::string& algo_spec)
 }
 
 /*
+* Hash Function Identification
+* (C) 1999-2008 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+namespace {
+
+const uint8_t MD5_PKCS_ID[] = {
+0x30, 0x20, 0x30, 0x0C, 0x06, 0x08, 0x2A, 0x86, 0x48, 0x86,
+0xF7, 0x0D, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10 };
+
+const uint8_t RIPEMD_160_PKCS_ID[] = {
+0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x24, 0x03, 0x02,
+0x01, 0x05, 0x00, 0x04, 0x14 };
+
+const uint8_t SHA_160_PKCS_ID[] = {
+0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x0E, 0x03, 0x02,
+0x1A, 0x05, 0x00, 0x04, 0x14 };
+
+const uint8_t SHA_224_PKCS_ID[] = {
+0x30, 0x2D, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04, 0x1C };
+
+const uint8_t SHA_256_PKCS_ID[] = {
+0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 };
+
+const uint8_t SHA_384_PKCS_ID[] = {
+0x30, 0x41, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30 };
+
+const uint8_t SHA_512_PKCS_ID[] = {
+0x30, 0x51, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40 };
+
+const uint8_t SHA_512_256_PKCS_ID[] = {
+0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
+0x65, 0x03, 0x04, 0x02, 0x06, 0x05, 0x00, 0x04, 0x20 };
+
+const uint8_t SHA3_224_PKCS_ID[] = {
+0x30, 0x2D, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+0x03, 0x04, 0x02, 0x07, 0x05, 0x00, 0x04, 0x1C };
+
+const uint8_t SHA3_256_PKCS_ID[] = {
+0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+0x03, 0x04, 0x02, 0x08, 0x05, 0x00, 0x04, 0x20 };
+
+const uint8_t SHA3_384_PKCS_ID[] = {
+0x30, 0x41, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+0x03, 0x04, 0x02, 0x09, 0x05, 0x00, 0x04, 0x30 };
+
+const uint8_t SHA3_512_PKCS_ID[] = {
+0x30, 0x51, 0x30, 0x0D, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65,
+0x03, 0x04, 0x02, 0x0A, 0x05, 0x00, 0x04, 0x40 };
+
+const uint8_t SM3_PKCS_ID[] = {
+0x30, 0x30, 0x30, 0x0C, 0x06, 0x08, 0x2A, 0x81, 0x1C, 0xCF,
+0x55, 0x01, 0x83, 0x11, 0x05, 0x00, 0x04, 0x20,
+};
+
+}
+
+/*
+* HashID as specified by PKCS
+*/
+std::vector<uint8_t> pkcs_hash_id(const std::string& name)
+   {
+   // Special case for SSL/TLS RSA signatures
+   if(name == "Parallel(MD5,SHA-160)")
+      return std::vector<uint8_t>();
+
+   // If you add a value to this function, also update test_hash_id.cpp
+
+   if(name == "MD5")
+      return std::vector<uint8_t>(MD5_PKCS_ID,
+                               MD5_PKCS_ID + sizeof(MD5_PKCS_ID));
+
+   if(name == "RIPEMD-160")
+      return std::vector<uint8_t>(RIPEMD_160_PKCS_ID,
+                               RIPEMD_160_PKCS_ID + sizeof(RIPEMD_160_PKCS_ID));
+
+   if(name == "SHA-160" || name == "SHA-1" || name == "SHA1")
+      return std::vector<uint8_t>(SHA_160_PKCS_ID,
+                               SHA_160_PKCS_ID + sizeof(SHA_160_PKCS_ID));
+
+   if(name == "SHA-224")
+      return std::vector<uint8_t>(SHA_224_PKCS_ID,
+                               SHA_224_PKCS_ID + sizeof(SHA_224_PKCS_ID));
+
+   if(name == "SHA-256")
+      return std::vector<uint8_t>(SHA_256_PKCS_ID,
+                               SHA_256_PKCS_ID + sizeof(SHA_256_PKCS_ID));
+
+   if(name == "SHA-384")
+      return std::vector<uint8_t>(SHA_384_PKCS_ID,
+                               SHA_384_PKCS_ID + sizeof(SHA_384_PKCS_ID));
+
+   if(name == "SHA-512")
+      return std::vector<uint8_t>(SHA_512_PKCS_ID,
+                               SHA_512_PKCS_ID + sizeof(SHA_512_PKCS_ID));
+
+   if(name == "SHA-512-256")
+      return std::vector<uint8_t>(SHA_512_256_PKCS_ID,
+                               SHA_512_256_PKCS_ID + sizeof(SHA_512_256_PKCS_ID));
+
+   if(name == "SHA-3(224)")
+      return std::vector<uint8_t>(SHA3_224_PKCS_ID,
+                                SHA3_224_PKCS_ID + sizeof(SHA3_224_PKCS_ID));
+
+   if(name == "SHA-3(256)")
+      return std::vector<uint8_t>(SHA3_256_PKCS_ID,
+                                SHA3_256_PKCS_ID + sizeof(SHA3_256_PKCS_ID));
+
+   if(name == "SHA-3(384)")
+      return std::vector<uint8_t>(SHA3_384_PKCS_ID,
+                                SHA3_384_PKCS_ID + sizeof(SHA3_384_PKCS_ID));
+
+   if(name == "SHA-3(512)")
+      return std::vector<uint8_t>(SHA3_512_PKCS_ID,
+                                SHA3_512_PKCS_ID + sizeof(SHA3_512_PKCS_ID));
+
+   if(name == "SM3")
+      return std::vector<uint8_t>(SM3_PKCS_ID, SM3_PKCS_ID + sizeof(SM3_PKCS_ID));
+
+   throw Invalid_Argument("No PKCS #1 identifier for " + name);
+   }
+
+/*
+* HashID as specified by IEEE 1363/X9.31
+*/
+uint8_t ieee1363_hash_id(const std::string& name)
+   {
+   if(name == "SHA-160" || name == "SHA-1" || name == "SHA1")
+      return 0x33;
+
+   if(name == "SHA-224")    return 0x38;
+   if(name == "SHA-256")    return 0x34;
+   if(name == "SHA-384")    return 0x36;
+   if(name == "SHA-512")    return 0x35;
+
+   if(name == "RIPEMD-160") return 0x31;
+
+   if(name == "Whirlpool")  return 0x37;
+
+   return 0;
+   }
+
+}
+/*
 * Hex Encoding and Decoding
 * (C) 2010,2020 Jack Lloyd
 *
@@ -14278,6 +15943,154 @@ std::vector<uint8_t> hex_decode(const std::string& input,
                              bool ignore_ws)
    {
    return hex_decode(input.data(), input.size(), ignore_ws);
+   }
+
+}
+/*
+* HMAC
+* (C) 1999-2007,2014,2020 Jack Lloyd
+*     2007 Yves Jerschow
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+/*
+* Update a HMAC Calculation
+*/
+void HMAC::add_data(const uint8_t input[], size_t length)
+   {
+   verify_key_set(m_ikey.empty() == false);
+   m_hash->update(input, length);
+   }
+
+/*
+* Finalize a HMAC Calculation
+*/
+void HMAC::final_result(uint8_t mac[])
+   {
+   verify_key_set(m_okey.empty() == false);
+   m_hash->final(mac);
+   m_hash->update(m_okey);
+   m_hash->update(mac, m_hash_output_length);
+   m_hash->final(mac);
+   m_hash->update(m_ikey);
+   }
+
+Key_Length_Specification HMAC::key_spec() const
+   {
+   // Support very long lengths for things like PBKDF2 and the TLS PRF
+   return Key_Length_Specification(0, 4096);
+   }
+
+size_t HMAC::output_length() const
+   {
+   return m_hash_output_length;
+   }
+
+/*
+* HMAC Key Schedule
+*/
+void HMAC::key_schedule(const uint8_t key[], size_t length)
+   {
+   const uint8_t ipad = 0x36;
+   const uint8_t opad = 0x5C;
+
+   m_hash->clear();
+
+   m_ikey.resize(m_hash_block_size);
+   m_okey.resize(m_hash_block_size);
+
+   clear_mem(m_ikey.data(), m_ikey.size());
+   clear_mem(m_okey.data(), m_okey.size());
+
+   /*
+   * Sometimes the HMAC key length itself is sensitive, as with PBKDF2 where it
+   * reveals the length of the passphrase. Make some attempt to hide this to
+   * side channels. Clearly if the secret is longer than the block size then the
+   * branch to hash first reveals that. In addition, counting the number of
+   * compression functions executed reveals the size at the granularity of the
+   * hash function's block size.
+   *
+   * The greater concern is for smaller keys; being able to detect when a
+   * passphrase is say 4 bytes may assist choosing weaker targets. Even though
+   * the loop bounds are constant, we can only actually read key[0..length] so
+   * it doesn't seem possible to make this computation truly constant time.
+   *
+   * We don't mind leaking if the length is exactly zero since that's
+   * trivial to simply check.
+   */
+
+   if(length > m_hash_block_size)
+      {
+      m_hash->update(key, length);
+      m_hash->final(m_ikey.data());
+      }
+   else if(length > 0)
+      {
+      for(size_t i = 0, i_mod_length = 0; i != m_hash_block_size; ++i)
+         {
+         /*
+         access key[i % length] but avoiding division due to variable
+         time computation on some processors.
+         */
+         auto needs_reduction = CT::Mask<size_t>::is_lte(length, i_mod_length);
+         i_mod_length = needs_reduction.select(0, i_mod_length);
+         const uint8_t kb = key[i_mod_length];
+
+         auto in_range = CT::Mask<size_t>::is_lt(i, length);
+         m_ikey[i] = static_cast<uint8_t>(in_range.if_set_return(kb));
+         i_mod_length += 1;
+         }
+      }
+
+   for(size_t i = 0; i != m_hash_block_size; ++i)
+      {
+      m_ikey[i] ^= ipad;
+      m_okey[i] = m_ikey[i] ^ ipad ^ opad;
+      }
+
+   m_hash->update(m_ikey);
+   }
+
+/*
+* Clear memory of sensitive data
+*/
+void HMAC::clear()
+   {
+   m_hash->clear();
+   zap(m_ikey);
+   zap(m_okey);
+   }
+
+/*
+* Return the name of this type
+*/
+std::string HMAC::name() const
+   {
+   return "HMAC(" + m_hash->name() + ")";
+   }
+
+/*
+* Return a new_object of this object
+*/
+std::unique_ptr<MessageAuthenticationCode> HMAC::new_object() const
+   {
+   return std::make_unique<HMAC>(m_hash->new_object());
+   }
+
+/*
+* HMAC Constructor
+*/
+HMAC::HMAC(std::unique_ptr<HashFunction> hash) :
+   m_hash(std::move(hash)),
+   m_hash_output_length(m_hash->output_length()),
+   m_hash_block_size(m_hash->hash_block_size())
+   {
+   BOTAN_ARG_CHECK(m_hash_block_size >= m_hash_output_length,
+                   "HMAC is not compatible with this hash function");
    }
 
 }
@@ -14863,6 +16676,337 @@ void mgf1_mask(HashFunction& hash,
       ++counter;
       }
    }
+
+}
+/*
+* CBC Padding Methods
+* (C) 1999-2007,2013,2018,2020 Jack Lloyd
+* (C) 2016 René Korthaus, Rohde & Schwarz Cybersecurity
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+/**
+* Get a block cipher padding method by name
+*/
+std::unique_ptr<BlockCipherModePaddingMethod>
+BlockCipherModePaddingMethod::create(const std::string& algo_spec)
+   {
+   if(algo_spec == "NoPadding")
+      return std::make_unique<Null_Padding>();
+
+   if(algo_spec == "PKCS7")
+      return std::make_unique<PKCS7_Padding>();
+
+   if(algo_spec == "OneAndZeros")
+      return std::make_unique<OneAndZeros_Padding>();
+
+   if(algo_spec == "X9.23")
+      return std::make_unique<ANSI_X923_Padding>();
+
+   if(algo_spec == "ESP")
+      return std::make_unique<ESP_Padding>();
+
+   return nullptr;
+   }
+
+/*
+* Pad with PKCS #7 Method
+*/
+void PKCS7_Padding::add_padding(secure_vector<uint8_t>& buffer,
+                                size_t last_byte_pos,
+                                size_t BS) const
+   {
+   /*
+   Padding format is
+   01
+   0202
+   030303
+   ...
+   */
+   BOTAN_DEBUG_ASSERT(last_byte_pos < BS);
+
+   const uint8_t padding_len = static_cast<uint8_t>(BS - last_byte_pos);
+
+   buffer.resize(buffer.size() + padding_len);
+
+   CT::poison(&last_byte_pos, 1);
+   CT::poison(buffer.data(), buffer.size());
+
+   BOTAN_DEBUG_ASSERT(buffer.size() % BS == 0);
+   BOTAN_DEBUG_ASSERT(buffer.size() >= BS);
+
+   const size_t start_of_last_block = buffer.size() - BS;
+   const size_t end_of_last_block = buffer.size();
+   const size_t start_of_padding = buffer.size() - padding_len;
+
+   for(size_t i = start_of_last_block; i != end_of_last_block; ++i)
+      {
+      auto needs_padding = CT::Mask<uint8_t>(CT::Mask<size_t>::is_gte(i, start_of_padding));
+      buffer[i] = needs_padding.select(padding_len, buffer[i]);
+      }
+
+   CT::unpoison(buffer.data(), buffer.size());
+   CT::unpoison(last_byte_pos);
+   }
+
+/*
+* Unpad with PKCS #7 Method
+*/
+size_t PKCS7_Padding::unpad(const uint8_t input[], size_t input_length) const
+   {
+   if(!valid_blocksize(input_length))
+      return input_length;
+
+   CT::poison(input, input_length);
+
+   const uint8_t last_byte = input[input_length-1];
+
+   /*
+   The input should == the block size so if the last byte exceeds
+   that then the padding is certainly invalid
+   */
+   auto bad_input = CT::Mask<size_t>::is_gt(last_byte, input_length);
+
+   const size_t pad_pos = input_length - last_byte;
+
+   for(size_t i = 0; i != input_length - 1; ++i)
+      {
+      // Does this byte equal the expected pad byte?
+      const auto pad_eq = CT::Mask<size_t>::is_equal(input[i], last_byte);
+
+      // Ignore values that are not part of the padding
+      const auto in_range = CT::Mask<size_t>::is_gte(i, pad_pos);
+      bad_input |= in_range & (~pad_eq);
+      }
+
+   CT::unpoison(input, input_length);
+
+   return bad_input.select_and_unpoison(input_length, pad_pos);
+   }
+
+/*
+* Pad with ANSI X9.23 Method
+*/
+void ANSI_X923_Padding::add_padding(secure_vector<uint8_t>& buffer,
+                                    size_t last_byte_pos,
+                                    size_t BS) const
+   {
+   /*
+   Padding format is
+   01
+   0002
+   000003
+   ...
+   */
+   BOTAN_DEBUG_ASSERT(last_byte_pos < BS);
+
+   const uint8_t padding_len = static_cast<uint8_t>(BS - last_byte_pos);
+
+   buffer.resize(buffer.size() + padding_len);
+
+   CT::poison(&last_byte_pos, 1);
+   CT::poison(buffer.data(), buffer.size());
+
+   BOTAN_DEBUG_ASSERT(buffer.size() % BS == 0);
+   BOTAN_DEBUG_ASSERT(buffer.size() >= BS);
+
+   const size_t start_of_last_block = buffer.size() - BS;
+   const size_t end_of_zero_padding = buffer.size() - 1;
+   const size_t start_of_padding = buffer.size() - padding_len;
+
+   for(size_t i = start_of_last_block; i != end_of_zero_padding; ++i)
+      {
+      auto needs_padding = CT::Mask<uint8_t>(CT::Mask<size_t>::is_gte(i, start_of_padding));
+      buffer[i] = needs_padding.select(0, buffer[i]);
+      }
+
+   buffer[buffer.size()-1] = padding_len;
+   CT::unpoison(buffer.data(), buffer.size());
+   CT::unpoison(last_byte_pos);
+   }
+
+/*
+* Unpad with ANSI X9.23 Method
+*/
+size_t ANSI_X923_Padding::unpad(const uint8_t input[], size_t input_length) const
+   {
+   if(!valid_blocksize(input_length))
+      return input_length;
+
+   CT::poison(input, input_length);
+
+   const size_t last_byte = input[input_length-1];
+
+   auto bad_input = CT::Mask<size_t>::is_gt(last_byte, input_length);
+
+   const size_t pad_pos = input_length - last_byte;
+
+   for(size_t i = 0; i != input_length - 1; ++i)
+      {
+      // Ignore values that are not part of the padding
+      const auto in_range = CT::Mask<size_t>::is_gte(i, pad_pos);
+      const auto pad_is_nonzero = CT::Mask<size_t>::expand(input[i]);
+      bad_input |= pad_is_nonzero & in_range;
+      }
+
+   CT::unpoison(input, input_length);
+
+   return bad_input.select_and_unpoison(input_length, pad_pos);
+   }
+
+/*
+* Pad with One and Zeros Method
+*/
+void OneAndZeros_Padding::add_padding(secure_vector<uint8_t>& buffer,
+                                      size_t last_byte_pos,
+                                      size_t BS) const
+   {
+   /*
+   Padding format is
+   80
+   8000
+   800000
+   ...
+   */
+
+   BOTAN_DEBUG_ASSERT(last_byte_pos < BS);
+
+   const uint8_t padding_len = static_cast<uint8_t>(BS - last_byte_pos);
+
+   buffer.resize(buffer.size() + padding_len);
+
+   CT::poison(&last_byte_pos, 1);
+   CT::poison(buffer.data(), buffer.size());
+
+   BOTAN_DEBUG_ASSERT(buffer.size() % BS == 0);
+   BOTAN_DEBUG_ASSERT(buffer.size() >= BS);
+
+   const size_t start_of_last_block = buffer.size() - BS;
+   const size_t end_of_last_block = buffer.size();
+   const size_t start_of_padding = buffer.size() - padding_len;
+
+   for(size_t i = start_of_last_block; i != end_of_last_block; ++i)
+      {
+      auto needs_80 = CT::Mask<uint8_t>(CT::Mask<size_t>::is_equal(i, start_of_padding));
+      auto needs_00 = CT::Mask<uint8_t>(CT::Mask<size_t>::is_gt(i, start_of_padding));
+      buffer[i] = needs_00.select(0x00, needs_80.select(0x80, buffer[i]));
+      }
+
+   CT::unpoison(buffer.data(), buffer.size());
+   CT::unpoison(last_byte_pos);
+   }
+
+/*
+* Unpad with One and Zeros Method
+*/
+size_t OneAndZeros_Padding::unpad(const uint8_t input[], size_t input_length) const
+   {
+   if(!valid_blocksize(input_length))
+      return input_length;
+
+   CT::poison(input, input_length);
+
+   auto bad_input = CT::Mask<uint8_t>::cleared();
+   auto seen_0x80 = CT::Mask<uint8_t>::cleared();
+
+   size_t pad_pos = input_length - 1;
+   size_t i = input_length;
+
+   while(i)
+      {
+      const auto is_0x80 = CT::Mask<uint8_t>::is_equal(input[i-1], 0x80);
+      const auto is_zero = CT::Mask<uint8_t>::is_zero(input[i-1]);
+
+      seen_0x80 |= is_0x80;
+      pad_pos -= seen_0x80.if_not_set_return(1);
+      bad_input |= ~seen_0x80 & ~is_zero;
+      i--;
+      }
+   bad_input |= ~seen_0x80;
+
+   CT::unpoison(input, input_length);
+
+   return CT::Mask<size_t>::expand(bad_input).select_and_unpoison(input_length, pad_pos);
+   }
+
+/*
+* Pad with ESP Padding Method
+*/
+void ESP_Padding::add_padding(secure_vector<uint8_t>& buffer,
+                              size_t last_byte_pos,
+                              size_t BS) const
+   {
+   /*
+   Padding format is
+   01
+   0102
+   010203
+   ...
+   */
+   BOTAN_DEBUG_ASSERT(last_byte_pos < BS);
+
+   const uint8_t padding_len = static_cast<uint8_t>(BS - last_byte_pos);
+
+   buffer.resize(buffer.size() + padding_len);
+
+   CT::poison(&last_byte_pos, 1);
+   CT::poison(buffer.data(), buffer.size());
+
+   BOTAN_DEBUG_ASSERT(buffer.size() % BS == 0);
+   BOTAN_DEBUG_ASSERT(buffer.size() >= BS);
+
+   const size_t start_of_last_block = buffer.size() - BS;
+   const size_t end_of_last_block = buffer.size();
+   const size_t start_of_padding = buffer.size() - padding_len;
+
+   uint8_t pad_ctr = 0x01;
+
+   for(size_t i = start_of_last_block; i != end_of_last_block; ++i)
+      {
+      auto needs_padding = CT::Mask<uint8_t>(CT::Mask<size_t>::is_gte(i, start_of_padding));
+      buffer[i] = needs_padding.select(pad_ctr, buffer[i]);
+      pad_ctr = needs_padding.select(pad_ctr + 1, pad_ctr);
+      }
+
+   CT::unpoison(buffer.data(), buffer.size());
+   CT::unpoison(last_byte_pos);
+   }
+
+/*
+* Unpad with ESP Padding Method
+*/
+size_t ESP_Padding::unpad(const uint8_t input[], size_t input_length) const
+   {
+   if(!valid_blocksize(input_length))
+      return input_length;
+
+   CT::poison(input, input_length);
+
+   const uint8_t input_length_8 = static_cast<uint8_t>(input_length);
+   const uint8_t last_byte = input[input_length-1];
+
+   auto bad_input = CT::Mask<uint8_t>::is_zero(last_byte) |
+      CT::Mask<uint8_t>::is_gt(last_byte, input_length_8);
+
+   const uint8_t pad_pos = input_length_8 - last_byte;
+   size_t i = input_length_8 - 1;
+   while(i)
+      {
+      const auto in_range = CT::Mask<size_t>::is_gt(i, pad_pos);
+      const auto incrementing = CT::Mask<uint8_t>::is_equal(input[i-1], input[i]-1);
+
+      bad_input |= CT::Mask<uint8_t>(in_range) & ~incrementing;
+      --i;
+      }
+
+   CT::unpoison(input, input_length);
+   return bad_input.select_and_unpoison(input_length_8, pad_pos);
+   }
+
 
 }
 /*
@@ -23698,6 +25842,797 @@ void Modular_Reducer::reduce(BigInt& t1, const BigInt& x, secure_vector<word>& w
    t1.ct_reduce_below(m_modulus, ws, 2);
 
    cnd_rev_sub(t1.is_nonzero() && x.is_negative(), t1, m_modulus.data(), m_modulus.size(), ws);
+   }
+
+}
+/*
+* PKCS #5 PBES2
+* (C) 1999-2008,2014,2021 Jack Lloyd
+* (C) 2018 Ribose Inc
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+namespace {
+
+bool known_pbes_cipher_mode(const std::string& mode)
+   {
+   return (mode == "CBC" || mode == "GCM" || mode == "SIV");
+   }
+
+secure_vector<uint8_t> derive_key(const std::string& passphrase,
+                                  const AlgorithmIdentifier& kdf_algo,
+                                  size_t default_key_size)
+   {
+   if(kdf_algo.get_oid() == OID::from_string("PKCS5.PBKDF2"))
+      {
+      secure_vector<uint8_t> salt;
+      size_t iterations = 0, key_length = 0;
+
+      AlgorithmIdentifier prf_algo;
+      BER_Decoder(kdf_algo.get_parameters())
+         .start_sequence()
+         .decode(salt, ASN1_Type::OctetString)
+         .decode(iterations)
+         .decode_optional(key_length, ASN1_Type::Integer, ASN1_Class::Universal)
+         .decode_optional(prf_algo, ASN1_Type::Sequence, ASN1_Class::Constructed,
+                          AlgorithmIdentifier("HMAC(SHA-160)",
+                                              AlgorithmIdentifier::USE_NULL_PARAM))
+         .end_cons();
+
+      if(salt.size() < 8)
+         throw Decoding_Error("PBE-PKCS5 v2.0: Encoded salt is too small");
+
+      if(key_length == 0)
+         key_length = default_key_size;
+
+      const std::string prf = OIDS::oid2str_or_throw(prf_algo.get_oid());
+      auto pbkdf_fam = PasswordHashFamily::create_or_throw("PBKDF2(" + prf + ")");
+      auto pbkdf = pbkdf_fam->from_params(iterations);
+
+      secure_vector<uint8_t> derived_key(key_length);
+      pbkdf->derive_key(derived_key.data(), derived_key.size(),
+                        passphrase.data(), passphrase.size(),
+                        salt.data(), salt.size());
+      return derived_key;
+      }
+   else if(kdf_algo.get_oid() == OID::from_string("Scrypt"))
+      {
+      secure_vector<uint8_t> salt;
+      size_t N = 0, r = 0, p = 0;
+      size_t key_length = 0;
+
+      AlgorithmIdentifier prf_algo;
+      BER_Decoder(kdf_algo.get_parameters())
+         .start_sequence()
+         .decode(salt, ASN1_Type::OctetString)
+         .decode(N)
+         .decode(r)
+         .decode(p)
+         .decode_optional(key_length, ASN1_Type::Integer, ASN1_Class::Universal)
+         .end_cons();
+
+      if(key_length == 0)
+         key_length = default_key_size;
+
+      secure_vector<uint8_t> derived_key(key_length);
+
+      auto pwdhash_fam = PasswordHashFamily::create_or_throw("Scrypt");
+      auto pwdhash = pwdhash_fam->from_params(N, r, p);
+      pwdhash->derive_key(derived_key.data(), derived_key.size(),
+                          passphrase.data(), passphrase.size(),
+                          salt.data(), salt.size());
+
+      return derived_key;
+      }
+   else
+      throw Decoding_Error("PBE-PKCS5 v2.0: Unknown KDF algorithm " +
+                           kdf_algo.get_oid().to_string());
+   }
+
+secure_vector<uint8_t> derive_key(const std::string& passphrase,
+                                  const std::string& digest,
+                                  RandomNumberGenerator& rng,
+                                  size_t* msec_in_iterations_out,
+                                  size_t iterations_if_msec_null,
+                                  size_t key_length,
+                                  AlgorithmIdentifier& kdf_algo)
+   {
+   const secure_vector<uint8_t> salt = rng.random_vec(12);
+
+   if(digest == "Scrypt")
+      {
+      auto pwhash_fam = PasswordHashFamily::create_or_throw("Scrypt");
+
+      std::unique_ptr<PasswordHash> pwhash;
+
+      if(msec_in_iterations_out)
+         {
+         const std::chrono::milliseconds msec(*msec_in_iterations_out);
+         pwhash = pwhash_fam->tune(key_length, msec);
+         }
+      else
+         {
+         pwhash = pwhash_fam->from_iterations(iterations_if_msec_null);
+         }
+
+      secure_vector<uint8_t> key(key_length);
+      pwhash->derive_key(key.data(), key.size(),
+                         passphrase.c_str(), passphrase.size(),
+                         salt.data(), salt.size());
+
+      const size_t N = pwhash->memory_param();
+      const size_t r = pwhash->iterations();
+      const size_t p = pwhash->parallelism();
+
+      if(msec_in_iterations_out)
+         *msec_in_iterations_out = 0;
+
+      std::vector<uint8_t> scrypt_params;
+      DER_Encoder(scrypt_params)
+         .start_sequence()
+            .encode(salt, ASN1_Type::OctetString)
+            .encode(N)
+            .encode(r)
+            .encode(p)
+            .encode(key_length)
+         .end_cons();
+
+      kdf_algo = AlgorithmIdentifier(OID::from_string("Scrypt"), scrypt_params);
+      return key;
+      }
+   else
+      {
+      const std::string prf = "HMAC(" + digest + ")";
+      const std::string pbkdf_name = "PBKDF2(" + prf + ")";
+
+      std::unique_ptr<PasswordHashFamily> pwhash_fam = PasswordHashFamily::create(pbkdf_name);
+      if(!pwhash_fam)
+         throw Invalid_Argument("Unknown password hash digest " + digest);
+
+      std::unique_ptr<PasswordHash> pwhash;
+
+      if(msec_in_iterations_out)
+         {
+         const std::chrono::milliseconds msec(*msec_in_iterations_out);
+         pwhash = pwhash_fam->tune(key_length, msec);
+         }
+      else
+         {
+         pwhash = pwhash_fam->from_iterations(iterations_if_msec_null);
+         }
+
+      secure_vector<uint8_t> key(key_length);
+      pwhash->derive_key(key.data(), key.size(),
+                         passphrase.c_str(), passphrase.size(),
+                         salt.data(), salt.size());
+
+      std::vector<uint8_t> pbkdf2_params;
+
+      const size_t iterations = pwhash->iterations();
+
+      if(msec_in_iterations_out)
+         *msec_in_iterations_out = iterations;
+
+      DER_Encoder(pbkdf2_params)
+         .start_sequence()
+            .encode(salt, ASN1_Type::OctetString)
+            .encode(iterations)
+            .encode(key_length)
+            .encode_if(prf != "HMAC(SHA-160)",
+                       AlgorithmIdentifier(prf, AlgorithmIdentifier::USE_NULL_PARAM))
+         .end_cons();
+
+      kdf_algo = AlgorithmIdentifier("PKCS5.PBKDF2", pbkdf2_params);
+      return key;
+      }
+   }
+
+/*
+* PKCS#5 v2.0 PBE Encryption
+*/
+std::pair<AlgorithmIdentifier, std::vector<uint8_t>>
+pbes2_encrypt_shared(const secure_vector<uint8_t>& key_bits,
+                     const std::string& passphrase,
+                     size_t* msec_in_iterations_out,
+                     size_t iterations_if_msec_null,
+                     const std::string& cipher,
+                     const std::string& prf,
+                     RandomNumberGenerator& rng)
+   {
+   const std::vector<std::string> cipher_spec = split_on(cipher, '/');
+   if(cipher_spec.size() != 2)
+      throw Encoding_Error("PBE-PKCS5 v2.0: Invalid cipher spec " + cipher);
+
+   if(!known_pbes_cipher_mode(cipher_spec[1]))
+      throw Encoding_Error("PBE-PKCS5 v2.0: Don't know param format for " + cipher);
+
+   const OID cipher_oid = OIDS::str2oid_or_empty(cipher);
+   if(cipher_oid.empty())
+      throw Encoding_Error("PBE-PKCS5 v2.0: No OID assigned for " + cipher);
+
+   std::unique_ptr<Cipher_Mode> enc = Cipher_Mode::create(cipher, ENCRYPTION);
+
+   if(!enc)
+      throw Decoding_Error("PBE-PKCS5 cannot encrypt no cipher " + cipher);
+
+   const size_t key_length = enc->key_spec().maximum_keylength();
+
+   const secure_vector<uint8_t> iv = rng.random_vec(enc->default_nonce_length());
+
+   AlgorithmIdentifier kdf_algo;
+
+   const secure_vector<uint8_t> derived_key =
+      derive_key(passphrase, prf, rng,
+                 msec_in_iterations_out, iterations_if_msec_null,
+                 key_length, kdf_algo);
+
+   enc->set_key(derived_key);
+   enc->start(iv);
+   secure_vector<uint8_t> ctext = key_bits;
+   enc->finish(ctext);
+
+   std::vector<uint8_t> encoded_iv;
+   DER_Encoder(encoded_iv).encode(iv, ASN1_Type::OctetString);
+
+   std::vector<uint8_t> pbes2_params;
+   DER_Encoder(pbes2_params)
+      .start_sequence()
+      .encode(kdf_algo)
+      .encode(AlgorithmIdentifier(cipher, encoded_iv))
+      .end_cons();
+
+   AlgorithmIdentifier id(OID::from_string("PBE-PKCS5v20"), pbes2_params);
+
+   return std::make_pair(id, unlock(ctext));
+   }
+
+}
+
+std::pair<AlgorithmIdentifier, std::vector<uint8_t>>
+pbes2_encrypt(const secure_vector<uint8_t>& key_bits,
+              const std::string& passphrase,
+              std::chrono::milliseconds msec,
+              const std::string& cipher,
+              const std::string& digest,
+              RandomNumberGenerator& rng)
+   {
+   size_t msec_in_iterations_out = static_cast<size_t>(msec.count());
+   return pbes2_encrypt_shared(key_bits, passphrase, &msec_in_iterations_out, 0, cipher, digest, rng);
+   // return value msec_in_iterations_out discarded
+   }
+
+std::pair<AlgorithmIdentifier, std::vector<uint8_t>>
+pbes2_encrypt_msec(const secure_vector<uint8_t>& key_bits,
+                   const std::string& passphrase,
+                   std::chrono::milliseconds msec,
+                   size_t* out_iterations_if_nonnull,
+                   const std::string& cipher,
+                   const std::string& digest,
+                   RandomNumberGenerator& rng)
+   {
+   size_t msec_in_iterations_out = static_cast<size_t>(msec.count());
+
+   auto ret = pbes2_encrypt_shared(key_bits, passphrase, &msec_in_iterations_out, 0, cipher, digest, rng);
+
+   if(out_iterations_if_nonnull)
+      *out_iterations_if_nonnull = msec_in_iterations_out;
+
+   return ret;
+   }
+
+std::pair<AlgorithmIdentifier, std::vector<uint8_t>>
+pbes2_encrypt_iter(const secure_vector<uint8_t>& key_bits,
+                   const std::string& passphrase,
+                   size_t pbkdf_iter,
+                   const std::string& cipher,
+                   const std::string& digest,
+                   RandomNumberGenerator& rng)
+   {
+   return pbes2_encrypt_shared(key_bits, passphrase, nullptr, pbkdf_iter, cipher, digest, rng);
+   }
+
+secure_vector<uint8_t>
+pbes2_decrypt(const secure_vector<uint8_t>& key_bits,
+              const std::string& passphrase,
+              const std::vector<uint8_t>& params)
+   {
+   AlgorithmIdentifier kdf_algo, enc_algo;
+
+   BER_Decoder(params)
+      .start_sequence()
+         .decode(kdf_algo)
+         .decode(enc_algo)
+      .end_cons();
+
+   const std::string cipher = OIDS::oid2str_or_throw(enc_algo.get_oid());
+   const std::vector<std::string> cipher_spec = split_on(cipher, '/');
+   if(cipher_spec.size() != 2)
+      throw Decoding_Error("PBE-PKCS5 v2.0: Invalid cipher spec " + cipher);
+   if(!known_pbes_cipher_mode(cipher_spec[1]))
+      throw Decoding_Error("PBE-PKCS5 v2.0: Don't know param format for " + cipher);
+
+   secure_vector<uint8_t> iv;
+   BER_Decoder(enc_algo.get_parameters()).decode(iv, ASN1_Type::OctetString).verify_end();
+
+   std::unique_ptr<Cipher_Mode> dec = Cipher_Mode::create(cipher, DECRYPTION);
+   if(!dec)
+      throw Decoding_Error("PBE-PKCS5 cannot decrypt no cipher " + cipher);
+
+   dec->set_key(derive_key(passphrase, kdf_algo, dec->key_spec().maximum_keylength()));
+
+   dec->start(iv);
+
+   secure_vector<uint8_t> buf = key_bits;
+   dec->finish(buf);
+
+   return buf;
+   }
+
+}
+/*
+* PBKDF
+* (C) 2012 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+#if defined(BOTAN_HAS_PBKDF2)
+#endif
+
+#if defined(BOTAN_HAS_PGP_S2K)
+#endif
+
+namespace Botan {
+
+std::unique_ptr<PBKDF> PBKDF::create(const std::string& algo_spec,
+                                     const std::string& provider)
+   {
+   const SCAN_Name req(algo_spec);
+
+#if defined(BOTAN_HAS_PBKDF2)
+   if(req.algo_name() == "PBKDF2")
+      {
+      // TODO OpenSSL
+
+      if(provider.empty() || provider == "base")
+         {
+         if(auto mac = MessageAuthenticationCode::create("HMAC(" + req.arg(0) + ")"))
+            return std::make_unique<PKCS5_PBKDF2>(mac.release());
+
+         if(auto mac = MessageAuthenticationCode::create(req.arg(0)))
+            return std::make_unique<PKCS5_PBKDF2>(mac.release());
+         }
+
+      return nullptr;
+      }
+#endif
+
+#if defined(BOTAN_HAS_PGP_S2K)
+   if(req.algo_name() == "OpenPGP-S2K" && req.arg_count() == 1)
+      {
+      if(auto hash = HashFunction::create(req.arg(0)))
+         return std::make_unique<OpenPGP_S2K>(hash.release());
+      }
+#endif
+
+   BOTAN_UNUSED(req);
+   BOTAN_UNUSED(provider);
+
+   return nullptr;
+   }
+
+//static
+std::unique_ptr<PBKDF>
+PBKDF::create_or_throw(const std::string& algo,
+                             const std::string& provider)
+   {
+   if(auto pbkdf = PBKDF::create(algo, provider))
+      {
+      return pbkdf;
+      }
+   throw Lookup_Error("PBKDF", algo, provider);
+   }
+
+std::vector<std::string> PBKDF::providers(const std::string& algo_spec)
+   {
+   return probe_providers_of<PBKDF>(algo_spec);
+   }
+
+void PBKDF::pbkdf_timed(uint8_t out[], size_t out_len,
+                        const std::string& passphrase,
+                        const uint8_t salt[], size_t salt_len,
+                        std::chrono::milliseconds msec,
+                        size_t& iterations) const
+   {
+   iterations = pbkdf(out, out_len, passphrase, salt, salt_len, 0, msec);
+   }
+
+void PBKDF::pbkdf_iterations(uint8_t out[], size_t out_len,
+                             const std::string& passphrase,
+                             const uint8_t salt[], size_t salt_len,
+                             size_t iterations) const
+   {
+   if(iterations == 0)
+      throw Invalid_Argument(name() + ": Invalid iteration count");
+
+   const size_t iterations_run = pbkdf(out, out_len, passphrase,
+                                       salt, salt_len, iterations,
+                                       std::chrono::milliseconds(0));
+   BOTAN_ASSERT_EQUAL(iterations, iterations_run, "Expected PBKDF iterations");
+   }
+
+secure_vector<uint8_t> PBKDF::pbkdf_iterations(size_t out_len,
+                                            const std::string& passphrase,
+                                            const uint8_t salt[], size_t salt_len,
+                                            size_t iterations) const
+   {
+   secure_vector<uint8_t> out(out_len);
+   pbkdf_iterations(out.data(), out_len, passphrase, salt, salt_len, iterations);
+   return out;
+   }
+
+secure_vector<uint8_t> PBKDF::pbkdf_timed(size_t out_len,
+                                       const std::string& passphrase,
+                                       const uint8_t salt[], size_t salt_len,
+                                       std::chrono::milliseconds msec,
+                                       size_t& iterations) const
+   {
+   secure_vector<uint8_t> out(out_len);
+   pbkdf_timed(out.data(), out_len, passphrase, salt, salt_len, msec, iterations);
+   return out;
+   }
+
+}
+/*
+* (C) 2018 Ribose Inc
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+#if defined(BOTAN_HAS_PBKDF2)
+#endif
+
+#if defined(BOTAN_HAS_PGP_S2K)
+#endif
+
+#if defined(BOTAN_HAS_SCRYPT)
+#endif
+
+#if defined(BOTAN_HAS_ARGON2)
+#endif
+
+#if defined(BOTAN_HAS_PBKDF_BCRYPT)
+#endif
+
+namespace Botan {
+
+void PasswordHash::derive_key(uint8_t out[], size_t out_len,
+                              const char* password, size_t password_len,
+                              const uint8_t salt[], size_t salt_len,
+                              const uint8_t ad[], size_t ad_len,
+                              const uint8_t key[], size_t key_len) const
+   {
+   BOTAN_UNUSED(ad, key);
+
+   if(ad_len == 0 && key_len == 0)
+      return this->derive_key(out, out_len,
+                              password, password_len,
+                              salt, salt_len);
+   else
+      throw Not_Implemented("PasswordHash " + this->to_string() + " does not support AD or key");
+   }
+
+std::unique_ptr<PasswordHashFamily> PasswordHashFamily::create(const std::string& algo_spec,
+                                     const std::string& provider)
+   {
+   const SCAN_Name req(algo_spec);
+
+#if defined(BOTAN_HAS_PBKDF2)
+   if(req.algo_name() == "PBKDF2")
+      {
+      if(provider.empty() || provider == "base")
+         {
+         if(auto mac = MessageAuthenticationCode::create("HMAC(" + req.arg(0) + ")"))
+            return std::make_unique<PBKDF2_Family>(mac.release());
+
+         if(auto mac = MessageAuthenticationCode::create(req.arg(0)))
+            return std::make_unique<PBKDF2_Family>(mac.release());
+         }
+
+      return nullptr;
+      }
+#endif
+
+#if defined(BOTAN_HAS_SCRYPT)
+   if(req.algo_name() == "Scrypt")
+      {
+      return std::make_unique<Scrypt_Family>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_ARGON2)
+   if(req.algo_name() == "Argon2d")
+      {
+      return std::make_unique<Argon2_Family>(static_cast<uint8_t>(0));
+      }
+   else if(req.algo_name() == "Argon2i")
+      {
+      return std::make_unique<Argon2_Family>(static_cast<uint8_t>(1));
+      }
+   else if(req.algo_name() == "Argon2id")
+      {
+      return std::make_unique<Argon2_Family>(static_cast<uint8_t>(2));
+      }
+#endif
+
+#if defined(BOTAN_HAS_PBKDF_BCRYPT)
+   if(req.algo_name() == "Bcrypt-PBKDF")
+      {
+      return std::make_unique<Bcrypt_PBKDF_Family>();
+      }
+#endif
+
+#if defined(BOTAN_HAS_PGP_S2K)
+   if(req.algo_name() == "OpenPGP-S2K" && req.arg_count() == 1)
+      {
+      if(auto hash = HashFunction::create(req.arg(0)))
+         {
+         return std::make_unique<RFC4880_S2K_Family>(hash.release());
+         }
+      }
+#endif
+
+   BOTAN_UNUSED(req);
+   BOTAN_UNUSED(provider);
+
+   return nullptr;
+   }
+
+//static
+std::unique_ptr<PasswordHashFamily>
+PasswordHashFamily::create_or_throw(const std::string& algo,
+                             const std::string& provider)
+   {
+   if(auto pbkdf = PasswordHashFamily::create(algo, provider))
+      {
+      return pbkdf;
+      }
+   throw Lookup_Error("PasswordHashFamily", algo, provider);
+   }
+
+std::vector<std::string> PasswordHashFamily::providers(const std::string& algo_spec)
+   {
+   return probe_providers_of<PasswordHashFamily>(algo_spec);
+   }
+
+}
+/*
+* PBKDF2
+* (C) 1999-2007 Jack Lloyd
+* (C) 2018 Ribose Inc
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+namespace {
+
+void pbkdf2_set_key(MessageAuthenticationCode& prf,
+                    const char* password,
+                    size_t password_len)
+   {
+   try
+      {
+      prf.set_key(cast_char_ptr_to_uint8(password), password_len);
+      }
+   catch(Invalid_Key_Length&)
+      {
+      throw Invalid_Argument("PBKDF2 cannot accept passphrase of the given size");
+      }
+   }
+
+}
+
+size_t
+pbkdf2(MessageAuthenticationCode& prf,
+       uint8_t out[],
+       size_t out_len,
+       const std::string& password,
+       const uint8_t salt[], size_t salt_len,
+       size_t iterations,
+       std::chrono::milliseconds msec)
+   {
+   if(iterations == 0)
+      {
+      iterations = PBKDF2(prf, out_len, msec).iterations();
+      }
+
+   PBKDF2 pbkdf2(prf, iterations);
+
+   pbkdf2.derive_key(out, out_len,
+                     password.c_str(), password.size(),
+                     salt, salt_len);
+
+   return iterations;
+   }
+
+namespace {
+
+size_t tune_pbkdf2(MessageAuthenticationCode& prf,
+                   size_t output_length,
+                   uint32_t msec)
+   {
+   if(output_length == 0)
+      output_length = 1;
+
+   const size_t prf_sz = prf.output_length();
+   BOTAN_ASSERT_NOMSG(prf_sz > 0);
+   secure_vector<uint8_t> U(prf_sz);
+
+   const size_t trial_iterations = 2000;
+
+   // Short output ensures we only need a single PBKDF2 block
+
+   Timer timer("PBKDF2");
+
+   const auto tune_time = BOTAN_PBKDF_TUNING_TIME;
+
+   prf.set_key(nullptr, 0);
+
+   timer.run_until_elapsed(tune_time, [&]() {
+      uint8_t out[12] = { 0 };
+      uint8_t salt[12] = { 0 };
+      pbkdf2(prf, out, sizeof(out), salt, sizeof(salt), trial_iterations);
+      });
+
+   if(timer.events() == 0)
+      return trial_iterations;
+
+   const uint64_t duration_nsec = timer.value() / timer.events();
+
+   const uint64_t desired_nsec = static_cast<uint64_t>(msec) * 1000000;
+
+   if(duration_nsec > desired_nsec)
+      return trial_iterations;
+
+   const size_t blocks_needed = (output_length + prf_sz - 1) / prf_sz;
+
+   const size_t multiplier = static_cast<size_t>(desired_nsec / duration_nsec / blocks_needed);
+
+   if(multiplier == 0)
+      return trial_iterations;
+   else
+      return trial_iterations * multiplier;
+   }
+
+}
+
+void pbkdf2(MessageAuthenticationCode& prf,
+            uint8_t out[],
+            size_t out_len,
+            const uint8_t salt[],
+            size_t salt_len,
+            size_t iterations)
+   {
+   if(iterations == 0)
+      throw Invalid_Argument("PBKDF2: Invalid iteration count");
+
+   clear_mem(out, out_len);
+
+   if(out_len == 0)
+      return;
+
+   const size_t prf_sz = prf.output_length();
+   BOTAN_ASSERT_NOMSG(prf_sz > 0);
+
+   secure_vector<uint8_t> U(prf_sz);
+
+   uint32_t counter = 1;
+   while(out_len)
+      {
+      const size_t prf_output = std::min<size_t>(prf_sz, out_len);
+
+      prf.update(salt, salt_len);
+      prf.update_be(counter++);
+      prf.final(U.data());
+
+      xor_buf(out, U.data(), prf_output);
+
+      for(size_t i = 1; i != iterations; ++i)
+         {
+         prf.update(U);
+         prf.final(U.data());
+         xor_buf(out, U.data(), prf_output);
+         }
+
+      out_len -= prf_output;
+      out += prf_output;
+      }
+   }
+
+// PBKDF interface
+size_t
+PKCS5_PBKDF2::pbkdf(uint8_t key[], size_t key_len,
+                    const std::string& password,
+                    const uint8_t salt[], size_t salt_len,
+                    size_t iterations,
+                    std::chrono::milliseconds msec) const
+   {
+   if(iterations == 0)
+      {
+      iterations = PBKDF2(*m_mac, key_len, msec).iterations();
+      }
+
+   PBKDF2 pbkdf2(*m_mac, iterations);
+
+   pbkdf2.derive_key(key, key_len,
+                     password.c_str(), password.size(),
+                     salt, salt_len);
+
+   return iterations;
+   }
+
+std::string PKCS5_PBKDF2::name() const
+   {
+   return "PBKDF2(" + m_mac->name() + ")";
+   }
+
+std::unique_ptr<PBKDF> PKCS5_PBKDF2::new_object() const
+   {
+   return std::make_unique<PKCS5_PBKDF2>(m_mac->clone());
+   }
+
+// PasswordHash interface
+
+PBKDF2::PBKDF2(const MessageAuthenticationCode& prf, size_t olen, std::chrono::milliseconds msec) :
+   m_prf(prf.new_object()),
+   m_iterations(tune_pbkdf2(*m_prf, olen, static_cast<uint32_t>(msec.count())))
+   {}
+
+std::string PBKDF2::to_string() const
+   {
+   return "PBKDF2(" + m_prf->name() + "," + std::to_string(m_iterations) + ")";
+   }
+
+void PBKDF2::derive_key(uint8_t out[], size_t out_len,
+                        const char* password, const size_t password_len,
+                        const uint8_t salt[], size_t salt_len) const
+   {
+   pbkdf2_set_key(*m_prf, password, password_len);
+   pbkdf2(*m_prf, out, out_len, salt, salt_len, m_iterations);
+   }
+
+std::string PBKDF2_Family::name() const
+   {
+   return "PBKDF2(" + m_prf->name() + ")";
+   }
+
+std::unique_ptr<PasswordHash> PBKDF2_Family::tune(size_t output_len, std::chrono::milliseconds msec, size_t /*max_memory_usage_mb*/) const
+   {
+   return std::make_unique<PBKDF2>(*m_prf, output_len, msec);
+   }
+
+std::unique_ptr<PasswordHash> PBKDF2_Family::default_params() const
+   {
+   return std::make_unique<PBKDF2>(*m_prf, 150000);
+   }
+
+std::unique_ptr<PasswordHash> PBKDF2_Family::from_params(size_t iter, size_t /*i2*/, size_t /*i3*/) const
+   {
+   return std::make_unique<PBKDF2>(*m_prf, iter);
+   }
+
+std::unique_ptr<PasswordHash> PBKDF2_Family::from_iterations(size_t iter) const
+   {
+   return std::make_unique<PBKDF2>(*m_prf, iter);
    }
 
 }

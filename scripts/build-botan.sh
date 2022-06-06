@@ -26,8 +26,8 @@ MOD_HASH=sha1,sha2_32
 #MOD_CIPHER=aes,gcm,chacha,chacha20poly1305,aead,stream
 MOD_CIPHER=chacha,chacha20poly1305,aead,stream
 # MOD_COMPRESSION=lzma,bzip2
-#MOD_BASIC=base,cryptobox,pubkey,rsa,x509,eme_oaep,eme_raw
-MOD_BASIC=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1
+#MOD_BASIC=base,cryptobox,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1
+MOD_BASIC=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1
 
 case "$archabi" in
     "armhf") 

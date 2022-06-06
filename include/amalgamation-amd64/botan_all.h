@@ -31,7 +31,7 @@
 * Build configuration for Botan 3.0.0-alpha0
 *
 * Automatically generated from
-* 'configure.py --cpu=x86_64 --prefix=/usr/local/projects/zafena/elevator/botan/dist-amd64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,chacha,chacha20poly1305,aead,stream,sha1,sha2_32,system_rng,sha1_sse2,sha1_x86,sha2_32_x86,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
+* 'configure.py --cpu=x86_64 --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-amd64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha1,sha2_32,system_rng,sha1_sse2,sha1_x86,sha2_32_x86,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
 *
 * Target
 *  - Compiler: g++ -fstack-protector -m64 -pthread -std=c++17 -D_REENTRANT -O3
@@ -57,9 +57,9 @@
 #define BOTAN_MP_WORD_BITS 64
 
 
-#define BOTAN_INSTALL_PREFIX R"(/usr/local/projects/zafena/elevator/botan/dist-amd64-min)"
+#define BOTAN_INSTALL_PREFIX R"(/usr/local/projects/zafena/cipherpack/botan/dist-amd64-min)"
 #define BOTAN_INSTALL_HEADER_DIR R"(include/botan-3)"
-#define BOTAN_INSTALL_LIB_DIR R"(/usr/local/projects/zafena/elevator/botan/dist-amd64-min/lib)"
+#define BOTAN_INSTALL_LIB_DIR R"(/usr/local/projects/zafena/cipherpack/botan/dist-amd64-min/lib)"
 #define BOTAN_LIB_LINK ""
 #define BOTAN_LINK_FLAGS "-fstack-protector -m64 -pthread"
 
@@ -121,26 +121,39 @@
 #define BOTAN_HAS_BASE64_CODEC 20131128
 #define BOTAN_HAS_BIGINT 20210423
 #define BOTAN_HAS_BIGINT_MP 20151225
+#define BOTAN_HAS_BLOCK_CIPHER 20131128
 #define BOTAN_HAS_CHACHA 20180807
 #define BOTAN_HAS_CHACHA_AVX2 20180418
 #define BOTAN_HAS_CHACHA_SIMD32 20181104
 #define BOTAN_HAS_CIPHER_MODES 20180124
+#define BOTAN_HAS_CIPHER_MODE_PADDING 20131128
 #define BOTAN_HAS_CPUID 20170917
 #define BOTAN_HAS_EME_OAEP 20180305
+#define BOTAN_HAS_EME_PKCS1 20190426
+#define BOTAN_HAS_EME_PKCS1v15 20131128
 #define BOTAN_HAS_EME_RAW 20150313
 #define BOTAN_HAS_EMSA1 20131128
+#define BOTAN_HAS_EMSA_PKCS1 20140118
 #define BOTAN_HAS_EMSA_PSSR 20131128
+#define BOTAN_HAS_EMSA_RAW 20131128
 #define BOTAN_HAS_ENTROPY_SOURCE 20151120
 #define BOTAN_HAS_HASH 20180112
+#define BOTAN_HAS_HASH_ID 20131128
 #define BOTAN_HAS_HEX_CODEC 20131128
+#define BOTAN_HAS_HMAC 20131128
 #define BOTAN_HAS_KDF_BASE 20131128
 #define BOTAN_HAS_MAC 20150626
 #define BOTAN_HAS_MDX_HASH_FUNCTION 20131128
 #define BOTAN_HAS_MGF1 20140118
 #define BOTAN_HAS_MODES 20150626
+#define BOTAN_HAS_MODE_CBC 20131128
 #define BOTAN_HAS_NUMBERTHEORY 20201108
 #define BOTAN_HAS_OCSP 20201106
+#define BOTAN_HAS_PASSWORD_HASHING 20210419
+#define BOTAN_HAS_PBKDF 20180902
+#define BOTAN_HAS_PBKDF2 20180902
 #define BOTAN_HAS_PEM_CODEC 20131128
+#define BOTAN_HAS_PKCS5_PBES2 20141119
 #define BOTAN_HAS_PK_PADDING 20131128
 #define BOTAN_HAS_POLY1305 20141227
 #define BOTAN_HAS_PUBLIC_KEY_CRYPTO 20131128
@@ -4494,6 +4507,249 @@ inline void swap<Botan::BigInt>(Botan::BigInt& x, Botan::BigInt& y)
 namespace Botan {
 
 /**
+* This class represents a block cipher object.
+*/
+class BOTAN_PUBLIC_API(2,0) BlockCipher : public SymmetricAlgorithm
+   {
+   public:
+
+      /**
+      * Create an instance based on a name
+      * If provider is empty then best available is chosen.
+      * @param algo_spec algorithm name
+      * @param provider provider implementation to choose
+      * @return a null pointer if the algo/provider combination cannot be found
+      */
+      static std::unique_ptr<BlockCipher>
+         create(const std::string& algo_spec,
+                const std::string& provider = "");
+
+      /**
+      * Create an instance based on a name, or throw if the
+      * algo/provider combination cannot be found. If provider is
+      * empty then best available is chosen.
+      */
+      static std::unique_ptr<BlockCipher>
+         create_or_throw(const std::string& algo_spec,
+                         const std::string& provider = "");
+
+      /**
+      * @return list of available providers for this algorithm, empty if not available
+      * @param algo_spec algorithm name
+      */
+      static std::vector<std::string> providers(const std::string& algo_spec);
+
+      /**
+      * @return block size of this algorithm
+      */
+      virtual size_t block_size() const = 0;
+
+      /**
+      * @return native parallelism of this cipher in blocks
+      */
+      virtual size_t parallelism() const { return 1; }
+
+      /**
+      * @return prefererred parallelism of this cipher in bytes
+      */
+      size_t parallel_bytes() const
+         {
+         return parallelism() * block_size() * BOTAN_BLOCK_CIPHER_PAR_MULT;
+         }
+
+      /**
+      * @return provider information about this implementation. Default is "base",
+      * might also return "sse2", "avx2", "openssl", or some other arbitrary string.
+      */
+      virtual std::string provider() const { return "base"; }
+
+      /**
+      * Encrypt a block.
+      * @param in The plaintext block to be encrypted as a byte array.
+      * Must be of length block_size().
+      * @param out The byte array designated to hold the encrypted block.
+      * Must be of length block_size().
+      */
+      void encrypt(const uint8_t in[], uint8_t out[]) const
+         { encrypt_n(in, out, 1); }
+
+      /**
+      * Decrypt a block.
+      * @param in The ciphertext block to be decypted as a byte array.
+      * Must be of length block_size().
+      * @param out The byte array designated to hold the decrypted block.
+      * Must be of length block_size().
+      */
+      void decrypt(const uint8_t in[], uint8_t out[]) const
+         { decrypt_n(in, out, 1); }
+
+      /**
+      * Encrypt a block.
+      * @param block the plaintext block to be encrypted
+      * Must be of length block_size(). Will hold the result when the function
+      * has finished.
+      */
+      void encrypt(uint8_t block[]) const { encrypt_n(block, block, 1); }
+
+      /**
+      * Decrypt a block.
+      * @param block the ciphertext block to be decrypted
+      * Must be of length block_size(). Will hold the result when the function
+      * has finished.
+      */
+      void decrypt(uint8_t block[]) const { decrypt_n(block, block, 1); }
+
+      /**
+      * Encrypt one or more blocks
+      * @param block the input/output buffer (multiple of block_size())
+      */
+      template<typename Alloc>
+      void encrypt(std::vector<uint8_t, Alloc>& block) const
+         {
+         return encrypt_n(block.data(), block.data(), block.size() / block_size());
+         }
+
+      /**
+      * Decrypt one or more blocks
+      * @param block the input/output buffer (multiple of block_size())
+      */
+      template<typename Alloc>
+      void decrypt(std::vector<uint8_t, Alloc>& block) const
+         {
+         return decrypt_n(block.data(), block.data(), block.size() / block_size());
+         }
+
+      /**
+      * Encrypt one or more blocks
+      * @param in the input buffer (multiple of block_size())
+      * @param out the output buffer (same size as in)
+      */
+      template<typename Alloc, typename Alloc2>
+      void encrypt(const std::vector<uint8_t, Alloc>& in,
+                   std::vector<uint8_t, Alloc2>& out) const
+         {
+         return encrypt_n(in.data(), out.data(), in.size() / block_size());
+         }
+
+      /**
+      * Decrypt one or more blocks
+      * @param in the input buffer (multiple of block_size())
+      * @param out the output buffer (same size as in)
+      */
+      template<typename Alloc, typename Alloc2>
+      void decrypt(const std::vector<uint8_t, Alloc>& in,
+                   std::vector<uint8_t, Alloc2>& out) const
+         {
+         return decrypt_n(in.data(), out.data(), in.size() / block_size());
+         }
+
+      /**
+      * Encrypt one or more blocks
+      * @param in the input buffer (multiple of block_size())
+      * @param out the output buffer (same size as in)
+      * @param blocks the number of blocks to process
+      */
+      virtual void encrypt_n(const uint8_t in[], uint8_t out[],
+                             size_t blocks) const = 0;
+
+      /**
+      * Decrypt one or more blocks
+      * @param in the input buffer (multiple of block_size())
+      * @param out the output buffer (same size as in)
+      * @param blocks the number of blocks to process
+      */
+      virtual void decrypt_n(const uint8_t in[], uint8_t out[],
+                             size_t blocks) const = 0;
+
+      virtual void encrypt_n_xex(uint8_t data[],
+                                 const uint8_t mask[],
+                                 size_t blocks) const
+         {
+         const size_t BS = block_size();
+         xor_buf(data, mask, blocks * BS);
+         encrypt_n(data, data, blocks);
+         xor_buf(data, mask, blocks * BS);
+         }
+
+      virtual void decrypt_n_xex(uint8_t data[],
+                                 const uint8_t mask[],
+                                 size_t blocks) const
+         {
+         const size_t BS = block_size();
+         xor_buf(data, mask, blocks * BS);
+         decrypt_n(data, data, blocks);
+         xor_buf(data, mask, blocks * BS);
+         }
+
+      /**
+      * @return new object representing the same algorithm as *this
+      */
+      virtual std::unique_ptr<BlockCipher> new_object() const = 0;
+
+      BlockCipher* clone() const
+         {
+         return this->new_object().release();
+         }
+
+      virtual ~BlockCipher() = default;
+   };
+
+/**
+* Tweakable block ciphers allow setting a tweak which is a non-keyed
+* value which affects the encryption/decryption operation.
+*/
+class BOTAN_PUBLIC_API(2,8) Tweakable_Block_Cipher : public BlockCipher
+   {
+   public:
+      /**
+      * Set the tweak value. This must be called after setting a key. The value
+      * persists until either set_tweak, set_key, or clear is called.
+      * Different algorithms support different tweak length(s). If called with
+      * an unsupported length, Invalid_Argument will be thrown.
+      */
+      virtual void set_tweak(const uint8_t tweak[], size_t len) = 0;
+   };
+
+/**
+* Represents a block cipher with a single fixed block size
+*/
+template<size_t BS, size_t KMIN, size_t KMAX = 0, size_t KMOD = 1, typename BaseClass = BlockCipher>
+class Block_Cipher_Fixed_Params : public BaseClass
+   {
+   public:
+      enum { BLOCK_SIZE = BS };
+      size_t block_size() const final override { return BS; }
+
+      // override to take advantage of compile time constant block size
+      void encrypt_n_xex(uint8_t data[],
+                         const uint8_t mask[],
+                         size_t blocks) const final override
+         {
+         xor_buf(data, mask, blocks * BS);
+         this->encrypt_n(data, data, blocks);
+         xor_buf(data, mask, blocks * BS);
+         }
+
+      void decrypt_n_xex(uint8_t data[],
+                         const uint8_t mask[],
+                         size_t blocks) const final override
+         {
+         xor_buf(data, mask, blocks * BS);
+         this->decrypt_n(data, data, blocks);
+         xor_buf(data, mask, blocks * BS);
+         }
+
+      Key_Length_Specification key_spec() const final override
+         {
+         return Key_Length_Specification(KMIN, KMAX, KMOD);
+         }
+   };
+
+}
+
+namespace Botan {
+
+/**
 * This class represents any kind of computation which uses an internal
 * state, such as hash functions or MACs
 */
@@ -7980,6 +8236,517 @@ BOTAN_UNSTABLE_API OID str2oid_or_empty(const std::string& name);
 BOTAN_UNSTABLE_API std::string oid2str_or_throw(const OID& oid);
 
 }
+
+}
+
+namespace Botan {
+
+/**
+* Base class for PBKDF (password based key derivation function)
+* implementations. Converts a password into a key using a salt
+* and iterated hashing to make brute force attacks harder.
+*
+* Starting in 2.8 this functionality is also offered by PasswordHash.
+* The PBKDF interface may be removed in a future release.
+*/
+class BOTAN_PUBLIC_API(2,0) PBKDF
+   {
+   public:
+      /**
+      * Create an instance based on a name
+      * If provider is empty then best available is chosen.
+      * @param algo_spec algorithm name
+      * @param provider provider implementation to choose
+      * @return a null pointer if the algo/provider combination cannot be found
+      */
+      static std::unique_ptr<PBKDF> create(const std::string& algo_spec,
+                                           const std::string& provider = "");
+
+      /**
+      * Create an instance based on a name, or throw if the
+      * algo/provider combination cannot be found. If provider is
+      * empty then best available is chosen.
+      */
+      static std::unique_ptr<PBKDF>
+         create_or_throw(const std::string& algo_spec,
+                         const std::string& provider = "");
+
+      /**
+      * @return list of available providers for this algorithm, empty if not available
+      */
+      static std::vector<std::string> providers(const std::string& algo_spec);
+
+      /**
+      * @return new instance of this same algorithm
+      */
+      virtual std::unique_ptr<PBKDF> new_object() const = 0;
+
+      /**
+      * @return new instance of this same algorithm
+      */
+      PBKDF* clone() const
+         {
+         return this->new_object().release();
+         }
+
+      /**
+      * @return name of this PBKDF
+      */
+      virtual std::string name() const = 0;
+
+      virtual ~PBKDF() = default;
+
+      /**
+      * Derive a key from a passphrase for a number of iterations
+      * specified by either iterations or if iterations == 0 then
+      * running until msec time has elapsed.
+      *
+      * @param out buffer to store the derived key, must be of out_len bytes
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param iterations the number of iterations to use (use 10K or more)
+      * @param msec if iterations is zero, then instead the PBKDF is
+      *        run until msec milliseconds has passed.
+      * @return the number of iterations performed
+      */
+      virtual size_t pbkdf(uint8_t out[], size_t out_len,
+                           const std::string& passphrase,
+                           const uint8_t salt[], size_t salt_len,
+                           size_t iterations,
+                           std::chrono::milliseconds msec) const = 0;
+
+      /**
+      * Derive a key from a passphrase for a number of iterations.
+      *
+      * @param out buffer to store the derived key, must be of out_len bytes
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param iterations the number of iterations to use (use 10K or more)
+      */
+      void pbkdf_iterations(uint8_t out[], size_t out_len,
+                            const std::string& passphrase,
+                            const uint8_t salt[], size_t salt_len,
+                            size_t iterations) const;
+
+      /**
+      * Derive a key from a passphrase, running until msec time has elapsed.
+      *
+      * @param out buffer to store the derived key, must be of out_len bytes
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param msec if iterations is zero, then instead the PBKDF is
+      *        run until msec milliseconds has passed.
+      * @param iterations set to the number iterations executed
+      */
+      void pbkdf_timed(uint8_t out[], size_t out_len,
+                         const std::string& passphrase,
+                         const uint8_t salt[], size_t salt_len,
+                         std::chrono::milliseconds msec,
+                         size_t& iterations) const;
+
+      /**
+      * Derive a key from a passphrase for a number of iterations.
+      *
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param iterations the number of iterations to use (use 10K or more)
+      * @return the derived key
+      */
+      secure_vector<uint8_t> pbkdf_iterations(size_t out_len,
+                                           const std::string& passphrase,
+                                           const uint8_t salt[], size_t salt_len,
+                                           size_t iterations) const;
+
+      /**
+      * Derive a key from a passphrase, running until msec time has elapsed.
+      *
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param msec if iterations is zero, then instead the PBKDF is
+      *        run until msec milliseconds has passed.
+      * @param iterations set to the number iterations executed
+      * @return the derived key
+      */
+      secure_vector<uint8_t> pbkdf_timed(size_t out_len,
+                                      const std::string& passphrase,
+                                      const uint8_t salt[], size_t salt_len,
+                                      std::chrono::milliseconds msec,
+                                      size_t& iterations) const;
+
+      // Following kept for compat with 1.10:
+
+      /**
+      * Derive a key from a passphrase
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param iterations the number of iterations to use (use 10K or more)
+      */
+      OctetString derive_key(size_t out_len,
+                             const std::string& passphrase,
+                             const uint8_t salt[], size_t salt_len,
+                             size_t iterations) const
+         {
+         return pbkdf_iterations(out_len, passphrase, salt, salt_len, iterations);
+         }
+
+      /**
+      * Derive a key from a passphrase
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param iterations the number of iterations to use (use 10K or more)
+      */
+      template<typename Alloc>
+      OctetString derive_key(size_t out_len,
+                             const std::string& passphrase,
+                             const std::vector<uint8_t, Alloc>& salt,
+                             size_t iterations) const
+         {
+         return pbkdf_iterations(out_len, passphrase, salt.data(), salt.size(), iterations);
+         }
+
+      /**
+      * Derive a key from a passphrase
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param msec is how long to run the PBKDF
+      * @param iterations is set to the number of iterations used
+      */
+      OctetString derive_key(size_t out_len,
+                             const std::string& passphrase,
+                             const uint8_t salt[], size_t salt_len,
+                             std::chrono::milliseconds msec,
+                             size_t& iterations) const
+         {
+         return pbkdf_timed(out_len, passphrase, salt, salt_len, msec, iterations);
+         }
+
+      /**
+      * Derive a key from a passphrase using a certain amount of time
+      * @param out_len the desired length of the key to produce
+      * @param passphrase the password to derive the key from
+      * @param salt a randomly chosen salt
+      * @param msec is how long to run the PBKDF
+      * @param iterations is set to the number of iterations used
+      */
+      template<typename Alloc>
+      OctetString derive_key(size_t out_len,
+                             const std::string& passphrase,
+                             const std::vector<uint8_t, Alloc>& salt,
+                             std::chrono::milliseconds msec,
+                             size_t& iterations) const
+         {
+         return pbkdf_timed(out_len, passphrase, salt.data(), salt.size(), msec, iterations);
+         }
+   };
+
+/*
+* Compatibility typedef
+*/
+typedef PBKDF S2K;
+
+/**
+* Password based key derivation function factory method
+* @param algo_spec the name of the desired PBKDF algorithm
+* @param provider the provider to use
+* @return pointer to newly allocated object of that type
+*/
+inline PBKDF* get_pbkdf(const std::string& algo_spec,
+                        const std::string& provider = "")
+   {
+   return PBKDF::create_or_throw(algo_spec, provider).release();
+   }
+
+inline PBKDF* get_s2k(const std::string& algo_spec)
+   {
+   return get_pbkdf(algo_spec);
+   }
+
+
+}
+
+namespace Botan {
+
+/**
+* Base class for password based key derivation functions.
+*
+* Converts a password into a key using a salt and iterated hashing to
+* make brute force attacks harder.
+*/
+class BOTAN_PUBLIC_API(2,8) PasswordHash
+   {
+   public:
+      virtual ~PasswordHash() = default;
+
+      virtual std::string to_string() const = 0;
+
+      /**
+      * Most password hashes have some notion of iterations.
+      */
+      virtual size_t iterations() const = 0;
+
+      /**
+      * Some password hashing algorithms have a parameter which controls how
+      * much memory is used. If not supported by some algorithm, returns 0.
+      */
+      virtual size_t memory_param() const { return 0; }
+
+      /**
+      * Some password hashing algorithms have a parallelism parameter.
+      * If the algorithm does not support this notion, then the
+      * function returns zero. This allows distinguishing between a
+      * password hash which just does not support parallel operation,
+      * vs one that does support parallel operation but which has been
+      * configured to use a single lane.
+      */
+      virtual size_t parallelism() const { return 0; }
+
+      /**
+      * Returns an estimate of the total number of bytes required to perform this
+      * key derivation.
+      *
+      * If this algorithm uses a small and constant amount of memory, with no
+      * effort made towards being memory hard, this function returns 0.
+      */
+      virtual size_t total_memory_usage() const { return 0; }
+
+      /**
+      * Derive a key from a password
+      *
+      * @param out buffer to store the derived key, must be of out_len bytes
+      * @param out_len the desired length of the key to produce
+      * @param password the password to derive the key from
+      * @param password_len the length of password in bytes
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      *
+      * This function is const, but is not thread safe. Different threads should
+      * either use unique objects, or serialize all access.
+      */
+      virtual void derive_key(uint8_t out[], size_t out_len,
+                              const char* password, size_t password_len,
+                              const uint8_t salt[], size_t salt_len) const = 0;
+
+      /**
+      * Derive a key from a password plus additional data and/or a secret key
+      *
+      * Currently this is only supported for Argon2. Using a non-empty AD or key
+      * with other algorithms will cause a Not_Implemented exception.
+      *
+      * @param out buffer to store the derived key, must be of out_len bytes
+      * @param out_len the desired length of the key to produce
+      * @param password the password to derive the key from
+      * @param password_len the length of password in bytes
+      * @param salt a randomly chosen salt
+      * @param salt_len length of salt in bytes
+      * @param ad some additional data
+      * @param ad_len length of ad in bytes
+      * @param key a secret key
+      * @param key_len length of key in bytes
+      *
+      * This function is const, but is not thread safe. Different threads should
+      * either use unique objects, or serialize all access.
+      */
+      virtual void derive_key(uint8_t out[], size_t out_len,
+                              const char* password, size_t password_len,
+                              const uint8_t salt[], size_t salt_len,
+                              const uint8_t ad[], size_t ad_len,
+                              const uint8_t key[], size_t key_len) const;
+   };
+
+class BOTAN_PUBLIC_API(2,8) PasswordHashFamily
+   {
+   public:
+      /**
+      * Create an instance based on a name
+      * If provider is empty then best available is chosen.
+      * @param algo_spec algorithm name
+      * @param provider provider implementation to choose
+      * @return a null pointer if the algo/provider combination cannot be found
+      */
+      static std::unique_ptr<PasswordHashFamily> create(const std::string& algo_spec,
+                                                        const std::string& provider = "");
+
+      /**
+      * Create an instance based on a name, or throw if the
+      * algo/provider combination cannot be found. If provider is
+      * empty then best available is chosen.
+      */
+      static std::unique_ptr<PasswordHashFamily>
+         create_or_throw(const std::string& algo_spec,
+                         const std::string& provider = "");
+
+      /**
+      * @return list of available providers for this algorithm, empty if not available
+      */
+      static std::vector<std::string> providers(const std::string& algo_spec);
+
+      virtual ~PasswordHashFamily() = default;
+
+      /**
+      * @return name of this PasswordHash
+      */
+      virtual std::string name() const = 0;
+
+      /**
+      * Return a new parameter set tuned for this machine
+      * @param output_length how long the output length will be
+      * @param msec the desired execution time in milliseconds
+      *
+      * @param max_memory_usage_mb some password hash functions can use a tunable
+      * amount of memory, in this case max_memory_usage limits the amount of RAM
+      * the returned parameters will require, in mebibytes (2**20 bytes). It may
+      * require some small amount above the request. Set to zero to place no
+      * limit at all.
+      */
+      virtual std::unique_ptr<PasswordHash> tune(size_t output_length,
+                                                 std::chrono::milliseconds msec,
+                                                 size_t max_memory_usage_mb = 0) const = 0;
+
+      /**
+      * Return some default parameter set for this PBKDF that should be good
+      * enough for most users. The value returned may change over time as
+      * processing power and attacks improve.
+      */
+      virtual std::unique_ptr<PasswordHash> default_params() const = 0;
+
+      /**
+      * Return a parameter chosen based on a rough approximation with the
+      * specified iteration count. The exact value this returns for a particular
+      * algorithm may change from over time. Think of it as an alternative to
+      * tune, where time is expressed in terms of PBKDF2 iterations rather than
+      * milliseconds.
+      */
+      virtual std::unique_ptr<PasswordHash> from_iterations(size_t iterations) const = 0;
+
+      /**
+      * Create a password hash using some scheme specific format. Parameters are as follows:
+      * - For PBKDF2, PGP-S2K, and Bcrypt-PBKDF, i1 is iterations
+      * - Scrypt uses N, r, p for i{1-3}
+      * - Argon2 family uses memory (in KB), iterations, and parallelism for i{1-3}
+      *
+      * All unneeded parameters should be set to 0 or left blank.
+      */
+      virtual std::unique_ptr<PasswordHash> from_params(
+         size_t i1,
+         size_t i2 = 0,
+         size_t i3 = 0) const = 0;
+   };
+
+}
+
+BOTAN_FUTURE_INTERNAL_HEADER(pbkdf2.h)
+
+namespace Botan {
+
+BOTAN_PUBLIC_API(2,0) size_t pbkdf2(MessageAuthenticationCode& prf,
+                        uint8_t out[],
+                        size_t out_len,
+                        const std::string& passphrase,
+                        const uint8_t salt[], size_t salt_len,
+                        size_t iterations,
+                        std::chrono::milliseconds msec);
+
+/**
+* Perform PBKDF2. The prf is assumed to be keyed already.
+*/
+BOTAN_PUBLIC_API(2,8) void pbkdf2(MessageAuthenticationCode& prf,
+                                  uint8_t out[], size_t out_len,
+                                  const uint8_t salt[], size_t salt_len,
+                                  size_t iterations);
+
+/**
+* PBKDF2
+*/
+class BOTAN_PUBLIC_API(2,8) PBKDF2 final : public PasswordHash
+   {
+   public:
+      PBKDF2(const MessageAuthenticationCode& prf, size_t iter) :
+         m_prf(prf.new_object()),
+         m_iterations(iter)
+         {}
+
+      PBKDF2(const MessageAuthenticationCode& prf, size_t olen, std::chrono::milliseconds msec);
+
+      size_t iterations() const override { return m_iterations; }
+
+      std::string to_string() const override;
+
+      void derive_key(uint8_t out[], size_t out_len,
+                      const char* password, size_t password_len,
+                      const uint8_t salt[], size_t salt_len) const override;
+   private:
+      std::unique_ptr<MessageAuthenticationCode> m_prf;
+      size_t m_iterations;
+   };
+
+/**
+* Family of PKCS #5 PBKDF2 operations
+*/
+class BOTAN_PUBLIC_API(2,8) PBKDF2_Family final : public PasswordHashFamily
+   {
+   public:
+      PBKDF2_Family(MessageAuthenticationCode* prf) : m_prf(prf) {}
+
+      std::string name() const override;
+
+      std::unique_ptr<PasswordHash> tune(size_t output_len,
+                                         std::chrono::milliseconds msec,
+                                         size_t max_memory) const override;
+
+      /**
+      * Return some default parameter set for this PBKDF that should be good
+      * enough for most users. The value returned may change over time as
+      * processing power and attacks improve.
+      */
+      std::unique_ptr<PasswordHash> default_params() const override;
+
+      std::unique_ptr<PasswordHash> from_iterations(size_t iter) const override;
+
+      std::unique_ptr<PasswordHash> from_params(
+         size_t iter, size_t, size_t) const override;
+   private:
+      std::unique_ptr<MessageAuthenticationCode> m_prf;
+   };
+
+/**
+* PKCS #5 PBKDF2 (old interface)
+*/
+class BOTAN_PUBLIC_API(2,0) PKCS5_PBKDF2 final : public PBKDF
+   {
+   public:
+      std::string name() const override;
+
+      std::unique_ptr<PBKDF> new_object() const override;
+
+      size_t pbkdf(uint8_t output_buf[], size_t output_len,
+                   const std::string& passphrase,
+                   const uint8_t salt[], size_t salt_len,
+                   size_t iterations,
+                   std::chrono::milliseconds msec) const override;
+
+      /**
+      * Create a PKCS #5 instance using the specified message auth code
+      * @param mac_fn the MAC object to use as PRF
+      */
+      explicit PKCS5_PBKDF2(MessageAuthenticationCode* mac_fn) : m_mac(mac_fn) {}
+   private:
+      std::unique_ptr<MessageAuthenticationCode> m_mac;
+   };
 
 }
 
