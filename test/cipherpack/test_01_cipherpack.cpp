@@ -230,8 +230,8 @@ class Test01Cipherpack : public TestData {
                                                                      sign_sec_key1_fname, sign_sec_key_passphrase,
                                                                      source, fname_payload_lst[file_idx], "test_case", payload_version, payload_version_parent,
                                                                      silentListener, fname_payload_encrypted_lst[file_idx]);
-            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: Encrypted %s to %s\n", fname_payload_lst[file_idx].c_str(), fname_payload_encrypted_lst[file_idx].c_str());
-            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: %s\n", ph1.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "test11_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst[file_idx].c_str(), fname_payload_encrypted_lst[file_idx].c_str());
+            jau::PLAIN_PRINT(true, "test11_dec_http_ok: %s\n", ph1.toString(true, true).c_str());
             REQUIRE( ph1.isValid() == true );
 
             const std::string uri_encrypted = url_input_root + fname_payload_encrypted_lst[file_idx];
@@ -278,8 +278,8 @@ class Test01Cipherpack : public TestData {
                                                                      sign_sec_key1_fname, sign_sec_key_passphrase,
                                                                      source, fname_payload_lst[file_idx], "test_case", payload_version, payload_version_parent,
                                                                      silentListener, fname_payload_encrypted_lst[file_idx]);
-            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: Encrypted %s to %s\n", fname_payload_lst[file_idx].c_str(), fname_payload_encrypted_lst[file_idx].c_str());
-            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: %s\n", ph1.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "test12_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst[file_idx].c_str(), fname_payload_encrypted_lst[file_idx].c_str());
+            jau::PLAIN_PRINT(true, "test12_dec_http_ok: %s\n", ph1.toString(true, true).c_str());
             REQUIRE( ph1.isValid() == true );
 
             const std::string uri_encrypted = url_input_root + fname_payload_encrypted_lst[file_idx];
@@ -308,8 +308,8 @@ class Test01Cipherpack : public TestData {
                                                                      sign_sec_key1_fname, sign_sec_key_passphrase,
                                                                      source, fname_payload_lst[file_idx], "test_case", payload_version, payload_version_parent,
                                                                      silentListener, fname_payload_encrypted_lst[file_idx]);
-            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: Encrypted %s to %s\n", fname_payload_lst[file_idx].c_str(), fname_payload_encrypted_lst[file_idx].c_str());
-            jau::PLAIN_PRINT(true, "test02_enc_dec_file_error: %s\n", ph1.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "test13_dec_http_error: Encrypted %s to %s\n", fname_payload_lst[file_idx].c_str(), fname_payload_encrypted_lst[file_idx].c_str());
+            jau::PLAIN_PRINT(true, "test13_dec_http_error: %s\n", ph1.toString(true, true).c_str());
             REQUIRE( ph1.isValid() == true );
 
             const std::string uri_encrypted = url_input_root + fname_payload_encrypted_lst[file_idx];
@@ -322,8 +322,8 @@ class Test01Cipherpack : public TestData {
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
                                                                               silentListener, file_decrypted);
-                jau::PLAIN_PRINT(true, "test12_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test12_dec_http_error: %s\n", ph2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test13_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test13_dec_http_error: %s\n", ph2.toString(true, true).c_str());
                 REQUIRE( ph2.isValid() == false );
             }
             {
@@ -333,8 +333,8 @@ class Test01Cipherpack : public TestData {
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys_nope, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
                                                                               silentListener, file_decrypted);
-                jau::PLAIN_PRINT(true, "test12_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test12_dec_http_error: %s\n", ph2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test13_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test13_dec_http_error: %s\n", ph2.toString(true, true).c_str());
                 REQUIRE( ph2.isValid() == false );
             }
             {
@@ -344,8 +344,8 @@ class Test01Cipherpack : public TestData {
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
                                                                               silentListener, file_decrypted);
-                jau::PLAIN_PRINT(true, "test12_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
-                jau::PLAIN_PRINT(true, "test12_dec_http_error: %s\n", ph2.toString(true, true).c_str());
+                jau::PLAIN_PRINT(true, "test13_dec_http_error: Decypted %s to %s\n", uri_encrypted.c_str(), file_decrypted.c_str());
+                jau::PLAIN_PRINT(true, "test13_dec_http_error: %s\n", ph2.toString(true, true).c_str());
                 REQUIRE( ph2.isValid() == false );
             }
         }
