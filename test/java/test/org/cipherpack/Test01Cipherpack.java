@@ -37,13 +37,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.cipherpack.ByteInStream_Feed;
 import org.cipherpack.CPFactory;
 import org.cipherpack.CPUtils;
 import org.cipherpack.Cipherpack;
 import org.cipherpack.CipherpackListener;
 import org.cipherpack.CryptoConfig;
 import org.cipherpack.PackHeader;
+import org.jau.nio.ByteInStream_Feed;
+import org.jau.nio.ByteInStream_File;
+import org.jau.nio.ByteInStream_URL;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.FixMethodOrder;
@@ -164,20 +166,20 @@ public class Test01Cipherpack extends data_test {
         final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
         {
             final int file_idx = IDX_11kiB;
-            final String source_loc = fname_payload_lst.get(file_idx);
+            final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
             final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                               enc_pub_keys,
                                                               sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                              source_loc, io_timeout,
+                                                              source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
-            final String enc_stream_loc = fname_payload_encrypted_lst.get(file_idx);
+            final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
-                                                                   enc_stream_loc, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
@@ -185,20 +187,20 @@ public class Test01Cipherpack extends data_test {
         }
         {
             final int file_idx = IDX_65MiB;
-            final String source_loc = fname_payload_lst.get(file_idx);
+            final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
             final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                               enc_pub_keys,
                                                               sign_sec_key2_fname, sign_sec_key_passphrase,
-                                                              source_loc, io_timeout,
+                                                              source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
-            final String enc_stream_loc = fname_payload_encrypted_lst.get(file_idx);
+            final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
-                                                                   enc_stream_loc, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
@@ -206,20 +208,20 @@ public class Test01Cipherpack extends data_test {
         }
         {
             final int file_idx = IDX_11kiB;
-            final String source_loc = fname_payload_lst.get(file_idx);
+            final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
             final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                               enc_pub_keys,
                                                               sign_sec_key3_fname, sign_sec_key_passphrase,
-                                                              source_loc, io_timeout,
+                                                              source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
-            final String enc_stream_loc = fname_payload_encrypted_lst.get(file_idx);
+            final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
-                                                                   enc_stream_loc, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
@@ -233,11 +235,11 @@ public class Test01Cipherpack extends data_test {
 
         final int file_idx = IDX_11kiB;
         final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
-        final String source_loc = fname_payload_lst.get(file_idx);
+        final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
         final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                           enc_pub_keys,
                                                           sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                          source_loc, io_timeout,
+                                                          source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
         CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
@@ -247,9 +249,9 @@ public class Test01Cipherpack extends data_test {
         {
             // Error: Not encrypted for terminal key 4
             final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
-            final String enc_stream_loc = fname_payload_encrypted_lst.get(file_idx);
+            final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
-                                                                   enc_stream_loc, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph2.toString(true, true));
@@ -258,9 +260,9 @@ public class Test01Cipherpack extends data_test {
         {
             // Error: Not signed from host key 4
             final List<String> sign_pub_keys_nope = Arrays.asList(sign_pub_key4_fname);
-            final String enc_stream_loc = fname_payload_encrypted_lst.get(file_idx);
+            final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys_nope, dec_sec_key3_fname, dec_sec_key_passphrase,
-                                                                   enc_stream_loc, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph2.toString(true, true));
@@ -275,11 +277,11 @@ public class Test01Cipherpack extends data_test {
 
         final int file_idx = IDX_11kiB;
         final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
-        final String source_loc = fname_payload_lst.get(file_idx);
+        final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
         final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                           enc_pub_keys,
                                                           sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                          source_loc, io_timeout,
+                                                          source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
         CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
@@ -291,24 +293,27 @@ public class Test01Cipherpack extends data_test {
 
         final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
         {
+            final ByteInStream_URL enc_stream = new ByteInStream_URL(uri_encrypted, io_timeout);
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
-                                                                   uri_encrypted, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, file_decrypted);
             CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
         {
+            final ByteInStream_URL enc_stream = new ByteInStream_URL(uri_encrypted, io_timeout);
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
-                                                                   uri_encrypted, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, file_decrypted);
             CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
         {
+            final ByteInStream_URL enc_stream = new ByteInStream_URL(uri_encrypted, io_timeout);
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
-                                                                   uri_encrypted, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, file_decrypted);
             CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
@@ -323,11 +328,11 @@ public class Test01Cipherpack extends data_test {
 
         final int file_idx = IDX_65MiB;
         final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
-        final String source_loc = fname_payload_lst.get(file_idx);
+        final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
         final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                           enc_pub_keys,
                                                           sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                          source_loc, io_timeout,
+                                                          source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
         CPUtils.fprintf_td(System.err, "test12_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
@@ -339,8 +344,9 @@ public class Test01Cipherpack extends data_test {
 
         final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
         {
+            final ByteInStream_URL enc_stream = new ByteInStream_URL(uri_encrypted, io_timeout);
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
-                                                                   uri_encrypted, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, file_decrypted);
             CPUtils.fprintf_td(System.err, "test12_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test12_dec_http_ok: %s\n", ph2.toString(true, true));
@@ -355,11 +361,11 @@ public class Test01Cipherpack extends data_test {
 
         final int file_idx = IDX_11kiB;
         final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
-        final String source_loc = fname_payload_lst.get(file_idx);
+        final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
         final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                           enc_pub_keys,
                                                           sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                          source_loc, io_timeout,
+                                                          source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
         CPUtils.fprintf_td(System.err, "test13_dec_http_error: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
@@ -372,8 +378,9 @@ public class Test01Cipherpack extends data_test {
         final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
         {
             // Error: Not encrypted for terminal key 4
+            final ByteInStream_URL enc_stream = new ByteInStream_URL(uri_encrypted, io_timeout);
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
-                                                                   uri_encrypted, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, file_decrypted);
             CPUtils.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
@@ -382,8 +389,9 @@ public class Test01Cipherpack extends data_test {
         {
             // Error: Not signed from host key 4
             final List<String> sign_pub_keys_nope = Arrays.asList( sign_pub_key4_fname );
+            final ByteInStream_URL enc_stream = new ByteInStream_URL(uri_encrypted, io_timeout);
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys_nope, dec_sec_key1_fname, dec_sec_key_passphrase,
-                                                                   uri_encrypted, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, file_decrypted);
             CPUtils.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
@@ -392,8 +400,9 @@ public class Test01Cipherpack extends data_test {
         {
             // Error: URL file doesn't exist
             final String uri_encrypted_err = url_input_root + "doesnt_exists.enc";
+            final ByteInStream_URL enc_stream = new ByteInStream_URL(uri_encrypted_err, io_timeout);
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
-                                                                   uri_encrypted_err, io_timeout,
+                                                                   enc_stream,
                                                                    silentListener, file_decrypted);
             CPUtils.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
@@ -410,7 +419,7 @@ public class Test01Cipherpack extends data_test {
 
     // throttled, no content size, interruptReader() via set_eof() will avoid timeout
     static void feed_source_00(final ByteInStream_Feed enc_feed) {
-        long xfer_total = 0;
+        // long xfer_total = 0;
         final File enc_stream = new File(enc_feed.id());
         Assert.assertTrue( enc_stream.exists() );
 
@@ -421,7 +430,7 @@ public class Test01Cipherpack extends data_test {
                 final byte[] buffer = new byte[1024]; // 1k
                 final int count = in.read(buffer);
                 if( 0 < count ) {
-                    xfer_total += count;
+                    // xfer_total += count;
                     enc_feed.write(buffer, 0, count);
                     try { Thread.sleep( 16 ); } catch(final Throwable t) {}
                 }
@@ -564,11 +573,11 @@ public class Test01Cipherpack extends data_test {
         final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
         {
             final int file_idx = IDX_11kiB;
-            final String source_loc = fname_payload_lst.get(file_idx);
+            final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
             final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                               enc_pub_keys,
                                                               sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                              source_loc, io_timeout,
+                                                              source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
@@ -611,11 +620,11 @@ public class Test01Cipherpack extends data_test {
         }
         {
             final int file_idx = IDX_65MiB;
-            final String source_loc = fname_payload_lst.get(file_idx);
+            final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
             final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                               enc_pub_keys,
                                                               sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                              source_loc, io_timeout,
+                                                              source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
@@ -649,11 +658,11 @@ public class Test01Cipherpack extends data_test {
         final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
         {
             final int file_idx = IDX_65MiB;
-            final String source_loc = fname_payload_lst.get(file_idx);
+            final ByteInStream_File source = new ByteInStream_File(fname_payload_lst.get(file_idx));
             final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
                                                               enc_pub_keys,
                                                               sign_sec_key1_fname, sign_sec_key_passphrase,
-                                                              source_loc, io_timeout,
+                                                              source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
             CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));

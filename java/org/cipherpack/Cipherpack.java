@@ -26,6 +26,9 @@ package org.cipherpack;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import org.jau.nio.ByteInStream;
+import org.jau.nio.ByteInStream_Feed;
+
 /**
  * @anchor cipherpack_overview
  * ### Cipherpack Overview
@@ -119,7 +122,7 @@ public final class Cipherpack {
      * @param enc_pub_keys           Public keys of the receiver, used to encrypt the symmetric-key for multiple parties.
      * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
      * @param passphrase             Passphrase for `sign_sec_key_fname`, may be null or empty for no passphrase.
-     * @param source_feed            The source ByteInStream_Feed of the cipherpack containing the encrypted payload.
+     * @param source                 The source ByteInStream of the cipherpack containing the encrypted payload.
      * @param target_path            Designated target path for the message
      * @param subject                Designated subject of payload from sender
      * @param payload_version        Version of this message's payload
@@ -132,13 +135,15 @@ public final class Cipherpack {
      * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see checkSignThenDecrypt()
-     * @see ByteInStream_Feed
      * @see CipherpackListener
+     * @see ByteInStream_Feed
+     * @see ByteInStream_URL
+     * @see ByteInStream
      */
     public static PackHeader encryptThenSign(final CryptoConfig crypto_cfg,
                                              final List<String> enc_pub_keys,
                                              final String sign_sec_key_fname, final ByteBuffer passphrase,
-                                             final ByteInStream_Feed source_feed,
+                                             final ByteInStream source,
                                              final String target_path, final String subject,
                                              final String payload_version,
                                              final String payload_version_parent,
@@ -146,7 +151,7 @@ public final class Cipherpack {
         return encryptThenSignImpl1(crypto_cfg,
                                     enc_pub_keys,
                                     sign_sec_key_fname, passphrase,
-                                    source_feed,
+                                    source,
                                     target_path, subject,
                                     payload_version,
                                     payload_version_parent,
@@ -156,60 +161,12 @@ public final class Cipherpack {
                                                           final List<String> enc_pub_keys,
                                                           final String sign_sec_key_fname,
                                                           final ByteBuffer passphrase,
-                                                          final ByteInStream_Feed source_feed,
+                                                          final ByteInStream source,
                                                           final String target_path, final String subject,
                                                           final String payload_version,
                                                           final String payload_version_parent,
                                                           final CipherpackListener listener, final String destination_fname);
 
-    /**
-     * Encrypt then sign the source producing a cipherpack stream passed to the CipherpackListener if opt-in and also optionally store into destination_fname.
-     *
-     * @param crypto_cfg             Used CryptoConfig, consider using CryptoConfig::getDefault()
-     * @param enc_pub_keys           Public keys of the receiver, used to encrypt the symmetric-key for multiple parties.
-     * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
-     * @param passphrase             Passphrase for `sign_sec_key_fname`, may be null or empty for no passphrase.
-     * @param source_loc             The source location of the cipherpack containing the encrypted payload, either a filename or a URL.
-     * @param source_timeout_ms      The timeout in milliseconds for waiting on new bytes from source, e.g. if location is a URL
-     * @param target_path            Designated target path for the message
-     * @param subject                Designated subject of payload from sender
-     * @param payload_version        Version of this message's payload
-     * @param payload_version_parent Version of the parent's message payload
-     * @param listener               CipherpackListener listener used for notifications and optionally
-     *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
-     * @param destination_fname      Optional filename of the plaintext destination file, not used if null or empty (default). If not empty and file already exists, file will be overwritten.
-     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
-     *
-     * @see @ref cipherpack_overview "Cipherpack Overview"
-     * @see @ref cipherpack_stream "Cipherpack Data Stream"
-     * @see checkSignThenDecrypt()
-     * @see CipherpackListener
-     */
-    public static PackHeader encryptThenSign(final CryptoConfig crypto_cfg,
-                                             final List<String> enc_pub_keys,
-                                             final String sign_sec_key_fname, final ByteBuffer passphrase,
-                                             final String source_loc, final long source_timeout_ms,
-                                             final String target_path, final String subject,
-                                             final String payload_version,
-                                             final String payload_version_parent,
-                                             final CipherpackListener listener, final String destination_fname) {
-        return encryptThenSignImpl2(crypto_cfg,
-                                    enc_pub_keys,
-                                    sign_sec_key_fname, passphrase,
-                                    source_loc, source_timeout_ms,
-                                    target_path, subject,
-                                    payload_version,
-                                    payload_version_parent,
-                                    listener, destination_fname);
-    }
-    private static native PackHeader encryptThenSignImpl2(final CryptoConfig crypto_cfg,
-                                                          final List<String> enc_pub_keys,
-                                                          final String sign_sec_key_fname, final ByteBuffer passphrase,
-                                                          final String source_loc, final long source_timeout_ms,
-                                                          final String target_path, final String subject,
-                                                          final String payload_version,
-                                                          final String payload_version_parent,
-                                                          final CipherpackListener listener, final String destination_fname);
 
     /**
      * Verify signature then decrypt the source passing to the CipherpackListener if opt-in and also optionally store into destination file.
@@ -219,7 +176,7 @@ public final class Cipherpack {
      * @param dec_sec_key_fname  Private key of the receiver, used to decrypt the symmetric-key.
      *                           It shall match one of the keys used to encrypt.
      * @param passphrase         The passphrase for `dec_sec_key_fname`, may be null or empty for no passphrase.
-     * @param source_feed        The source ByteInStream_Feed of the cipherpack containing the encrypted payload.
+     * @param source             The source ByteInStream of the cipherpack containing the encrypted payload.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
      * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
@@ -228,54 +185,22 @@ public final class Cipherpack {
      * @see @ref cipherpack_overview "Cipherpack Overview"
      * @see @ref cipherpack_stream "Cipherpack Data Stream"
      * @see encryptThenSign()
-     * @see ByteInStream_Feed
      * @see CipherpackListener
+     * @see ByteInStream_Feed
+     * @see ByteInStream_URL
+     * @see ByteInStream
      */
     public static PackHeader checkSignThenDecrypt(final List<String> sign_pub_keys,
                                                   final String dec_sec_key_fname, final ByteBuffer passphrase,
-                                                  final ByteInStream_Feed source_feed,
+                                                  final ByteInStream source,
                                                   final CipherpackListener listener, final String destination_fname) {
         return checkSignThenDecrypt1(sign_pub_keys,
                                      dec_sec_key_fname, passphrase,
-                                     source_feed,
+                                     source,
                                      listener, destination_fname);
     }
     private static native PackHeader checkSignThenDecrypt1(final List<String> sign_pub_keys,
                                                            final String dec_sec_key_fname, final ByteBuffer passphrase,
-                                                           final ByteInStream_Feed source_feed,
-                                                           final CipherpackListener listener, final String destination_fname);
-
-    /**
-     * Verify signature then decrypt the source passing to the CipherpackListener if opt-in and also optionally store into destination file.
-     *
-     * @param sign_pub_keys      Authorized sender public-keys to verify the sender's signature
-     *                           and hence the authenticity of the message incl. encrypted symmetric-key and payload.
-     * @param dec_sec_key_fname  Private key of the receiver, used to decrypt the symmetric-key.
-     *                           It shall match one of the keys used to encrypt.
-     * @param passphrase         The passphrase for `dec_sec_key_fname`, may be null or empty for no passphrase.
-     * @param source_loc         The source location of the cipherpack containing the encrypted payload, either a filename or a URL.
-     * @param source_timeout_ms  The timeout in milliseconds for waiting on new bytes from source, e.g. if location is a URL
-     * @param listener           The CipherpackListener listener used for notifications and optionally
-     *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
-     * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
-     * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
-     *
-     * @see @ref cipherpack_overview "Cipherpack Overview"
-     * @see @ref cipherpack_stream "Cipherpack Data Stream"
-     * @see encryptThenSign()
-     * @see CipherpackListener
-     */
-    public static PackHeader checkSignThenDecrypt(final List<String> sign_pub_keys,
-                                                  final String dec_sec_key_fname, final ByteBuffer passphrase,
-                                                  final String source_loc, final long source_timeout_ms,
-                                                  final CipherpackListener listener, final String destination_fname) {
-        return checkSignThenDecrypt2(sign_pub_keys,
-                                     dec_sec_key_fname, passphrase,
-                                     source_loc, source_timeout_ms,
-                                     listener, destination_fname);
-    }
-    private static native PackHeader checkSignThenDecrypt2(final List<String> sign_pub_keys,
-                                                           final String dec_sec_key_fname, final ByteBuffer passphrase,
-                                                           final String source_loc, final long source_timeout_ms,
+                                                           final ByteInStream source,
                                                            final CipherpackListener listener, final String destination_fname);
 }

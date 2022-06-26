@@ -9,6 +9,11 @@ file(GLOB_RECURSE JAVA_SOURCES "*.java")
 add_jar(cipherpack_jar 
         ${JAVA_SOURCES}
         ${PROJECT_SOURCE_DIR}/jaulib/java_base/org/jau/util/BasicTypes.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/nio/ByteInStream.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/nio/ByteInStream_File.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/nio/ByteInStream_URL.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/nio/ByteInStream_Feed.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/nio/Uri.java
         INCLUDE_JARS ${jaulib_fat_jar_file}
         MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/manifest.txt
         OUTPUT_NAME cipherpack

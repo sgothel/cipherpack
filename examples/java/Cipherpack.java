@@ -31,6 +31,7 @@ import org.cipherpack.CPUtils;
 import org.cipherpack.CipherpackListener;
 import org.cipherpack.CryptoConfig;
 import org.cipherpack.PackHeader;
+import org.jau.nio.ByteInStream;
 
 public class Cipherpack {
 
@@ -68,13 +69,12 @@ public class Cipherpack {
             return;
         }
         final String command = args[++argi];
-        final long source_timeout_ms = 10000;
 
         if( command.equals( "pack" ) ) {
             final List<String> enc_pub_keys = new ArrayList<String>();
             String sign_sec_key_fname = new String();
             final ByteBuffer sign_sec_key_passphrase = null;
-            String source_loc = new String();
+            String source_name = new String();
             String target_path = new String();
             String intention = new String();
             String payload_version = "0";
@@ -91,7 +91,7 @@ public class Cipherpack {
                     // FIXME
                     // sign_sec_key_passphrase = args[++i];
                 } else if( arg.equals("-in") ) {
-                    source_loc = args[++i];
+                    source_name = args[++i];
                 } else if( arg.equals("-target_path") ) {
                     target_path = args[++i];
                 } else if( arg.equals("-intention") ) {
@@ -106,7 +106,7 @@ public class Cipherpack {
             }
             if( 0 == enc_pub_keys.size() ||
                 sign_sec_key_fname.isEmpty() ||
-                source_loc.isEmpty() ||
+                source_name.isEmpty() ||
                 target_path.isEmpty() ||
                 fname_output.isEmpty() )
             {
@@ -115,15 +115,16 @@ public class Cipherpack {
                 return;
             }
 
+            final ByteInStream source = ByteInStream.create(source_name); // 20_s default
             final PackHeader ph = org.cipherpack.Cipherpack.encryptThenSign(
                                                 CryptoConfig.getDefault(),
                                                 enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
-                                                source_loc, source_timeout_ms,
+                                                source,
                                                 target_path, intention,
                                                 payload_version, payload_version_parent,
                                                 new CipherpackListener(), fname_output);
 
-            CPUtils.fprintf_td(System.err, "Pack: Encrypted %s to %s\n", source_loc, fname_output);
+            CPUtils.fprintf_td(System.err, "Pack: Encrypted %s to %s\n", source_name, fname_output);
             CPUtils.fprintf_td(System.err, "Pack: %s\n", ph.toString(true, true));
             return;
         }
@@ -131,7 +132,7 @@ public class Cipherpack {
             final List<String> sign_pub_keys = new ArrayList<String>();
             String dec_sec_key_fname = new String();
             final ByteBuffer dec_sec_key_passphrase = null;
-            String source_loc = new String();
+            String source_name = new String();
             String fname_output = new String();
             for(int i=argi; i + 1 < argc; ++i) {
                 final String arg = args[i];
@@ -144,14 +145,14 @@ public class Cipherpack {
                     // FIXME
                     // dec_sec_key_passphrase = args[++i];
                 } else if( arg.equals("-in") ) {
-                    source_loc = args[++i];
+                    source_name = args[++i];
                 } else if( arg.equals("-out") ) {
                     fname_output = args[++i];
                 }
             }
             if( 0 == sign_pub_keys.size() ||
                 dec_sec_key_fname.isEmpty() ||
-                source_loc.isEmpty() ||
+                source_name.isEmpty() ||
                 fname_output.isEmpty() )
             {
                 CPUtils.fprintf_td(System.err, "Unpack: Error: Arguments incomplete\n");
@@ -159,13 +160,14 @@ public class Cipherpack {
                 return;
             }
 
+            final ByteInStream source = ByteInStream.create(source_name); // 20_s default
             final PackHeader ph = org.cipherpack.Cipherpack.checkSignThenDecrypt(
                                         sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
-                                        source_loc, source_timeout_ms,
+                                        source,
                                         new CipherpackListener(), fname_output);
 
             // dec_sec_key_passphrase.resize(0);
-            CPUtils.fprintf_td(System.err, "Unpack: Decypted %s to %s\n", source_loc, fname_output);
+            CPUtils.fprintf_td(System.err, "Unpack: Decypted %s to %s\n", source_name, fname_output);
             CPUtils.fprintf_td(System.err, "Unpack: %s\n", ph.toString(true, true));
             return;
         }
