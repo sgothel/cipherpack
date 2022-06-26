@@ -109,14 +109,34 @@ Building debug build:
 -DDEBUG=ON
 ~~~~~~~~~~~~~
 
+Add unit tests to build (default: disabled)
+~~~~~~~~~~~~~
+-DBUILD_TESTING=ON
+~~~~~~~~~~~~~
+
+Add unit tests requiring `sudo` to build (default: disabled).<br />
+This option requires `-DBUILD_TESTING=ON` to be effective.<br />
+Covered unit test requiring `sudo` are currently 
+- `Linux` OS
+  - `jau::fs::mount_image()`
+  - `jau::fs::umount()`
+~~~~~~~~~~~~~
+-DTEST_WITH_SUDO=ON
+~~~~~~~~~~~~~
+
 Disable stripping native lib even in non debug build:
 ~~~~~~~~~~~~~
 -DUSE_STRIP=OFF
 ~~~~~~~~~~~~~
 
-Disable using `libunwind` (default: enabled for all but `arm32`, `armhf`)
+Enable using `libcurl` (default: disabled)
 ~~~~~~~~~~~~~
--DUSE_LIBUNWIND=OFF
+-DUSE_LIBCURL=ON
+~~~~~~~~~~~~~
+
+Enable using `libunwind` (default: disabled)
+~~~~~~~~~~~~~
+-DUSE_LIBUNWIND=ON
 ~~~~~~~~~~~~~
 
 Disable using `C++ Runtime Type Information` (*RTTI*) (default: enabled)
