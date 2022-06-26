@@ -63,9 +63,9 @@ class Test01Cipherpack : public TestData {
         class data {
             private:
                 static void add_test_file(const std::string name, const size_t size) {
-                    jau::fs::remove(name, false /* recursive */);
-                    jau::fs::remove(name+".enc", false /* recursive */);
-                    jau::fs::remove(name+".enc.dec", false /* recursive */);
+                    jau::fs::remove(name);
+                    jau::fs::remove(name+".enc");
+                    jau::fs::remove(name+".enc.dec");
                     {
                         static const std::string one_line = "Hello World, this is a test and I like it. Exactly 100 characters long. 0123456780 abcdefghjklmnop..";
                         std::ofstream ofs(name, std::ios::out | std::ios::binary);

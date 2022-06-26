@@ -438,7 +438,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         const jau::fs::file_stats output_stats(destination_fname);
         if( output_stats.exists() ) {
             if( output_stats.is_file() ) {
-                if( !jau::fs::remove(destination_fname, false /* recursive */) ) {
+                if( !jau::fs::remove(destination_fname) ) {
                     ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
@@ -468,7 +468,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                          my_listener);
     if ( outfile.fail() ) {
         ERR_PRINT2("Encrypt failed: Output file write failed %s", destination_fname.c_str());
-        jau::fs::remove(destination_fname, false /* recursive */);
+        jau::fs::remove(destination_fname);
         ph.setValid(false);
         my_listener->notifyEnd(decrypt_mode, ph, false);
         return header;
@@ -476,7 +476,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
     outfile.close();
 
     if( !ph.isValid() ) {
-        jau::fs::remove(destination_fname, false /* recursive */);
+        jau::fs::remove(destination_fname);
         my_listener->notifyEnd(decrypt_mode, ph, false);
         return header;
     }
@@ -487,7 +487,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                 jau::to_decstring(out_bytes_header).c_str(),
                 jau::to_decstring(out_bytes_payload).c_str(),
                 jau::to_decstring(output_stats.size()).c_str());
-        jau::fs::remove(destination_fname, false /* recursive */);
+        jau::fs::remove(destination_fname);
         ph.setValid(false);
         my_listener->notifyEnd(decrypt_mode, ph, false);
         return header;
@@ -942,7 +942,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         const jau::fs::file_stats output_stats(destination_fname);
         if( output_stats.exists() ) {
             if( output_stats.is_file() ) {
-                if( !jau::fs::remove(destination_fname, false /* recursive */) ) {
+                if( !jau::fs::remove(destination_fname) ) {
                     ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
@@ -967,7 +967,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                                               source, my_listener);
     if ( outfile.fail() ) {
         ERR_PRINT2("Decrypt failed: Output file write failed %s", destination_fname.c_str());
-        jau::fs::remove(destination_fname, false /* recursive */);
+        jau::fs::remove(destination_fname);
         ph.setValid(false);
         my_listener->notifyEnd(decrypt_mode, ph, false);
         return ph;
@@ -975,7 +975,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     outfile.close();
 
     if( !ph.isValid() ) {
-        jau::fs::remove(destination_fname, false /* recursive */);
+        jau::fs::remove(destination_fname);
         my_listener->notifyEnd(decrypt_mode, ph, false);
         return ph;
     }
@@ -985,7 +985,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         ERR_PRINT2("Decrypt: Writing done, %s content_size != %s total bytes",
                 jau::to_decstring(ph.getContentSize()).c_str(),
                 jau::to_decstring(output_stats.size()).c_str());
-        jau::fs::remove(destination_fname, false /* recursive */);
+        jau::fs::remove(destination_fname);
         ph.setValid(false);
         my_listener->notifyEnd(decrypt_mode, ph, false);
         return ph;
