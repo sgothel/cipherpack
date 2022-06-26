@@ -220,6 +220,10 @@ class Test01Cipherpack : public TestData {
         }
 
         void test11_dec_http_ok() {
+            if( !jau::io::uri::protocol_supported("http") ) {
+                jau::PLAIN_PRINT(true, "http not supported, abort\n");
+                return;
+            }
             httpd_start();
 
             const size_t file_idx = IDX_11kiB;
@@ -268,6 +272,10 @@ class Test01Cipherpack : public TestData {
         }
 
         void test12_dec_http_ok() {
+            if( !jau::io::uri::protocol_supported("http") ) {
+                jau::PLAIN_PRINT(true, "http not supported, abort\n");
+                return;
+            }
             httpd_start();
 
             const size_t file_idx = IDX_65MiB;
@@ -298,6 +306,10 @@ class Test01Cipherpack : public TestData {
         }
 
         void test13_dec_http_error() {
+            if( !jau::io::uri::protocol_supported("http") ) {
+                jau::PLAIN_PRINT(true, "http not supported, abort\n");
+                return;
+            }
             httpd_start();
 
             const size_t file_idx = IDX_11kiB;

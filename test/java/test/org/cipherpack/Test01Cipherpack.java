@@ -273,6 +273,10 @@ public class Test01Cipherpack extends data_test {
     @Test(timeout = 10000)
     public final void test11_dec_http_ok() {
         CPFactory.checkInitialized();
+        if( !org.jau.nio.Uri.protocol_supported("http") ) {
+            CPUtils.fprintf_td(System.err, "http not supported, abort\n");
+            return;
+        }
         httpd_start();
 
         final int file_idx = IDX_11kiB;
@@ -324,6 +328,10 @@ public class Test01Cipherpack extends data_test {
     @Test(timeout = 10000)
     public final void test12_dec_http_ok() {
         CPFactory.checkInitialized();
+        if( !org.jau.nio.Uri.protocol_supported("http") ) {
+            CPUtils.fprintf_td(System.err, "http not supported, abort\n");
+            return;
+        }
         httpd_start();
 
         final int file_idx = IDX_65MiB;
@@ -357,6 +365,10 @@ public class Test01Cipherpack extends data_test {
     @Test(timeout = 10000)
     public final void test13_dec_http_error() {
         CPFactory.checkInitialized();
+        if( !org.jau.nio.Uri.protocol_supported("http") ) {
+            CPUtils.fprintf_td(System.err, "http not supported, abort\n");
+            return;
+        }
         httpd_start();
 
         final int file_idx = IDX_11kiB;
