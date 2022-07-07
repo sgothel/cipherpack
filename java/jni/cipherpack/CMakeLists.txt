@@ -22,16 +22,18 @@ include_directories(
 set (cipherpack_JNI_SRCS
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jni_mem.cxx
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/helper_jni.cxx
+  ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/jau_fs_FileUtil.cxx
+  ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/jau_io_MemUtil.cxx
+  ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/jau_io_UriTk.cxx
+  ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/jau_sys_Clock.cxx
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/ByteInStream_File.cxx
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/ByteInStream_URL.cxx
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/ByteInStream_Feed.cxx
-  ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/jau_nio_uri.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/helper_base.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/Cipherpack.cxx        
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CipherpackListener.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CPFactory.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CPNativeDownlink.cxx   
-  ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CPUtils.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CipherpackHelper.cxx
 )
 

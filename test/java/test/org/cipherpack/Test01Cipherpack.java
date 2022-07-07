@@ -38,14 +38,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.cipherpack.CPFactory;
-import org.cipherpack.CPUtils;
 import org.cipherpack.Cipherpack;
 import org.cipherpack.CipherpackListener;
 import org.cipherpack.CryptoConfig;
 import org.cipherpack.PackHeader;
-import org.jau.nio.ByteInStream_Feed;
-import org.jau.nio.ByteInStream_File;
-import org.jau.nio.ByteInStream_URL;
+import org.jau.io.ByteInStream_Feed;
+import org.jau.io.ByteInStream_File;
+import org.jau.io.ByteInStream_URL;
+import org.jau.io.PrintUtil;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.FixMethodOrder;
@@ -70,13 +70,13 @@ public class Test01Cipherpack extends data_test {
             try {
                 if( file.exists() ) {
                     if( !file.delete() ) {
-                        CPUtils.println(System.err, "Remove.1: Failed deletion of existing file "+name);
+                        PrintUtil.println(System.err, "Remove.1: Failed deletion of existing file "+name);
                         return false;
                     }
                 }
                 return true;
             } catch (final Exception ex) {
-                CPUtils.println(System.err, "Remove.2: Failed deletion of existing file "+name+": "+ex.getMessage());
+                PrintUtil.println(System.err, "Remove.2: Failed deletion of existing file "+name+": "+ex.getMessage());
                 ex.printStackTrace();
             }
             return false;
@@ -103,7 +103,7 @@ public class Test01Cipherpack extends data_test {
                     out.write( (byte)'X' ); // make it odd
 
                 } catch (final Exception ex) {
-                    CPUtils.println(System.err, "Write SMPKeyBin: Failed "+name+": "+ex.getMessage());
+                    PrintUtil.println(System.err, "Write test file: Failed "+name+": "+ex.getMessage());
                     ex.printStackTrace();
                 } finally {
                     try {
@@ -145,16 +145,20 @@ public class Test01Cipherpack extends data_test {
 
     @AfterClass
     public static void httpd_stop() {
-        Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
+        if( org.jau.io.UriTk.protocol_supported("http:") ) {
+            Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
+        }
     }
 
     static void httpd_start() {
-        Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
-        final Path path = Paths.get("");
-        final String directoryName = path.toAbsolutePath().toString();
-        final String[] cmd = new String[]{"/usr/sbin/mini_httpd", "-p", "8080", "-l", directoryName+"/mini_httpd.log"};
-        CPUtils.fprintf_td(System.err, "%s\n", Arrays.toString(cmd));
-        Assert.assertTrue( system(cmd) );
+        if( org.jau.io.UriTk.protocol_supported("http:") ) {
+            Assert.assertTrue( system(new String[]{"killall", "mini_httpd"}) );
+            final Path path = Paths.get("");
+            final String directoryName = path.toAbsolutePath().toString();
+            final String[] cmd = new String[]{"/usr/sbin/mini_httpd", "-p", "8080", "-l", directoryName+"/mini_httpd.log"};
+            PrintUtil.fprintf_td(System.err, "%s\n", Arrays.toString(cmd));
+            Assert.assertTrue( system(cmd) );
+        }
     }
 
     CipherpackListener silentListener = new CipherpackListener();
@@ -173,16 +177,16 @@ public class Test01Cipherpack extends data_test {
                                                               source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
             final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
         {
@@ -194,16 +198,16 @@ public class Test01Cipherpack extends data_test {
                                                               source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
             final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
         {
@@ -215,16 +219,16 @@ public class Test01Cipherpack extends data_test {
                                                               source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
             final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
     }
@@ -242,8 +246,8 @@ public class Test01Cipherpack extends data_test {
                                                           source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph1.toString(true, true));
+        PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_error: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+        PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph1.toString(true, true));
         Assert.assertTrue( ph1.isValid() );
 
         {
@@ -253,8 +257,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph2.toString(true, true));
             Assert.assertFalse( ph2.isValid() );
         }
         {
@@ -264,8 +268,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys_nope, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_error: %s\n", ph2.toString(true, true));
             Assert.assertFalse( ph2.isValid() );
         }
     }
@@ -273,8 +277,8 @@ public class Test01Cipherpack extends data_test {
     @Test(timeout = 10000)
     public final void test11_dec_http_ok() {
         CPFactory.checkInitialized();
-        if( !org.jau.nio.Uri.protocol_supported("http") ) {
-            CPUtils.fprintf_td(System.err, "http not supported, abort\n");
+        if( !org.jau.io.UriTk.protocol_supported("http:") ) {
+            PrintUtil.fprintf_td(System.err, "http not supported, abort\n");
             return;
         }
         httpd_start();
@@ -288,8 +292,8 @@ public class Test01Cipherpack extends data_test {
                                                           source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph1.toString(true, true));
+        PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+        PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph1.toString(true, true));
         Assert.assertTrue( ph1.isValid() );
 
         final String uri_encrypted = url_input_root + fname_payload_encrypted_lst.get(file_idx);
@@ -301,8 +305,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, file_decrypted);
-            CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
         {
@@ -310,8 +314,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, file_decrypted);
-            CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
         {
@@ -319,8 +323,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, file_decrypted);
-            CPUtils.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test11_dec_http_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
     }
@@ -328,8 +332,8 @@ public class Test01Cipherpack extends data_test {
     @Test(timeout = 10000)
     public final void test12_dec_http_ok() {
         CPFactory.checkInitialized();
-        if( !org.jau.nio.Uri.protocol_supported("http") ) {
-            CPUtils.fprintf_td(System.err, "http not supported, abort\n");
+        if( !org.jau.io.UriTk.protocol_supported("http:") ) {
+            PrintUtil.fprintf_td(System.err, "http not supported, abort\n");
             return;
         }
         httpd_start();
@@ -343,8 +347,8 @@ public class Test01Cipherpack extends data_test {
                                                           source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test12_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test12_dec_http_ok: %s\n", ph1.toString(true, true));
+        PrintUtil.fprintf_td(System.err, "test12_dec_http_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+        PrintUtil.fprintf_td(System.err, "test12_dec_http_ok: %s\n", ph1.toString(true, true));
         Assert.assertTrue( ph1.isValid() );
 
         final String uri_encrypted = url_input_root + fname_payload_encrypted_lst.get(file_idx);
@@ -356,8 +360,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, file_decrypted);
-            CPUtils.fprintf_td(System.err, "test12_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test12_dec_http_ok: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test12_dec_http_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test12_dec_http_ok: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
         }
     }
@@ -365,8 +369,8 @@ public class Test01Cipherpack extends data_test {
     @Test(timeout = 10000)
     public final void test13_dec_http_error() {
         CPFactory.checkInitialized();
-        if( !org.jau.nio.Uri.protocol_supported("http") ) {
-            CPUtils.fprintf_td(System.err, "http not supported, abort\n");
+        if( !org.jau.io.UriTk.protocol_supported("http:") ) {
+            PrintUtil.fprintf_td(System.err, "http not supported, abort\n");
             return;
         }
         httpd_start();
@@ -380,8 +384,8 @@ public class Test01Cipherpack extends data_test {
                                                           source,
                                                           fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                           silentListener, fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test13_dec_http_error: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-        CPUtils.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph1.toString(true, true));
+        PrintUtil.fprintf_td(System.err, "test13_dec_http_error: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+        PrintUtil.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph1.toString(true, true));
         Assert.assertTrue( ph1.isValid() );
 
         final String uri_encrypted = url_input_root + fname_payload_encrypted_lst.get(file_idx);
@@ -394,8 +398,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, file_decrypted);
-            CPUtils.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
             Assert.assertFalse( ph2.isValid() );
         }
         {
@@ -405,8 +409,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys_nope, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, file_decrypted);
-            CPUtils.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
             Assert.assertFalse( ph2.isValid() );
         }
         {
@@ -416,8 +420,8 @@ public class Test01Cipherpack extends data_test {
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
                                                                    silentListener, file_decrypted);
-            CPUtils.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test13_dec_http_error: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test13_dec_http_error: %s\n", ph2.toString(true, true));
             Assert.assertFalse( ph2.isValid() );
         }
     }
@@ -448,7 +452,7 @@ public class Test01Cipherpack extends data_test {
                 }
             }
         } catch (final Exception ex) {
-            CPUtils.println(System.err, "feed_source_00: "+ex.getMessage());
+            PrintUtil.println(System.err, "feed_source_00: "+ex.getMessage());
             ex.printStackTrace();
         } finally {
             try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -478,7 +482,7 @@ public class Test01Cipherpack extends data_test {
                 }
             }
         } catch (final Exception ex) {
-            CPUtils.println(System.err, "feed_source_01: "+ex.getMessage());
+            PrintUtil.println(System.err, "feed_source_01: "+ex.getMessage());
             ex.printStackTrace();
         } finally {
             try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -507,7 +511,7 @@ public class Test01Cipherpack extends data_test {
                 }
             }
         } catch (final Exception ex) {
-            CPUtils.println(System.err, "feed_source_10: "+ex.getMessage());
+            PrintUtil.println(System.err, "feed_source_10: "+ex.getMessage());
             ex.printStackTrace();
         } finally {
             try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -540,7 +544,7 @@ public class Test01Cipherpack extends data_test {
                 }
             }
         } catch (final Exception ex) {
-            CPUtils.println(System.err, "feed_source_20: "+ex.getMessage());
+            PrintUtil.println(System.err, "feed_source_20: "+ex.getMessage());
             ex.printStackTrace();
         } finally {
             try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -571,7 +575,7 @@ public class Test01Cipherpack extends data_test {
                 }
             }
         } catch (final Exception ex) {
-            CPUtils.println(System.err, "feed_source_21: "+ex.getMessage());
+            PrintUtil.println(System.err, "feed_source_21: "+ex.getMessage());
             ex.printStackTrace();
         } finally {
             try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -592,8 +596,8 @@ public class Test01Cipherpack extends data_test {
                                                               source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph1.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
             final String file_decrypted = fname_payload_encrypted_lst.get(file_idx)+".dec";
@@ -609,8 +613,8 @@ public class Test01Cipherpack extends data_test {
                     feeder_thread.join(1000);
                 } catch (final InterruptedException e) { }
 
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
                 Assert.assertTrue( ph2.isValid() );
             }
             {
@@ -625,8 +629,8 @@ public class Test01Cipherpack extends data_test {
                     feeder_thread.join(1000);
                 } catch (final InterruptedException e) { }
 
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
                 Assert.assertTrue( ph2.isValid() );
             }
         }
@@ -639,8 +643,8 @@ public class Test01Cipherpack extends data_test {
                                                               source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph1.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
             final String file_decrypted = fname_payload_encrypted_lst.get(file_idx)+".dec";
@@ -656,8 +660,8 @@ public class Test01Cipherpack extends data_test {
                     feeder_thread.join(1000);
                 } catch (final InterruptedException e) { }
 
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
                 Assert.assertTrue( ph2.isValid() );
             }
         }
@@ -677,8 +681,8 @@ public class Test01Cipherpack extends data_test {
                                                               source,
                                                               fname_payload_lst.get(file_idx), "test_case", payload_version, payload_version_parent,
                                                               silentListener, fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
-            CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph1.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Encrypted %s to %s\n", fname_payload_lst.get(file_idx), fname_payload_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
 
             final String file_decrypted = fname_payload_encrypted_lst.get(file_idx)+".dec";
@@ -694,8 +698,8 @@ public class Test01Cipherpack extends data_test {
                     feeder_thread.join(1000);
                 } catch (final InterruptedException e) { }
 
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
                 Assert.assertFalse( ph2.isValid() );
             }
             {
@@ -710,8 +714,8 @@ public class Test01Cipherpack extends data_test {
                     feeder_thread.join(1000);
                 } catch (final InterruptedException e) { }
 
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
-                CPUtils.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+                PrintUtil.fprintf_td(System.err, "test21_enc_dec_fed_ok: %s\n", ph2.toString(true, true));
                 Assert.assertFalse( ph2.isValid() );
             }
         }

@@ -26,8 +26,8 @@ package org.cipherpack;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import org.jau.nio.ByteInStream;
-import org.jau.nio.ByteInStream_Feed;
+import org.jau.io.ByteInStream;
+import org.jau.io.ByteInStream_Feed;
 
 /**
  * @anchor cipherpack_overview

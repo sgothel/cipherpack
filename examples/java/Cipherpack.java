@@ -27,18 +27,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.cipherpack.CPFactory;
-import org.cipherpack.CPUtils;
 import org.cipherpack.CipherpackListener;
 import org.cipherpack.CryptoConfig;
 import org.cipherpack.PackHeader;
-import org.jau.nio.ByteInStream;
+import org.jau.io.ByteInStream;
+import org.jau.io.ByteInStreamUtil;
+import org.jau.io.PrintUtil;
 
 public class Cipherpack {
 
     static void print_usage() {
-        CPUtils.println(System.err, "Usage: pack [-epk <enc-pub-key>]+ -ssk <sign-sec-key> -sskp <sign-sec-key-passphrase> -in <input-source> -target_path <target-path-filename> "+
+        PrintUtil.println(System.err, "Usage: pack [-epk <enc-pub-key>]+ -ssk <sign-sec-key> -sskp <sign-sec-key-passphrase> -in <input-source> -target_path <target-path-filename> "+
                         "-intention <string> -version <file-version-str> -version_parent <file-version-parent-str> -out <output-filename>");
-        CPUtils.println(System.err, "Usage: unpack [-spk <sign-pub-key>]+ -dsk <dec-sec-key> -dskp <dec-sec-key-passphrase> -in <input-source> -out <output-filename>");
+        PrintUtil.println(System.err, "Usage: unpack [-spk <sign-pub-key>]+ -dsk <dec-sec-key> -dskp <dec-sec-key-passphrase> -in <input-source> -out <output-filename>");
     }
 
     public static void main(final String[] args) throws InterruptedException {
@@ -53,15 +54,15 @@ public class Cipherpack {
         }
         CPFactory.checkInitialized();
 
-        CPUtils.println(System.err, "Cipherpack initialized!");
-        CPUtils.println(System.err, "Cipherpack Native Version "+CPFactory.getNativeVersion()+" (API "+CPFactory.getNativeAPIVersion()+")");
-        CPUtils.println(System.err, "Cipherpack Java Version "+CPFactory.getImplVersion()+" (API "+CPFactory.getAPIVersion()+")");
+        PrintUtil.println(System.err, "Cipherpack initialized!");
+        PrintUtil.println(System.err, "Cipherpack Native Version "+CPFactory.getNativeVersion()+" (API "+CPFactory.getNativeAPIVersion()+")");
+        PrintUtil.println(System.err, "Cipherpack Java Version "+CPFactory.getImplVersion()+" (API "+CPFactory.getAPIVersion()+")");
 
-        CPUtils.fprintf_td(System.err, "Called with %d arguments: ", argc);
+        PrintUtil.fprintf_td(System.err, "Called with %d arguments: ", argc);
         for(int i=0; i<argc; i++) {
-            CPUtils.fprintf_td(System.err, "%s ", args[i]);
+            PrintUtil.fprintf_td(System.err, "%s ", args[i]);
         }
-        CPUtils.fprintf_td(System.err, "\n");
+        PrintUtil.fprintf_td(System.err, "\n");
         int argi = 0;
 
         if( 1 >= argc ) {
@@ -110,12 +111,12 @@ public class Cipherpack {
                 target_path.isEmpty() ||
                 fname_output.isEmpty() )
             {
-                CPUtils.fprintf_td(System.err, "Pack: Error: Arguments incomplete\n");
+                PrintUtil.fprintf_td(System.err, "Pack: Error: Arguments incomplete\n");
                 print_usage();
                 return;
             }
 
-            final ByteInStream source = ByteInStream.create(source_name); // 20_s default
+            final ByteInStream source = ByteInStreamUtil.to_ByteInStream(source_name); // 20_s default
             final PackHeader ph = org.cipherpack.Cipherpack.encryptThenSign(
                                                 CryptoConfig.getDefault(),
                                                 enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
@@ -124,8 +125,8 @@ public class Cipherpack {
                                                 payload_version, payload_version_parent,
                                                 new CipherpackListener(), fname_output);
 
-            CPUtils.fprintf_td(System.err, "Pack: Encrypted %s to %s\n", source_name, fname_output);
-            CPUtils.fprintf_td(System.err, "Pack: %s\n", ph.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "Pack: Encrypted %s to %s\n", source_name, fname_output);
+            PrintUtil.fprintf_td(System.err, "Pack: %s\n", ph.toString(true, true));
             return;
         }
         if( command == "unpack") {
@@ -155,23 +156,23 @@ public class Cipherpack {
                 source_name.isEmpty() ||
                 fname_output.isEmpty() )
             {
-                CPUtils.fprintf_td(System.err, "Unpack: Error: Arguments incomplete\n");
+                PrintUtil.fprintf_td(System.err, "Unpack: Error: Arguments incomplete\n");
                 print_usage();
                 return;
             }
 
-            final ByteInStream source = ByteInStream.create(source_name); // 20_s default
+            final ByteInStream source = ByteInStreamUtil.to_ByteInStream(source_name); // 20_s default
             final PackHeader ph = org.cipherpack.Cipherpack.checkSignThenDecrypt(
                                         sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                         source,
                                         new CipherpackListener(), fname_output);
 
             // dec_sec_key_passphrase.resize(0);
-            CPUtils.fprintf_td(System.err, "Unpack: Decypted %s to %s\n", source_name, fname_output);
-            CPUtils.fprintf_td(System.err, "Unpack: %s\n", ph.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "Unpack: Decypted %s to %s\n", source_name, fname_output);
+            PrintUtil.fprintf_td(System.err, "Unpack: %s\n", ph.toString(true, true));
             return;
         }
-        CPUtils.fprintf_td(System.err, "Pack: Error: Unknown command\n");
+        PrintUtil.fprintf_td(System.err, "Pack: Error: Unknown command\n");
         print_usage();
         return;
     }

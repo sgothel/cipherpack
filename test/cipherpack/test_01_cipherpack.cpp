@@ -106,15 +106,21 @@ class Test01Cipherpack : public TestData {
         }
 
         ~Test01Cipherpack() {
-            std::system("killall mini_httpd");
+            if( jau::io::uri_tk::protocol_supported("http:") ) {
+                int res = std::system("killall mini_httpd");
+                (void)res;
+            }
         }
 
         static void httpd_start() {
-            std::system("killall mini_httpd");
-            const std::string cwd = jau::fs::get_cwd();
-            const std::string cmd = "/usr/sbin/mini_httpd -p 8080 -l "+cwd+"/mini_httpd.log";
-            jau::PLAIN_PRINT(true, "%s", cmd.c_str());
-            std::system(cmd.c_str());
+            if( jau::io::uri_tk::protocol_supported("http:") ) {
+                int res = std::system("killall mini_httpd");
+                const std::string cwd = jau::fs::get_cwd();
+                const std::string cmd = "/usr/sbin/mini_httpd -p 8080 -l "+cwd+"/mini_httpd.log";
+                jau::PLAIN_PRINT(true, "%s", cmd.c_str());
+                res = std::system(cmd.c_str());
+                (void)res;
+            }
         }
 
         void test01_enc_dec_file_ok() {
@@ -220,7 +226,7 @@ class Test01Cipherpack : public TestData {
         }
 
         void test11_dec_http_ok() {
-            if( !jau::io::uri::protocol_supported("http") ) {
+            if( !jau::io::uri_tk::protocol_supported("http:") ) {
                 jau::PLAIN_PRINT(true, "http not supported, abort\n");
                 return;
             }
@@ -272,7 +278,7 @@ class Test01Cipherpack : public TestData {
         }
 
         void test12_dec_http_ok() {
-            if( !jau::io::uri::protocol_supported("http") ) {
+            if( !jau::io::uri_tk::protocol_supported("http:") ) {
                 jau::PLAIN_PRINT(true, "http not supported, abort\n");
                 return;
             }
@@ -306,7 +312,7 @@ class Test01Cipherpack : public TestData {
         }
 
         void test13_dec_http_error() {
-            if( !jau::io::uri::protocol_supported("http") ) {
+            if( !jau::io::uri_tk::protocol_supported("http:") ) {
                 jau::PLAIN_PRINT(true, "http not supported, abort\n");
                 return;
             }

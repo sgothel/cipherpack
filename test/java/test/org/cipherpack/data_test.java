@@ -27,7 +27,7 @@ package test.org.cipherpack;
 import java.nio.ByteBuffer;
 
 import org.cipherpack.CPFactory;
-import org.cipherpack.CPUtils;
+import org.jau.io.Buffers;
 
 import jau.test.junit.util.SingletonJunitCase;
 
@@ -70,7 +70,7 @@ public class data_test extends SingletonJunitCase {
     public static final String sign_pub_key4_fname = "../../../test_keys/host_rsa4.pub.pem";
     public static final String sign_sec_key4_fname = "../../../test_keys/host_rsa4";
 
-    public static final ByteBuffer sign_sec_key_passphrase = CPUtils.newDirectByteBuffer(0);
+    public static final ByteBuffer sign_sec_key_passphrase = Buffers.newDirectByteBuffer(0);
 
     public static final String url_input_root = "http://localhost:8080/";
 }

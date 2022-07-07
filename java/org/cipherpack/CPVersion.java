@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
+import org.jau.io.PrintUtil;
 import org.jau.util.JauVersion;
 import org.jau.util.VersionUtil;
 
@@ -42,17 +43,17 @@ public class CPVersion extends JauVersion {
     public static final void printVersionInfo(final PrintStream out) {
         CPFactory.initLibrary();
 
-        CPUtils.println(out, "CPFactory: Jaulib: Available "+CPFactory.JAULIB_AVAILABLE+", JarCache in use "+CPFactory.JAULIB_JARCACHE_USED);
+        PrintUtil.println(out, "CPFactory: Jaulib: Available "+CPFactory.JAULIB_AVAILABLE+", JarCache in use "+CPFactory.JAULIB_JARCACHE_USED);
         if( CPFactory.JAULIB_AVAILABLE ) {
             out.println(VersionUtil.getPlatformInfo());
-            CPUtils.println(out, "Version Info:");
+            PrintUtil.println(out, "Version Info:");
             final CPVersion v = CPVersion.getInstance();
             out.println(v.toString());
-            CPUtils.println(out, "");
-            CPUtils.println(out, "Full Manifest:");
+            PrintUtil.println(out, "");
+            PrintUtil.println(out, "Full Manifest:");
             out.println(v.getFullManifestInfo(null).toString());
         } else {
-            CPUtils.println(out, "Full Manifest:");
+            PrintUtil.println(out, "Full Manifest:");
             final Manifest manifest = CPFactory.getManifest(CPFactory.class.getClassLoader(), new String[] { "org.cipherpack" } );
             final Attributes attr = manifest.getMainAttributes();
             final Set<Object> keys = attr.keySet();
@@ -69,8 +70,8 @@ public class CPVersion extends JauVersion {
             out.println(sb.toString());
         }
 
-        CPUtils.println(out, "Cipherpack Native Version "+CPFactory.getNativeVersion()+" (API "+CPFactory.getNativeAPIVersion()+")");
-        CPUtils.println(out, "Cipherpack Java Version   "+CPFactory.getImplVersion()+" (API "+CPFactory.getAPIVersion()+")");
+        PrintUtil.println(out, "Cipherpack Native Version "+CPFactory.getNativeVersion()+" (API "+CPFactory.getNativeAPIVersion()+")");
+        PrintUtil.println(out, "Cipherpack Java Version   "+CPFactory.getImplVersion()+" (API "+CPFactory.getAPIVersion()+")");
     }
 
     protected CPVersion(final String packageName, final Manifest mf) {
