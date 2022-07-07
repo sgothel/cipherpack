@@ -167,10 +167,10 @@ public class CPFactory {
             try {
                 final Throwable[] t = { null };
                 if( !PlatformToolkit.loadLibrary(implementationNativeLibraryBasename, cl, t) ) {
-                    throw new RuntimeException("Couldn't load native library with basename <"+implementationNativeLibraryBasename+">", t[0]);
+                    throw new RuntimeException("Couldn't load native tool library with basename <"+implementationNativeLibraryBasename+">", t[0]);
                 }
                 if( !PlatformToolkit.loadLibrary(javaNativeLibraryBasename, cl, t) ) {
-                    throw new RuntimeException("Couldn't load native library with basename <"+javaNativeLibraryBasename+">", t[0]);
+                    throw new RuntimeException("Couldn't load native java library with basename <"+javaNativeLibraryBasename+">", t[0]);
                 }
             } catch (final Throwable e) {
                 System.err.println("Caught "+e.getClass().getSimpleName()+": "+e.getMessage()+", while loading libs (2) ..");
@@ -268,7 +268,7 @@ public class CPFactory {
 
     public static void checkInitialized() {
         if( false == initializedID.get() ) {
-            throw new IllegalStateException("BluetoothFactory not initialized.");
+            throw new IllegalStateException("Cipherpack not initialized.");
         }
     }
     public static boolean isInitialized() {
