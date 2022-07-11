@@ -29,14 +29,67 @@
 
 #include <curl/curl.h>
 
+#include <jau/cpuid.hpp>
+
 #include <jau/debug.hpp>
+
+namespace Botan {
+    class CPUID final   {
+        public:
+            static bool has_simd_32();
+
+            /**
+             * Return a possibly empty string containing list of known CPU
+             * extensions. Each name will be seperated by a space, and the ordering
+             * will be arbitrary. This list only contains values that are useful to
+             * Botan (for example FMA instructions are not checked).
+             *
+             * Example outputs "sse2 ssse3 rdtsc", "neon arm_aes", "altivec"
+             */
+            static std::string to_string();
+    };
+}
 
 using namespace cipherpack;
 
-void Environment::env_init() noexcept {
+static std::string cp_query_hash_provider(const std::string& algo) noexcept {
+    std::unique_ptr<Botan::HashFunction> hash_func = Botan::HashFunction::create(algo);
+    if( nullptr == hash_func ) {
+        return "";
+    }
+    return hash_func->provider();
+}
+
+static void cp_print_hash_provider(const std::string& algo) noexcept {
+    std::string p = cp_query_hash_provider(algo);
+    if( p.empty() ) {
+        jau::fprintf_td(stderr, "hash '%s': Not available, provider {", algo.c_str());
+    } else {
+        jau::fprintf_td(stderr, "hash '%s': provider '%s' of {", algo.c_str(), p.c_str());
+    }
+    std::vector<std::string> hash_provider = Botan::HashFunction::providers(algo);
+    for(const std::string& pi : hash_provider) {
+        ::fprintf(stderr, "'%s', ", pi.c_str());
+    }
+    ::fprintf(stderr, "}\n");
+}
+
+environment::environment() noexcept {
     jau::environment::get("cipherpack");
 
     curl_global_init(CURL_GLOBAL_ALL);
+}
+
+
+void environment::print_info() noexcept {
+    jau::cpu::print_cpu_info(stderr);
+
+    jau::fprintf_td(stderr, "Botan cpuid: '%s'\n", Botan::CPUID::to_string().c_str());
+    jau::fprintf_td(stderr, "Botan cpuid: has_simd32 %d\n", (int)Botan::CPUID::has_simd_32());
+
+    cp_print_hash_provider("SHA-256");
+    cp_print_hash_provider("SHA-512");
+    cp_print_hash_provider("BLAKE2b(512)");
 }
 
 const std::string Constants::package_magic              = "CIPHERPACK_0003";

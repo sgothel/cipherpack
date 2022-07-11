@@ -137,10 +137,28 @@ namespace cipherpack {
 
     #define JAVA_MAIN_PACKAGE "org/cipherpack/"
 
-     class Environment {
-         public:
-             static void env_init() noexcept;
-     };
+    class environment {
+        private:
+            environment() noexcept;
+
+        public:
+            void print_info() noexcept;
+
+            static environment& get() noexcept {
+                /**
+                 * Thread safe starting with C++11 6.7:
+                 *
+                 * If control enters the declaration concurrently while the variable is being initialized,
+                 * the concurrent execution shall wait for completion of the initialization.
+                 *
+                 * (Magic Statics)
+                 *
+                 * Avoiding non-working double checked locking.
+                 */
+                static environment e;
+                return e;
+            }
+    };
 
     /**
      * CryptoConfig, contains crypto algorithms settings given at encryption wired via the @ref cipherpack_stream "Cipherpack Data Stream",
