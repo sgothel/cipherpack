@@ -31,6 +31,28 @@ package org.cipherpack;
  * @see @ref cipherpack_stream "Cipherpack Data Stream"
  */
 public class CipherpackListener extends CPNativeDownlink {
+    public static enum ContentType {
+        HEADER ( (byte)0 ),
+        PAYLOAD ( (byte)1 );
+
+        /**
+         * Maps the specified integer value to a constant of {@link ContentType}.
+         * @param value the integer value to be mapped to a constant of this enum type.
+         * @return the corresponding constant of this enum type.
+         * @throws IllegalArgumentException is value is unknown
+         */
+        public static ContentType get(final byte value) throws IllegalArgumentException {
+            switch(value) {
+                case (byte)0x01: return HEADER;
+                case (byte)0x02: return PAYLOAD;
+                default: throw new IllegalArgumentException("Unknown ContentType value "+value);
+            }
+        }
+
+        ContentType(final byte v) { value = v; }
+        final byte value;
+    };
+
     public CipherpackListener() {
         super(); // pending native ctor
         if( CPFactory.isInitialized() ) {
@@ -102,13 +124,17 @@ public class CipherpackListener extends CPNativeDownlink {
      * In case contentProcessed() gets called, notifyProgress() is called thereafter.
      *
      * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-     * @param is_header true if passed data is part of the header, otherwise false. Always false if decrypt_mode is true.
+     * @param ctype content_type of passed data. Always {@link ContentType#PAYLOAD} if decrypt_mode is true.
      * @param data the processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
      * @param is_final true if this is the last content call, otherwise false
      * @return true to signal continuation, false to end streaming.
      * @see getSendContent()
      */
-    public boolean contentProcessed(final boolean decrypt_mode, final boolean is_header, final byte[] data, final boolean is_final) { return true; }
+    public boolean contentProcessed(final boolean decrypt_mode, final ContentType ctype, final byte[] data, final boolean is_final) { return true; }
+
+    private final boolean contentProcessedImpl(final boolean decrypt_mode, final boolean is_header, final byte[] data, final boolean is_final) {
+        return contentProcessed(decrypt_mode, is_header ? ContentType.HEADER : ContentType.PAYLOAD, data, is_final);
+    }
 
     @Override
     public String toString() {

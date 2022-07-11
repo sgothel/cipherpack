@@ -366,6 +366,11 @@ namespace cipherpack {
      */
     class CipherpackListener : public jau::jni::JavaUplink {
         public:
+            enum class content_type : uint8_t {
+                header = 0,
+                payload = 1
+            };
+
             /**
              * Informal user notification about an error via text message.
              *
@@ -437,15 +442,15 @@ namespace cipherpack {
              * In case contentProcessed() gets called, notifyProgress() is called thereafter.
              *
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-             * @param is_header true if passed data is part of the header, otherwise false. Always false if decrypt_mode is true.
+             * @param ctype content_type of passed data. Always content_type::payload if decrypt_mode is true.
              * @param data the processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
              * @param is_final true if this is the last content call, otherwise false
              * @return true to signal continuation, false to end streaming.
              * @see getSendContent()
              */
-            virtual bool contentProcessed(const bool decrypt_mode, const bool is_header, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept {
+            virtual bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept {
                 (void)decrypt_mode;
-                (void)is_header;
+                (void)ctype;
                 (void)data;
                 (void)is_final;
                 return true;

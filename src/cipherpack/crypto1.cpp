@@ -88,8 +88,8 @@ class WrappingCipherpackListener : public CipherpackListener{
             return parent->getSendContent(decrypt_mode);
         }
 
-        bool contentProcessed(const bool decrypt_mode, const bool is_header, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
-            return parent->contentProcessed(decrypt_mode, is_header, data, is_final);
+        bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+            return parent->contentProcessed(decrypt_mode, ctype, data, is_final);
         }
 
         ~WrappingCipherpackListener() noexcept override {}
@@ -224,7 +224,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             signer.update(header_buffer);
             out_bytes_header += header_buffer.size();
             if( listener->getSendContent( decrypt_mode ) ) {
-                listener->contentProcessed(decrypt_mode, true /* header */, header_buffer, false /* final */);
+                listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::header, header_buffer, false /* final */);
             }
             DBG_PRINT("Encrypt: DER Header1 written + %zu bytes / %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
 
@@ -245,7 +245,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 signer.update(header_buffer);
                 out_bytes_header += header_buffer.size();
                 if( listener->getSendContent( decrypt_mode ) ) {
-                    listener->contentProcessed(decrypt_mode, true /* header */, header_buffer, false /* final */);
+                    listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::header, header_buffer, false /* final */);
                 }
                 DBG_PRINT("Encrypt: DER Header-recevr written + %zu bytes / %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
             }
@@ -263,7 +263,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             }
             out_bytes_header += header_buffer.size();
             if( listener->getSendContent( decrypt_mode ) ) {
-                listener->contentProcessed(decrypt_mode, true /* header */, header_buffer, false /* final */);
+                listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::header, header_buffer, false /* final */);
             }
             DBG_PRINT("Encrypt: DER Header2 written + %zu bytes / %" PRIu64 " bytes for %zu keys", header_buffer.size(), out_bytes_header, recevr_data_list.size());
         }
@@ -299,7 +299,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             if( !is_final ) {
                 aead->update(data);
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, false /* header */, data, is_final);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, false /* is_final */);
                 }
                 out_bytes_payload += data.size();
                 DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
@@ -308,7 +308,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             } else {
                 aead->finish(data);
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, false /* header */, data, is_final);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, true /* is_final */);
                 }
                 out_bytes_payload += data.size();
                 DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
@@ -341,8 +341,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             WORDY_PRINT("Encrypt: Writing done: source: %s", source.to_string().c_str());
         }
 
-        const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
         if( jau::environment::get().verbose ) {
+            const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
             jau::io::print_stats("Encrypt", (out_bytes_header+out_bytes_payload), _td);
         }
         header.setValid(true);
@@ -413,20 +413,25 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                 return true;
             }
 
-            bool contentProcessed(const bool decrypt_mode, const bool is_header, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+            bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
                 if( nullptr != outfile_ ) {
                     outfile_->write(reinterpret_cast<char*>(data.data()), data.size());
                     if( outfile_->fail() ) {
                         return false;
                     }
-                    if( is_header ) {
-                        out_bytes_header_ += data.size();
-                    } else {
-                        out_bytes_payload_ += data.size();
+                    switch( ctype ) {
+                        case content_type::header:
+                            out_bytes_header_ += data.size();
+                            break;
+                        case content_type::payload:
+                            [[fallthrough]];
+                        default:
+                            out_bytes_payload_ += data.size();
+                            break;
                     }
                 }
                 if( parent->getSendContent(decrypt_mode) ) {
-                    return parent->contentProcessed(decrypt_mode, is_header, data, is_final);
+                    return parent->contentProcessed(decrypt_mode, ctype, data, is_final);
                 } else {
                     return true;
                 }
@@ -826,8 +831,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             bool res = true;
             if( !is_final && out_bytes_payload + data.size() < content_size ) {
                 aead->update(data);
+                }
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, false /* header */, data, is_final);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, false /* is_final */);
                 }
                 out_bytes_payload += data.size();
                 DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
@@ -837,7 +843,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             } else {
                 aead->finish(data);
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, false /* header */, data, is_final);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, true /* is_final */);
                 }
                 out_bytes_payload += data.size();
                 DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
@@ -921,8 +927,8 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                 return true;
             }
 
-            bool contentProcessed(const bool decrypt_mode, const bool is_header, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
-                if( nullptr != outfile_ ) {
+            bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+                if( nullptr != outfile_ && content_type::payload == ctype ) {
                     outfile_->write(reinterpret_cast<char*>(data.data()), data.size());
                     if( outfile_->fail() ) {
                         return false;
@@ -930,7 +936,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                     out_bytes_payload_ += data.size();
                 }
                 if( parent->getSendContent(decrypt_mode) ) {
-                    return parent->contentProcessed(decrypt_mode, is_header, data, is_final);
+                    return parent->contentProcessed(decrypt_mode, ctype, data, is_final);
                 } else {
                     return true;
                 }

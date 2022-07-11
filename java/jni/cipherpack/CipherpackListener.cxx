@@ -31,24 +31,28 @@
 
 #include "CipherpackHelper.hpp"
 
+// static const std::string _contentTypeClassName("org/cipherpack/CipherpackListener/ContentType");
+// static const std::string _contentTypeClazzGetArgs("(B)Lorg/cipherpack/CipherpackListener/ContentType;");
 static const std::string _notifyErrorMethodArgs("(ZLjava/lang/String;)V");
 static const std::string _notifyHeaderMethodArgs("(ZLorg/cipherpack/PackHeader;Z)V");
 static const std::string _notifyProgressMethodArgs("(ZJJ)V");
 static const std::string _notifyEndMethodArgs("(ZLorg/cipherpack/PackHeader;Z)V");
 static const std::string _getSendContentMethodArgs("(Z)Z");
-static const std::string _contentProcessedMethodArgs("(ZZ[BZ)Z");
+static const std::string _contentProcessedImplMethodArgs("(ZZ[BZ)Z");
 
 class JNICipherpackListener : public cipherpack::CipherpackListener {
   private:
     static std::atomic<int> iname_next;
     int const iname;
 
+    // jau::jni::JNIGlobalRef contentTypeClazzRef;
+    // jmethodID contentTypeClazzGet;
     jmethodID  mNotifyError = nullptr;
     jmethodID  mNotifyHeader = nullptr;
     jmethodID  mNotifyProgress = nullptr;
     jmethodID  mNotifyEnd = nullptr;
-    jmethodID  mGetSendContent= nullptr;
-    jmethodID  mContentProcessed= nullptr;
+    jmethodID  mGetSendContent = nullptr;
+    jmethodID  mContentProcessedImpl = nullptr;
 
   public:
 
@@ -63,6 +67,16 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
     JNICipherpackListener(JNIEnv *env, jobject cpListenerObj)
     : iname(iname_next.fetch_add(1))
     {
+#if 0
+        // contentTypeClazzRef, contentTypeClazzGet
+        {
+            jclass contentTypeClazz = jau::jni::search_class(env, _contentTypeClassName.c_str());
+            contentTypeClazzRef = jau::jni::JNIGlobalRef(contentTypeClazz);
+            env->DeleteLocalRef(contentTypeClazz);
+        }
+        contentTypeClazzGet = jau::jni::search_method(env, contentTypeClazzRef.getClass(), "get", _contentTypeClazzGetArgs.c_str(), true);
+#endif
+
         jclass cpListenerClazz = jau::jni::search_class(env, cpListenerObj);
 
         mNotifyError = jau::jni::search_method(env, cpListenerClazz, "notifyError", _notifyErrorMethodArgs.c_str(), false);
@@ -70,7 +84,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         mNotifyProgress = jau::jni::search_method(env, cpListenerClazz, "notifyProgress", _notifyProgressMethodArgs.c_str(), false);
         mNotifyEnd = jau::jni::search_method(env, cpListenerClazz, "notifyEnd", _notifyEndMethodArgs.c_str(), false);
         mGetSendContent = jau::jni::search_method(env, cpListenerClazz, "getSendContent", _getSendContentMethodArgs.c_str(), false);
-        mContentProcessed = jau::jni::search_method(env, cpListenerClazz, "contentProcessed", _contentProcessedMethodArgs.c_str(), false);
+        mContentProcessedImpl = jau::jni::search_method(env, cpListenerClazz, "contentProcessedImpl", _contentProcessedImplMethodArgs.c_str(), false);
     }
 
     void notifyError(const bool decrypt_mode, const std::string& msg) noexcept override {
@@ -136,10 +150,15 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         return JNI_TRUE == res;
     }
 
-    bool contentProcessed(const bool decrypt_mode, const bool is_header, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+    bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
+
+#if 0
+        jobject jcontentType = env->CallStaticObjectMethod(contentTypeClazzRef.getClass(), contentTypeClazzGet, static_cast<uint8_t>(ctype));
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+#endif
 
         // TODO: Consider using a cached buffer of some sort, avoiding: (1) memory allocation, (2) copy the data
         // Avoiding copy the data will be hard though ..
@@ -148,8 +167,10 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         env->SetByteArrayRegion(jdata, 0, (jsize)data_size, (const jbyte *)data.data());
         jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 
-        jboolean res = env->CallBooleanMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mContentProcessed,
+        jboolean res = env->CallBooleanMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mContentProcessedImpl,
                             decrypt_mode ? JNI_TRUE : JNI_FALSE,
+                            // jcontentType,
+                            content_type::header == ctype ? JNI_TRUE : JNI_FALSE,
                             jdata,
                             is_final ? JNI_TRUE : JNI_FALSE);
         jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
