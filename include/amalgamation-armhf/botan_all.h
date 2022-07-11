@@ -31,7 +31,7 @@
 * Build configuration for Botan 3.0.0-alpha0
 *
 * Automatically generated from
-* 'configure.py --cpu=armhf --disable-neon --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-armhf-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha1,sha2_32,system_rng,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
+* 'configure.py --cpu=armhf --disable-neon --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-armhf-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
 *
 * Target
 *  - Compiler: g++ -fstack-protector -pthread -std=c++17 -D_REENTRANT -O3
@@ -110,6 +110,8 @@
 #define BOTAN_HAS_BASE64_CODEC 20131128
 #define BOTAN_HAS_BIGINT 20210423
 #define BOTAN_HAS_BIGINT_MP 20151225
+#define BOTAN_HAS_BLAKE2B 20130131
+#define BOTAN_HAS_BLAKE2BMAC 20201123
 #define BOTAN_HAS_BLOCK_CIPHER 20131128
 #define BOTAN_HAS_CHACHA 20180807
 #define BOTAN_HAS_CIPHER_MODES 20180124
@@ -147,6 +149,7 @@
 #define BOTAN_HAS_RSA 20160730
 #define BOTAN_HAS_SHA1 20131128
 #define BOTAN_HAS_SHA2_32 20131128
+#define BOTAN_HAS_SHA2_64 20131128
 #define BOTAN_HAS_STREAM_CIPHER 20131128
 #define BOTAN_HAS_SYSTEM_RNG 20141202
 #define BOTAN_HAS_UTIL_FUNCTIONS 20180903

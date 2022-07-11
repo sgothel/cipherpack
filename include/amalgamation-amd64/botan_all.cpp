@@ -199,6 +199,111 @@ inline constexpr T majority(T a, T b, T c)
 
 namespace Botan {
 
+class BLAKE2bMAC;
+
+/**
+* BLAKE2B
+*/
+class BLAKE2b final : public HashFunction, public SymmetricAlgorithm
+   {
+   public:
+      /**
+      * @param output_bits the output size of BLAKE2b in bits
+      */
+      explicit BLAKE2b(size_t output_bits = 512);
+
+      size_t hash_block_size() const override { return 128; }
+      size_t output_length() const override { return m_output_bits / 8; }
+      size_t key_size() const { return m_key_size; }
+
+      Key_Length_Specification key_spec() const override;
+
+      std::unique_ptr<HashFunction> new_object() const override;
+      std::string name() const override;
+      void clear() override;
+
+      std::unique_ptr<HashFunction> copy_state() const override;
+
+   protected:
+      friend class BLAKE2bMAC;
+
+      void key_schedule(const uint8_t key[], size_t length) override;
+
+      void add_data(const uint8_t input[], size_t length) override;
+      void final_result(uint8_t out[]) override;
+
+   private:
+      void state_init();
+      void compress(const uint8_t* data, size_t blocks, uint64_t increment);
+
+      const size_t m_output_bits;
+
+      secure_vector<uint8_t> m_buffer;
+      size_t m_bufpos;
+
+      secure_vector<uint64_t> m_H;
+      uint64_t m_T[2];
+      uint64_t m_F[2];
+
+      size_t m_key_size;
+      secure_vector<uint8_t> m_padded_key_buffer;
+   };
+
+typedef BLAKE2b Blake2b;
+
+}
+
+namespace Botan {
+
+/**
+* BLAKE2b MAC
+*/
+class BLAKE2bMAC final : public MessageAuthenticationCode
+   {
+   public:
+      explicit BLAKE2bMAC(size_t output_bits = 512);
+
+      BLAKE2bMAC(const BLAKE2bMAC&) = delete;
+      BLAKE2bMAC& operator=(const BLAKE2bMAC&) = delete;
+
+      std::string name() const override { return m_blake.name(); }
+      size_t output_length() const override { return m_blake.output_length(); }
+      std::unique_ptr<MessageAuthenticationCode> new_object() const override;
+
+      void clear() override;
+
+      Key_Length_Specification key_spec() const override
+         {
+         return m_blake.key_spec();
+         }
+
+   private:
+      void key_schedule(const uint8_t key[], size_t length) override
+         {
+         m_blake.set_key(key, length);
+         }
+
+      void add_data(const uint8_t input[], size_t length) override
+         {
+         verify_key_set(m_blake.key_size() > 0);
+         m_blake.update(input, length);
+         }
+
+      void final_result(uint8_t out[]) override
+         {
+         verify_key_set(m_blake.key_size() > 0);
+         m_blake.final(out);
+         }
+
+      BLAKE2b m_blake;
+   };
+
+typedef BLAKE2bMAC Blake2bMac;
+
+}
+
+namespace Botan {
+
 class RandomNumberGenerator;
 
 /**
@@ -6810,6 +6915,93 @@ class SHA_256 final : public MDx_HashFunction
 
 }
 
+namespace Botan {
+
+/**
+* SHA-384
+*/
+class SHA_384 final : public MDx_HashFunction
+   {
+   public:
+      std::string name() const override { return "SHA-384"; }
+      size_t output_length() const override { return 48; }
+      std::unique_ptr<HashFunction> new_object() const override { return std::make_unique<SHA_384>(); }
+      std::unique_ptr<HashFunction> copy_state() const override;
+      std::string provider() const override;
+
+      void clear() override;
+
+      SHA_384() : MDx_HashFunction(128, true, true, 16), m_digest(8)
+         { clear(); }
+   private:
+      void compress_n(const uint8_t[], size_t blocks) override;
+      void copy_out(uint8_t[]) override;
+
+      secure_vector<uint64_t> m_digest;
+   };
+
+/**
+* SHA-512
+*/
+class SHA_512 final : public MDx_HashFunction
+   {
+   public:
+      std::string name() const override { return "SHA-512"; }
+      size_t output_length() const override { return 64; }
+      std::unique_ptr<HashFunction> new_object() const override { return std::make_unique<SHA_512>(); }
+      std::unique_ptr<HashFunction> copy_state() const override;
+      std::string provider() const override;
+
+      void clear() override;
+
+      /*
+      * Perform a SHA-512 compression. For internal use
+      */
+      static void compress_digest(secure_vector<uint64_t>& digest,
+                                  const uint8_t input[],
+                                  size_t blocks);
+
+      SHA_512() : MDx_HashFunction(128, true, true, 16), m_digest(8)
+         { clear(); }
+   private:
+      void compress_n(const uint8_t[], size_t blocks) override;
+      void copy_out(uint8_t[]) override;
+
+      static const uint64_t K[80];
+
+#if defined(BOTAN_HAS_SHA2_64_BMI2)
+      static void compress_digest_bmi2(secure_vector<uint64_t>& digest,
+                                       const uint8_t input[],
+                                       size_t blocks);
+#endif
+
+      secure_vector<uint64_t> m_digest;
+   };
+
+/**
+* SHA-512/256
+*/
+class SHA_512_256 final : public MDx_HashFunction
+   {
+   public:
+      std::string name() const override { return "SHA-512-256"; }
+      size_t output_length() const override { return 32; }
+      std::unique_ptr<HashFunction> new_object() const override { return std::make_unique<SHA_512_256>(); }
+      std::unique_ptr<HashFunction> copy_state() const override;
+      std::string provider() const override;
+
+      void clear() override;
+
+      SHA_512_256() : MDx_HashFunction(128, true, true, 16), m_digest(8) { clear(); }
+   private:
+      void compress_n(const uint8_t[], size_t blocks) override;
+      void copy_out(uint8_t[]) override;
+
+      secure_vector<uint64_t> m_digest;
+   };
+
+}
+
 #if defined(BOTAN_TARGET_SUPPORTS_SSE2)
   #include <emmintrin.h>
   #define BOTAN_SIMD_USE_SSE2
@@ -13230,6 +13422,280 @@ void vartime_divide(const BigInt& x, const BigInt& y_arg, BigInt& q_out, BigInt&
 
    r_out = r;
    q_out = q;
+   }
+
+}
+/*
+* BLAKE2b
+* (C) 2016 cynecx
+* (C) 2017 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+namespace {
+
+enum blake2b_constant {
+  BLAKE2B_BLOCKBYTES = 128,
+  BLAKE2B_IVU64COUNT = 8
+};
+
+const uint64_t blake2b_IV[BLAKE2B_IVU64COUNT] = {
+   0x6a09e667f3bcc908, 0xbb67ae8584caa73b,
+   0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
+   0x510e527fade682d1, 0x9b05688c2b3e6c1f,
+   0x1f83d9abfb41bd6b, 0x5be0cd19137e2179
+};
+
+}
+
+BLAKE2b::BLAKE2b(size_t output_bits) :
+   m_output_bits(output_bits),
+   m_buffer(BLAKE2B_BLOCKBYTES),
+   m_bufpos(0),
+   m_H(BLAKE2B_IVU64COUNT),
+   m_T(),
+   m_F(),
+   m_key_size(0)
+   {
+   if(output_bits == 0 || output_bits > 512 || output_bits % 8 != 0)
+      {
+      throw Invalid_Argument("Bad output bits size for BLAKE2b");
+      }
+
+   state_init();
+   }
+
+void BLAKE2b::state_init()
+   {
+   copy_mem(m_H.data(), blake2b_IV, BLAKE2B_IVU64COUNT);
+   m_H[0] ^= (0x01010000 | (static_cast<uint8_t>(m_key_size) << 8) | static_cast<uint8_t>(output_length()));
+   m_T[0] = m_T[1] = 0;
+   m_F[0] = m_F[1] = 0;
+
+   if(m_key_size == 0)
+      {
+      m_bufpos = 0;
+      }
+   else
+      {
+      BOTAN_ASSERT_NOMSG(m_padded_key_buffer.size() == m_buffer.size());
+      copy_mem(m_buffer.data(), m_padded_key_buffer.data(), m_padded_key_buffer.size());
+      m_bufpos = m_padded_key_buffer.size();
+      }
+   }
+
+namespace {
+
+BOTAN_FORCE_INLINE void G(uint64_t& a, uint64_t& b, uint64_t& c, uint64_t& d,
+                          uint64_t M0, uint64_t M1)
+   {
+   a = a + b + M0;
+   d = rotr<32>(d ^ a);
+   c = c + d;
+   b = rotr<24>(b ^ c);
+   a = a + b + M1;
+   d = rotr<16>(d ^ a);
+   c = c + d;
+   b = rotr<63>(b ^ c);
+   }
+
+template<size_t i0, size_t i1, size_t i2, size_t i3, size_t i4, size_t i5, size_t i6, size_t i7,
+         size_t i8, size_t i9, size_t iA, size_t iB, size_t iC, size_t iD, size_t iE, size_t iF>
+BOTAN_FORCE_INLINE void ROUND(uint64_t* v, const uint64_t* M)
+   {
+   G(v[ 0], v[ 4], v[ 8], v[12], M[i0], M[i1]);
+   G(v[ 1], v[ 5], v[ 9], v[13], M[i2], M[i3]);
+   G(v[ 2], v[ 6], v[10], v[14], M[i4], M[i5]);
+   G(v[ 3], v[ 7], v[11], v[15], M[i6], M[i7]);
+   G(v[ 0], v[ 5], v[10], v[15], M[i8], M[i9]);
+   G(v[ 1], v[ 6], v[11], v[12], M[iA], M[iB]);
+   G(v[ 2], v[ 7], v[ 8], v[13], M[iC], M[iD]);
+   G(v[ 3], v[ 4], v[ 9], v[14], M[iE], M[iF]);
+   }
+
+
+}
+
+void BLAKE2b::compress(const uint8_t* input, size_t blocks, uint64_t increment)
+   {
+   for(size_t b = 0; b != blocks; ++b)
+      {
+      m_T[0] += increment;
+      if(m_T[0] < increment)
+         {
+         m_T[1]++;
+         }
+
+      uint64_t M[16];
+      uint64_t v[16];
+      load_le(M, input, 16);
+
+      input += BLAKE2B_BLOCKBYTES;
+
+      for(size_t i = 0; i < 8; i++)
+         v[i] = m_H[i];
+      for(size_t i = 0; i != 8; ++i)
+         v[i + 8] = blake2b_IV[i];
+
+      v[12] ^= m_T[0];
+      v[13] ^= m_T[1];
+      v[14] ^= m_F[0];
+      v[15] ^= m_F[1];
+
+      ROUND< 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15>(v, M);
+      ROUND<14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3>(v, M);
+      ROUND<11,  8, 12,  0,  5,  2, 15, 13, 10, 14,  3,  6,  7,  1,  9,  4>(v, M);
+      ROUND< 7,  9,  3,  1, 13, 12, 11, 14,  2,  6,  5, 10,  4,  0, 15,  8>(v, M);
+      ROUND< 9,  0,  5,  7,  2,  4, 10, 15, 14,  1, 11, 12,  6,  8,  3, 13>(v, M);
+      ROUND< 2, 12,  6, 10,  0, 11,  8,  3,  4, 13,  7,  5, 15, 14,  1,  9>(v, M);
+      ROUND<12,  5,  1, 15, 14, 13,  4, 10,  0,  7,  6,  3,  9,  2,  8, 11>(v, M);
+      ROUND<13, 11,  7, 14, 12,  1,  3,  9,  5,  0, 15,  4,  8,  6,  2, 10>(v, M);
+      ROUND< 6, 15, 14,  9, 11,  3,  0,  8, 12,  2, 13,  7,  1,  4, 10,  5>(v, M);
+      ROUND<10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13,  0>(v, M);
+      ROUND< 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15>(v, M);
+      ROUND<14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3>(v, M);
+
+      for(size_t i = 0; i < 8; i++)
+         {
+         m_H[i] ^= v[i] ^ v[i + 8];
+         }
+      }
+   }
+
+void BLAKE2b::add_data(const uint8_t input[], size_t length)
+   {
+   if(length == 0)
+      return;
+
+   if(m_bufpos > 0)
+      {
+      if(m_bufpos < BLAKE2B_BLOCKBYTES)
+         {
+         const size_t take = std::min(BLAKE2B_BLOCKBYTES - m_bufpos, length);
+         copy_mem(&m_buffer[m_bufpos], input, take);
+         m_bufpos += take;
+         length -= take;
+         input += take;
+         }
+
+      if(m_bufpos == m_buffer.size() && length > 0)
+         {
+         compress(m_buffer.data(), 1, BLAKE2B_BLOCKBYTES);
+         m_bufpos = 0;
+         }
+      }
+
+   if(length > BLAKE2B_BLOCKBYTES)
+      {
+      const size_t full_blocks = ((length-1) / BLAKE2B_BLOCKBYTES);
+      compress(input, full_blocks, BLAKE2B_BLOCKBYTES);
+
+      input += full_blocks * BLAKE2B_BLOCKBYTES;
+      length -= full_blocks * BLAKE2B_BLOCKBYTES;
+      }
+
+   if(length > 0)
+      {
+      copy_mem(&m_buffer[m_bufpos], input, length);
+      m_bufpos += length;
+      }
+   }
+
+void BLAKE2b::final_result(uint8_t output[])
+   {
+   if(m_bufpos != BLAKE2B_BLOCKBYTES)
+      clear_mem(&m_buffer[m_bufpos], BLAKE2B_BLOCKBYTES - m_bufpos);
+   m_F[0] = 0xFFFFFFFFFFFFFFFF;
+   compress(m_buffer.data(), 1, m_bufpos);
+   copy_out_vec_le(output, output_length(), m_H);
+   state_init();
+   }
+
+Key_Length_Specification BLAKE2b::key_spec() const
+   {
+   return Key_Length_Specification(0, 64);
+   }
+
+std::string BLAKE2b::name() const
+   {
+   return "BLAKE2b(" + std::to_string(m_output_bits) + ")";
+   }
+
+std::unique_ptr<HashFunction> BLAKE2b::new_object() const
+   {
+   return std::make_unique<BLAKE2b>(m_output_bits);
+   }
+
+std::unique_ptr<HashFunction> BLAKE2b::copy_state() const
+   {
+   return std::make_unique<BLAKE2b>(*this);
+   }
+
+void BLAKE2b::key_schedule(const uint8_t key[], size_t length)
+   {
+   BOTAN_ASSERT_NOMSG(length <= m_buffer.size());
+
+   m_key_size = length;
+   m_padded_key_buffer.resize(m_buffer.size());
+
+   if(m_padded_key_buffer.size() > length)
+      {
+      size_t padding = m_padded_key_buffer.size() - length;
+      clear_mem(m_padded_key_buffer.data() + length, padding);
+      }
+
+   copy_mem(m_padded_key_buffer.data(), key, length);
+   state_init();
+   }
+
+void BLAKE2b::clear()
+   {
+   zeroise(m_H);
+   zeroise(m_buffer);
+   zeroise(m_padded_key_buffer);
+   m_bufpos = 0;
+   m_key_size = 0;
+   state_init();
+   }
+
+}
+/*
+* BLAKE2b MAC
+* (C) 1999-2007,2014 Jack Lloyd
+* (C) 2020           Tom Crowley
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+/*
+* Clear memory of sensitive data
+*/
+void BLAKE2bMAC::clear()
+   {
+   m_blake.clear();
+   }
+
+/*
+* Return a new_object of this object
+*/
+std::unique_ptr<MessageAuthenticationCode> BLAKE2bMAC::new_object() const
+   {
+   return std::make_unique<BLAKE2bMAC>(m_blake.output_length() * 8);
+   }
+
+/*
+* BLAKE2bMAC Constructor
+*/
+BLAKE2bMAC::BLAKE2bMAC(size_t output_bits) :
+       m_blake(output_bits)
+   {
    }
 
 }
@@ -31352,555 +31818,6 @@ void SHA_160::clear()
 
 }
 /*
-* SHA-1 using SSE2
-* Based on public domain code by Dean Gaudet
-*    (http://arctic.org/~dean/crypto/sha1.html)
-* (C) 2009-2011 Jack Lloyd
-*
-* Botan is released under the Simplified BSD License (see license.txt)
-*/
-
-#include <emmintrin.h>
-
-namespace Botan {
-
-namespace SHA1_SSE2_F {
-
-namespace {
-
-/*
-* First 16 bytes just need byte swapping. Preparing just means
-* adding in the round constants.
-*/
-
-#define prep00_15(P, W)                                      \
-   do {                                                      \
-      W = _mm_shufflehi_epi16(W, _MM_SHUFFLE(2, 3, 0, 1));   \
-      W = _mm_shufflelo_epi16(W, _MM_SHUFFLE(2, 3, 0, 1));   \
-      W = _mm_or_si128(_mm_slli_epi16(W, 8),                 \
-                       _mm_srli_epi16(W, 8));                \
-      P.u128 = _mm_add_epi32(W, K00_19);                     \
-   } while(0)
-
-/*
-For each multiple of 4, t, we want to calculate this:
-
-W[t+0] = rol(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1);
-W[t+1] = rol(W[t-2] ^ W[t-7] ^ W[t-13] ^ W[t-15], 1);
-W[t+2] = rol(W[t-1] ^ W[t-6] ^ W[t-12] ^ W[t-14], 1);
-W[t+3] = rol(W[t]   ^ W[t-5] ^ W[t-11] ^ W[t-13], 1);
-
-we'll actually calculate this:
-
-W[t+0] = rol(W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16], 1);
-W[t+1] = rol(W[t-2] ^ W[t-7] ^ W[t-13] ^ W[t-15], 1);
-W[t+2] = rol(W[t-1] ^ W[t-6] ^ W[t-12] ^ W[t-14], 1);
-W[t+3] = rol(  0    ^ W[t-5] ^ W[t-11] ^ W[t-13], 1);
-W[t+3] ^= rol(W[t+0], 1);
-
-the parameters are:
-
-W0 = &W[t-16];
-W1 = &W[t-12];
-W2 = &W[t- 8];
-W3 = &W[t- 4];
-
-and on output:
-prepared = W0 + K
-W0 = W[t]..W[t+3]
-*/
-
-/* note that there is a step here where i want to do a rol by 1, which
-* normally would look like this:
-*
-* r1 = psrld r0,$31
-* r0 = pslld r0,$1
-* r0 = por r0,r1
-*
-* but instead i do this:
-*
-* r1 = pcmpltd r0,zero
-* r0 = paddd r0,r0
-* r0 = psub r0,r1
-*
-* because pcmpltd and paddd are available in both MMX units on
-* efficeon, pentium-m, and opteron but shifts are available in
-* only one unit.
-*/
-#define prep(prep, XW0, XW1, XW2, XW3, K)                               \
-   do {                                                                 \
-      __m128i r0, r1, r2, r3;                                           \
-                                                                        \
-      /* load W[t-4] 16-byte aligned, and shift */                      \
-      r3 = _mm_srli_si128((XW3), 4);                                    \
-      r0 = (XW0);                                                       \
-      /* get high 64-bits of XW0 into low 64-bits */                    \
-      r1 = _mm_shuffle_epi32((XW0), _MM_SHUFFLE(1,0,3,2));              \
-      /* load high 64-bits of r1 */                                     \
-      r1 = _mm_unpacklo_epi64(r1, (XW1));                               \
-      r2 = (XW2);                                                       \
-                                                                        \
-      r0 = _mm_xor_si128(r1, r0);                                       \
-      r2 = _mm_xor_si128(r3, r2);                                       \
-      r0 = _mm_xor_si128(r2, r0);                                       \
-      /* unrotated W[t]..W[t+2] in r0 ... still need W[t+3] */          \
-                                                                        \
-      r2 = _mm_slli_si128(r0, 12);                                      \
-      r1 = _mm_cmplt_epi32(r0, _mm_setzero_si128());                    \
-      r0 = _mm_add_epi32(r0, r0);   /* shift left by 1 */               \
-      r0 = _mm_sub_epi32(r0, r1);   /* r0 has W[t]..W[t+2] */           \
-                                                                        \
-      r3 = _mm_srli_epi32(r2, 30);                                      \
-      r2 = _mm_slli_epi32(r2, 2);                                       \
-                                                                        \
-      r0 = _mm_xor_si128(r0, r3);                                       \
-      r0 = _mm_xor_si128(r0, r2);   /* r0 now has W[t+3] */             \
-                                                                        \
-      (XW0) = r0;                                                       \
-      (prep).u128 = _mm_add_epi32(r0, K);                               \
-   } while(0)
-
-/*
-* SHA-160 F1 Function
-*/
-inline void F1(uint32_t A, uint32_t& B, uint32_t C, uint32_t D, uint32_t& E, uint32_t msg)
-   {
-   E += choose(B, C, D) + msg + rotl<5>(A);
-   B  = rotl<30>(B);
-   }
-
-/*
-* SHA-160 F2 Function
-*/
-inline void F2(uint32_t A, uint32_t& B, uint32_t C, uint32_t D, uint32_t& E, uint32_t msg)
-   {
-   E += (B ^ C ^ D) + msg + rotl<5>(A);
-   B  = rotl<30>(B);
-   }
-
-/*
-* SHA-160 F3 Function
-*/
-inline void F3(uint32_t A, uint32_t& B, uint32_t C, uint32_t D, uint32_t& E, uint32_t msg)
-   {
-   E += majority(B, C, D) + msg + rotl<5>(A);
-   B  = rotl<30>(B);
-   }
-
-/*
-* SHA-160 F4 Function
-*/
-inline void F4(uint32_t A, uint32_t& B, uint32_t C, uint32_t D, uint32_t& E, uint32_t msg)
-   {
-   E += (B ^ C ^ D) + msg + rotl<5>(A);
-   B  = rotl<30>(B);
-   }
-
-}
-
-}
-
-/*
-* SHA-160 Compression Function using SSE for message expansion
-*/
-//static
-BOTAN_FUNC_ISA("sse2")
-void SHA_160::sse2_compress_n(secure_vector<uint32_t>& digest, const uint8_t input[], size_t blocks)
-   {
-   using namespace SHA1_SSE2_F;
-
-   const __m128i K00_19 = _mm_set1_epi32(0x5A827999);
-   const __m128i K20_39 = _mm_set1_epi32(0x6ED9EBA1);
-   const __m128i K40_59 = _mm_set1_epi32(0x8F1BBCDC);
-   const __m128i K60_79 = _mm_set1_epi32(0xCA62C1D6);
-
-   uint32_t A = digest[0],
-          B = digest[1],
-          C = digest[2],
-          D = digest[3],
-          E = digest[4];
-
-   const __m128i* input_mm = reinterpret_cast<const __m128i*>(input);
-
-   for(size_t i = 0; i != blocks; ++i)
-      {
-      union v4si {
-         uint32_t u32[4];
-         __m128i u128;
-         };
-
-      v4si P0, P1, P2, P3;
-
-      __m128i W0 = _mm_loadu_si128(&input_mm[0]);
-      prep00_15(P0, W0);
-
-      __m128i W1 = _mm_loadu_si128(&input_mm[1]);
-      prep00_15(P1, W1);
-
-      __m128i W2 = _mm_loadu_si128(&input_mm[2]);
-      prep00_15(P2, W2);
-
-      __m128i W3 = _mm_loadu_si128(&input_mm[3]);
-      prep00_15(P3, W3);
-
-      /*
-      Using SSE4; slower on Core2 and Nehalem
-      #define GET_P_32(P, i) _mm_extract_epi32(P.u128, i)
-
-      Much slower on all tested platforms
-      #define GET_P_32(P,i) _mm_cvtsi128_si32(_mm_srli_si128(P.u128, i*4))
-      */
-
-#define GET_P_32(P, i) P.u32[i]
-
-      F1(A, B, C, D, E, GET_P_32(P0, 0));
-      F1(E, A, B, C, D, GET_P_32(P0, 1));
-      F1(D, E, A, B, C, GET_P_32(P0, 2));
-      F1(C, D, E, A, B, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K00_19);
-
-      F1(B, C, D, E, A, GET_P_32(P1, 0));
-      F1(A, B, C, D, E, GET_P_32(P1, 1));
-      F1(E, A, B, C, D, GET_P_32(P1, 2));
-      F1(D, E, A, B, C, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K20_39);
-
-      F1(C, D, E, A, B, GET_P_32(P2, 0));
-      F1(B, C, D, E, A, GET_P_32(P2, 1));
-      F1(A, B, C, D, E, GET_P_32(P2, 2));
-      F1(E, A, B, C, D, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K20_39);
-
-      F1(D, E, A, B, C, GET_P_32(P3, 0));
-      F1(C, D, E, A, B, GET_P_32(P3, 1));
-      F1(B, C, D, E, A, GET_P_32(P3, 2));
-      F1(A, B, C, D, E, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K20_39);
-
-      F1(E, A, B, C, D, GET_P_32(P0, 0));
-      F1(D, E, A, B, C, GET_P_32(P0, 1));
-      F1(C, D, E, A, B, GET_P_32(P0, 2));
-      F1(B, C, D, E, A, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K20_39);
-
-      F2(A, B, C, D, E, GET_P_32(P1, 0));
-      F2(E, A, B, C, D, GET_P_32(P1, 1));
-      F2(D, E, A, B, C, GET_P_32(P1, 2));
-      F2(C, D, E, A, B, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K20_39);
-
-      F2(B, C, D, E, A, GET_P_32(P2, 0));
-      F2(A, B, C, D, E, GET_P_32(P2, 1));
-      F2(E, A, B, C, D, GET_P_32(P2, 2));
-      F2(D, E, A, B, C, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K40_59);
-
-      F2(C, D, E, A, B, GET_P_32(P3, 0));
-      F2(B, C, D, E, A, GET_P_32(P3, 1));
-      F2(A, B, C, D, E, GET_P_32(P3, 2));
-      F2(E, A, B, C, D, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K40_59);
-
-      F2(D, E, A, B, C, GET_P_32(P0, 0));
-      F2(C, D, E, A, B, GET_P_32(P0, 1));
-      F2(B, C, D, E, A, GET_P_32(P0, 2));
-      F2(A, B, C, D, E, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K40_59);
-
-      F2(E, A, B, C, D, GET_P_32(P1, 0));
-      F2(D, E, A, B, C, GET_P_32(P1, 1));
-      F2(C, D, E, A, B, GET_P_32(P1, 2));
-      F2(B, C, D, E, A, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K40_59);
-
-      F3(A, B, C, D, E, GET_P_32(P2, 0));
-      F3(E, A, B, C, D, GET_P_32(P2, 1));
-      F3(D, E, A, B, C, GET_P_32(P2, 2));
-      F3(C, D, E, A, B, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K40_59);
-
-      F3(B, C, D, E, A, GET_P_32(P3, 0));
-      F3(A, B, C, D, E, GET_P_32(P3, 1));
-      F3(E, A, B, C, D, GET_P_32(P3, 2));
-      F3(D, E, A, B, C, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K60_79);
-
-      F3(C, D, E, A, B, GET_P_32(P0, 0));
-      F3(B, C, D, E, A, GET_P_32(P0, 1));
-      F3(A, B, C, D, E, GET_P_32(P0, 2));
-      F3(E, A, B, C, D, GET_P_32(P0, 3));
-      prep(P0, W0, W1, W2, W3, K60_79);
-
-      F3(D, E, A, B, C, GET_P_32(P1, 0));
-      F3(C, D, E, A, B, GET_P_32(P1, 1));
-      F3(B, C, D, E, A, GET_P_32(P1, 2));
-      F3(A, B, C, D, E, GET_P_32(P1, 3));
-      prep(P1, W1, W2, W3, W0, K60_79);
-
-      F3(E, A, B, C, D, GET_P_32(P2, 0));
-      F3(D, E, A, B, C, GET_P_32(P2, 1));
-      F3(C, D, E, A, B, GET_P_32(P2, 2));
-      F3(B, C, D, E, A, GET_P_32(P2, 3));
-      prep(P2, W2, W3, W0, W1, K60_79);
-
-      F4(A, B, C, D, E, GET_P_32(P3, 0));
-      F4(E, A, B, C, D, GET_P_32(P3, 1));
-      F4(D, E, A, B, C, GET_P_32(P3, 2));
-      F4(C, D, E, A, B, GET_P_32(P3, 3));
-      prep(P3, W3, W0, W1, W2, K60_79);
-
-      F4(B, C, D, E, A, GET_P_32(P0, 0));
-      F4(A, B, C, D, E, GET_P_32(P0, 1));
-      F4(E, A, B, C, D, GET_P_32(P0, 2));
-      F4(D, E, A, B, C, GET_P_32(P0, 3));
-
-      F4(C, D, E, A, B, GET_P_32(P1, 0));
-      F4(B, C, D, E, A, GET_P_32(P1, 1));
-      F4(A, B, C, D, E, GET_P_32(P1, 2));
-      F4(E, A, B, C, D, GET_P_32(P1, 3));
-
-      F4(D, E, A, B, C, GET_P_32(P2, 0));
-      F4(C, D, E, A, B, GET_P_32(P2, 1));
-      F4(B, C, D, E, A, GET_P_32(P2, 2));
-      F4(A, B, C, D, E, GET_P_32(P2, 3));
-
-      F4(E, A, B, C, D, GET_P_32(P3, 0));
-      F4(D, E, A, B, C, GET_P_32(P3, 1));
-      F4(C, D, E, A, B, GET_P_32(P3, 2));
-      F4(B, C, D, E, A, GET_P_32(P3, 3));
-
-      A = (digest[0] += A);
-      B = (digest[1] += B);
-      C = (digest[2] += C);
-      D = (digest[3] += D);
-      E = (digest[4] += E);
-
-      input_mm += (64 / 16);
-      }
-
-#undef GET_P_32
-   }
-
-#undef prep00_15
-#undef prep
-
-}
-/*
-* SHA-1 using Intel SHA intrinsic
-*
-* Based on public domain code by Sean Gulley
-* (https://github.com/mitls/hacl-star/tree/master/experimental/hash)
-* Adapted to Botan by Jeffrey Walton.
-*
-* Further changes
-*
-* (C) 2017 Jack Lloyd
-*
-* Botan is released under the Simplified BSD License (see license.txt)
-*/
-
-#include <immintrin.h>
-
-namespace Botan {
-
-#if defined(BOTAN_HAS_SHA1_X86_SHA_NI)
-BOTAN_FUNC_ISA("sha,ssse3,sse4.1")
-void SHA_160::sha1_compress_x86(secure_vector<uint32_t>& digest,
-                                const uint8_t input[],
-                                size_t blocks)
-   {
-   const __m128i MASK = _mm_set_epi64x(0x0001020304050607, 0x08090a0b0c0d0e0f);
-   const __m128i* input_mm = reinterpret_cast<const __m128i*>(input);
-
-   uint32_t* state = digest.data();
-
-   // Load initial values
-   __m128i ABCD = _mm_loadu_si128(reinterpret_cast<__m128i*>(state));
-   __m128i E0 = _mm_set_epi32(state[4], 0, 0, 0);
-   ABCD = _mm_shuffle_epi32(ABCD, 0x1B);
-
-   while (blocks)
-      {
-      // Save current hash
-      const __m128i ABCD_SAVE = ABCD;
-      const __m128i E0_SAVE = E0;
-
-      __m128i MSG0, MSG1, MSG2, MSG3;
-      __m128i E1;
-
-      // Rounds 0-3
-      MSG0 = _mm_loadu_si128(input_mm+0);
-      MSG0 = _mm_shuffle_epi8(MSG0, MASK);
-      E0 = _mm_add_epi32(E0, MSG0);
-      E1 = ABCD;
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 0);
-
-      // Rounds 4-7
-      MSG1 = _mm_loadu_si128(input_mm+1);
-      MSG1 = _mm_shuffle_epi8(MSG1, MASK);
-      E1 = _mm_sha1nexte_epu32(E1, MSG1);
-      E0 = ABCD;
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 0);
-      MSG0 = _mm_sha1msg1_epu32(MSG0, MSG1);
-
-      // Rounds 8-11
-      MSG2 = _mm_loadu_si128(input_mm+2);
-      MSG2 = _mm_shuffle_epi8(MSG2, MASK);
-      E0 = _mm_sha1nexte_epu32(E0, MSG2);
-      E1 = ABCD;
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 0);
-      MSG1 = _mm_sha1msg1_epu32(MSG1, MSG2);
-      MSG0 = _mm_xor_si128(MSG0, MSG2);
-
-      // Rounds 12-15
-      MSG3 = _mm_loadu_si128(input_mm+3);
-      MSG3 = _mm_shuffle_epi8(MSG3, MASK);
-      E1 = _mm_sha1nexte_epu32(E1, MSG3);
-      E0 = ABCD;
-      MSG0 = _mm_sha1msg2_epu32(MSG0, MSG3);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 0);
-      MSG2 = _mm_sha1msg1_epu32(MSG2, MSG3);
-      MSG1 = _mm_xor_si128(MSG1, MSG3);
-
-      // Rounds 16-19
-      E0 = _mm_sha1nexte_epu32(E0, MSG0);
-      E1 = ABCD;
-      MSG1 = _mm_sha1msg2_epu32(MSG1, MSG0);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 0);
-      MSG3 = _mm_sha1msg1_epu32(MSG3, MSG0);
-      MSG2 = _mm_xor_si128(MSG2, MSG0);
-
-      // Rounds 20-23
-      E1 = _mm_sha1nexte_epu32(E1, MSG1);
-      E0 = ABCD;
-      MSG2 = _mm_sha1msg2_epu32(MSG2, MSG1);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 1);
-      MSG0 = _mm_sha1msg1_epu32(MSG0, MSG1);
-      MSG3 = _mm_xor_si128(MSG3, MSG1);
-
-      // Rounds 24-27
-      E0 = _mm_sha1nexte_epu32(E0, MSG2);
-      E1 = ABCD;
-      MSG3 = _mm_sha1msg2_epu32(MSG3, MSG2);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 1);
-      MSG1 = _mm_sha1msg1_epu32(MSG1, MSG2);
-      MSG0 = _mm_xor_si128(MSG0, MSG2);
-
-      // Rounds 28-31
-      E1 = _mm_sha1nexte_epu32(E1, MSG3);
-      E0 = ABCD;
-      MSG0 = _mm_sha1msg2_epu32(MSG0, MSG3);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 1);
-      MSG2 = _mm_sha1msg1_epu32(MSG2, MSG3);
-      MSG1 = _mm_xor_si128(MSG1, MSG3);
-
-      // Rounds 32-35
-      E0 = _mm_sha1nexte_epu32(E0, MSG0);
-      E1 = ABCD;
-      MSG1 = _mm_sha1msg2_epu32(MSG1, MSG0);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 1);
-      MSG3 = _mm_sha1msg1_epu32(MSG3, MSG0);
-      MSG2 = _mm_xor_si128(MSG2, MSG0);
-
-      // Rounds 36-39
-      E1 = _mm_sha1nexte_epu32(E1, MSG1);
-      E0 = ABCD;
-      MSG2 = _mm_sha1msg2_epu32(MSG2, MSG1);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 1);
-      MSG0 = _mm_sha1msg1_epu32(MSG0, MSG1);
-      MSG3 = _mm_xor_si128(MSG3, MSG1);
-
-      // Rounds 40-43
-      E0 = _mm_sha1nexte_epu32(E0, MSG2);
-      E1 = ABCD;
-      MSG3 = _mm_sha1msg2_epu32(MSG3, MSG2);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 2);
-      MSG1 = _mm_sha1msg1_epu32(MSG1, MSG2);
-      MSG0 = _mm_xor_si128(MSG0, MSG2);
-
-      // Rounds 44-47
-      E1 = _mm_sha1nexte_epu32(E1, MSG3);
-      E0 = ABCD;
-      MSG0 = _mm_sha1msg2_epu32(MSG0, MSG3);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 2);
-      MSG2 = _mm_sha1msg1_epu32(MSG2, MSG3);
-      MSG1 = _mm_xor_si128(MSG1, MSG3);
-
-      // Rounds 48-51
-      E0 = _mm_sha1nexte_epu32(E0, MSG0);
-      E1 = ABCD;
-      MSG1 = _mm_sha1msg2_epu32(MSG1, MSG0);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 2);
-      MSG3 = _mm_sha1msg1_epu32(MSG3, MSG0);
-      MSG2 = _mm_xor_si128(MSG2, MSG0);
-
-      // Rounds 52-55
-      E1 = _mm_sha1nexte_epu32(E1, MSG1);
-      E0 = ABCD;
-      MSG2 = _mm_sha1msg2_epu32(MSG2, MSG1);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 2);
-      MSG0 = _mm_sha1msg1_epu32(MSG0, MSG1);
-      MSG3 = _mm_xor_si128(MSG3, MSG1);
-
-      // Rounds 56-59
-      E0 = _mm_sha1nexte_epu32(E0, MSG2);
-      E1 = ABCD;
-      MSG3 = _mm_sha1msg2_epu32(MSG3, MSG2);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 2);
-      MSG1 = _mm_sha1msg1_epu32(MSG1, MSG2);
-      MSG0 = _mm_xor_si128(MSG0, MSG2);
-
-      // Rounds 60-63
-      E1 = _mm_sha1nexte_epu32(E1, MSG3);
-      E0 = ABCD;
-      MSG0 = _mm_sha1msg2_epu32(MSG0, MSG3);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 3);
-      MSG2 = _mm_sha1msg1_epu32(MSG2, MSG3);
-      MSG1 = _mm_xor_si128(MSG1, MSG3);
-
-      // Rounds 64-67
-      E0 = _mm_sha1nexte_epu32(E0, MSG0);
-      E1 = ABCD;
-      MSG1 = _mm_sha1msg2_epu32(MSG1, MSG0);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 3);
-      MSG3 = _mm_sha1msg1_epu32(MSG3, MSG0);
-      MSG2 = _mm_xor_si128(MSG2, MSG0);
-
-      // Rounds 68-71
-      E1 = _mm_sha1nexte_epu32(E1, MSG1);
-      E0 = ABCD;
-      MSG2 = _mm_sha1msg2_epu32(MSG2, MSG1);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 3);
-      MSG3 = _mm_xor_si128(MSG3, MSG1);
-
-      // Rounds 72-75
-      E0 = _mm_sha1nexte_epu32(E0, MSG2);
-      E1 = ABCD;
-      MSG3 = _mm_sha1msg2_epu32(MSG3, MSG2);
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 3);
-
-      // Rounds 76-79
-      E1 = _mm_sha1nexte_epu32(E1, MSG3);
-      E0 = ABCD;
-      ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 3);
-
-      // Add values back to state
-      E0 = _mm_sha1nexte_epu32(E0, E0_SAVE);
-      ABCD = _mm_add_epi32(ABCD, ABCD_SAVE);
-
-      input_mm += 4;
-      blocks--;
-      }
-
-   // Save state
-   ABCD = _mm_shuffle_epi32(ABCD, 0x1B);
-   _mm_storeu_si128(reinterpret_cast<__m128i*>(state), ABCD);
-   state[4] = _mm_extract_epi32(E0, 3);
-   }
-#endif
-
-}
-/*
 * SHA-{224,256}
 * (C) 1999-2010,2017 Jack Lloyd
 *     2007 FlexSecure GmbH
@@ -32182,6 +32099,7 @@ void SHA_256::clear()
 * Botan is released under the Simplified BSD License (see license.txt)
 */
 
+#include <immintrin.h>
 
 namespace Botan {
 
@@ -32386,6 +32304,283 @@ void SHA_256::compress_digest_x86(secure_vector<uint32_t>& digest, const uint8_t
    _mm_storeu_si128(reinterpret_cast<__m128i*>(&state[4]), _mm_alignr_epi8(STATE1, STATE0, 8)); // ABEF
    }
 #endif
+
+}
+/*
+* SHA-{384,512}
+* (C) 1999-2011,2015 Jack Lloyd
+*
+* Botan is released under the Simplified BSD License (see license.txt)
+*/
+
+
+namespace Botan {
+
+namespace {
+
+std::string sha512_provider()
+   {
+#if defined(BOTAN_HAS_SHA2_64_BMI2)
+   if(CPUID::has_bmi2())
+      {
+      return "bmi2";
+      }
+#endif
+
+   return "base";
+   }
+
+}
+
+std::unique_ptr<HashFunction> SHA_384::copy_state() const
+   {
+   return std::make_unique<SHA_384>(*this);
+   }
+
+std::unique_ptr<HashFunction> SHA_512::copy_state() const
+   {
+   return std::make_unique<SHA_512>(*this);
+   }
+
+std::unique_ptr<HashFunction> SHA_512_256::copy_state() const
+   {
+   return std::make_unique<SHA_512_256>(*this);
+   }
+
+/*
+* SHA-512 F1 Function
+*
+* Use a macro as many compilers won't inline a function this big,
+* even though it is much faster if inlined.
+*/
+#define SHA2_64_F(A, B, C, D, E, F, G, H, M1, M2, M3, M4, magic)         \
+   do {                                                                  \
+      const uint64_t E_rho = rotr<14>(E) ^ rotr<18>(E) ^ rotr<41>(E);    \
+      const uint64_t A_rho = rotr<28>(A) ^ rotr<34>(A) ^ rotr<39>(A);    \
+      const uint64_t M2_sigma = rotr<19>(M2) ^ rotr<61>(M2) ^ (M2 >> 6); \
+      const uint64_t M4_sigma = rotr<1>(M4) ^ rotr<8>(M4) ^ (M4 >> 7);   \
+      H += magic + E_rho + choose(E, F, G) + M1;                         \
+      D += H;                                                            \
+      H += A_rho + majority(A, B, C);                                    \
+      M1 += M2_sigma + M3 + M4_sigma;                                    \
+   } while(0);
+
+/*
+* SHA-{384,512} Compression Function
+*/
+//static
+void SHA_512::compress_digest(secure_vector<uint64_t>& digest,
+                              const uint8_t input[], size_t blocks)
+   {
+#if defined(BOTAN_HAS_SHA2_64_BMI2)
+   if(CPUID::has_bmi2())
+      {
+      return compress_digest_bmi2(digest, input, blocks);
+      }
+#endif
+
+   uint64_t A = digest[0], B = digest[1], C = digest[2],
+            D = digest[3], E = digest[4], F = digest[5],
+            G = digest[6], H = digest[7];
+
+   for(size_t i = 0; i != blocks; ++i)
+      {
+      uint64_t W00 = load_be<uint64_t>(input,  0);
+      uint64_t W01 = load_be<uint64_t>(input,  1);
+      uint64_t W02 = load_be<uint64_t>(input,  2);
+      uint64_t W03 = load_be<uint64_t>(input,  3);
+      uint64_t W04 = load_be<uint64_t>(input,  4);
+      uint64_t W05 = load_be<uint64_t>(input,  5);
+      uint64_t W06 = load_be<uint64_t>(input,  6);
+      uint64_t W07 = load_be<uint64_t>(input,  7);
+      uint64_t W08 = load_be<uint64_t>(input,  8);
+      uint64_t W09 = load_be<uint64_t>(input,  9);
+      uint64_t W10 = load_be<uint64_t>(input, 10);
+      uint64_t W11 = load_be<uint64_t>(input, 11);
+      uint64_t W12 = load_be<uint64_t>(input, 12);
+      uint64_t W13 = load_be<uint64_t>(input, 13);
+      uint64_t W14 = load_be<uint64_t>(input, 14);
+      uint64_t W15 = load_be<uint64_t>(input, 15);
+
+      SHA2_64_F(A, B, C, D, E, F, G, H, W00, W14, W09, W01, 0x428A2F98D728AE22);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W01, W15, W10, W02, 0x7137449123EF65CD);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W02, W00, W11, W03, 0xB5C0FBCFEC4D3B2F);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W03, W01, W12, W04, 0xE9B5DBA58189DBBC);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W04, W02, W13, W05, 0x3956C25BF348B538);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W05, W03, W14, W06, 0x59F111F1B605D019);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W06, W04, W15, W07, 0x923F82A4AF194F9B);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W07, W05, W00, W08, 0xAB1C5ED5DA6D8118);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W08, W06, W01, W09, 0xD807AA98A3030242);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W09, W07, W02, W10, 0x12835B0145706FBE);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W10, W08, W03, W11, 0x243185BE4EE4B28C);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W11, W09, W04, W12, 0x550C7DC3D5FFB4E2);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W12, W10, W05, W13, 0x72BE5D74F27B896F);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W13, W11, W06, W14, 0x80DEB1FE3B1696B1);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W14, W12, W07, W15, 0x9BDC06A725C71235);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W15, W13, W08, W00, 0xC19BF174CF692694);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W00, W14, W09, W01, 0xE49B69C19EF14AD2);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W01, W15, W10, W02, 0xEFBE4786384F25E3);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W02, W00, W11, W03, 0x0FC19DC68B8CD5B5);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W03, W01, W12, W04, 0x240CA1CC77AC9C65);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W04, W02, W13, W05, 0x2DE92C6F592B0275);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W05, W03, W14, W06, 0x4A7484AA6EA6E483);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W06, W04, W15, W07, 0x5CB0A9DCBD41FBD4);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W07, W05, W00, W08, 0x76F988DA831153B5);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W08, W06, W01, W09, 0x983E5152EE66DFAB);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W09, W07, W02, W10, 0xA831C66D2DB43210);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W10, W08, W03, W11, 0xB00327C898FB213F);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W11, W09, W04, W12, 0xBF597FC7BEEF0EE4);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W12, W10, W05, W13, 0xC6E00BF33DA88FC2);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W13, W11, W06, W14, 0xD5A79147930AA725);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W14, W12, W07, W15, 0x06CA6351E003826F);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W15, W13, W08, W00, 0x142929670A0E6E70);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W00, W14, W09, W01, 0x27B70A8546D22FFC);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W01, W15, W10, W02, 0x2E1B21385C26C926);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W02, W00, W11, W03, 0x4D2C6DFC5AC42AED);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W03, W01, W12, W04, 0x53380D139D95B3DF);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W04, W02, W13, W05, 0x650A73548BAF63DE);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W05, W03, W14, W06, 0x766A0ABB3C77B2A8);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W06, W04, W15, W07, 0x81C2C92E47EDAEE6);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W07, W05, W00, W08, 0x92722C851482353B);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W08, W06, W01, W09, 0xA2BFE8A14CF10364);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W09, W07, W02, W10, 0xA81A664BBC423001);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W10, W08, W03, W11, 0xC24B8B70D0F89791);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W11, W09, W04, W12, 0xC76C51A30654BE30);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W12, W10, W05, W13, 0xD192E819D6EF5218);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W13, W11, W06, W14, 0xD69906245565A910);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W14, W12, W07, W15, 0xF40E35855771202A);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W15, W13, W08, W00, 0x106AA07032BBD1B8);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W00, W14, W09, W01, 0x19A4C116B8D2D0C8);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W01, W15, W10, W02, 0x1E376C085141AB53);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W02, W00, W11, W03, 0x2748774CDF8EEB99);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W03, W01, W12, W04, 0x34B0BCB5E19B48A8);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W04, W02, W13, W05, 0x391C0CB3C5C95A63);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W05, W03, W14, W06, 0x4ED8AA4AE3418ACB);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W06, W04, W15, W07, 0x5B9CCA4F7763E373);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W07, W05, W00, W08, 0x682E6FF3D6B2B8A3);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W08, W06, W01, W09, 0x748F82EE5DEFB2FC);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W09, W07, W02, W10, 0x78A5636F43172F60);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W10, W08, W03, W11, 0x84C87814A1F0AB72);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W11, W09, W04, W12, 0x8CC702081A6439EC);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W12, W10, W05, W13, 0x90BEFFFA23631E28);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W13, W11, W06, W14, 0xA4506CEBDE82BDE9);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W14, W12, W07, W15, 0xBEF9A3F7B2C67915);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W15, W13, W08, W00, 0xC67178F2E372532B);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W00, W14, W09, W01, 0xCA273ECEEA26619C);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W01, W15, W10, W02, 0xD186B8C721C0C207);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W02, W00, W11, W03, 0xEADA7DD6CDE0EB1E);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W03, W01, W12, W04, 0xF57D4F7FEE6ED178);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W04, W02, W13, W05, 0x06F067AA72176FBA);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W05, W03, W14, W06, 0x0A637DC5A2C898A6);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W06, W04, W15, W07, 0x113F9804BEF90DAE);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W07, W05, W00, W08, 0x1B710B35131C471B);
+      SHA2_64_F(A, B, C, D, E, F, G, H, W08, W06, W01, W09, 0x28DB77F523047D84);
+      SHA2_64_F(H, A, B, C, D, E, F, G, W09, W07, W02, W10, 0x32CAAB7B40C72493);
+      SHA2_64_F(G, H, A, B, C, D, E, F, W10, W08, W03, W11, 0x3C9EBE0A15C9BEBC);
+      SHA2_64_F(F, G, H, A, B, C, D, E, W11, W09, W04, W12, 0x431D67C49C100D4C);
+      SHA2_64_F(E, F, G, H, A, B, C, D, W12, W10, W05, W13, 0x4CC5D4BECB3E42B6);
+      SHA2_64_F(D, E, F, G, H, A, B, C, W13, W11, W06, W14, 0x597F299CFC657E2A);
+      SHA2_64_F(C, D, E, F, G, H, A, B, W14, W12, W07, W15, 0x5FCB6FAB3AD6FAEC);
+      SHA2_64_F(B, C, D, E, F, G, H, A, W15, W13, W08, W00, 0x6C44198C4A475817);
+
+      A = (digest[0] += A);
+      B = (digest[1] += B);
+      C = (digest[2] += C);
+      D = (digest[3] += D);
+      E = (digest[4] += E);
+      F = (digest[5] += F);
+      G = (digest[6] += G);
+      H = (digest[7] += H);
+
+      input += 128;
+      }
+   }
+
+#undef SHA2_64_F
+
+std::string SHA_512_256::provider() const
+   {
+   return sha512_provider();
+   }
+
+std::string SHA_384::provider() const
+   {
+   return sha512_provider();
+   }
+
+std::string SHA_512::provider() const
+   {
+   return sha512_provider();
+   }
+
+void SHA_512_256::compress_n(const uint8_t input[], size_t blocks)
+   {
+   SHA_512::compress_digest(m_digest, input, blocks);
+   }
+
+void SHA_384::compress_n(const uint8_t input[], size_t blocks)
+   {
+   SHA_512::compress_digest(m_digest, input, blocks);
+   }
+
+void SHA_512::compress_n(const uint8_t input[], size_t blocks)
+   {
+   SHA_512::compress_digest(m_digest, input, blocks);
+   }
+
+void SHA_512_256::copy_out(uint8_t output[])
+   {
+   copy_out_vec_be(output, output_length(), m_digest);
+   }
+
+void SHA_384::copy_out(uint8_t output[])
+   {
+   copy_out_vec_be(output, output_length(), m_digest);
+   }
+
+void SHA_512::copy_out(uint8_t output[])
+   {
+   copy_out_vec_be(output, output_length(), m_digest);
+   }
+
+void SHA_512_256::clear()
+   {
+   MDx_HashFunction::clear();
+   m_digest[0] = 0x22312194FC2BF72C;
+   m_digest[1] = 0x9F555FA3C84C64C2;
+   m_digest[2] = 0x2393B86B6F53B151;
+   m_digest[3] = 0x963877195940EABD;
+   m_digest[4] = 0x96283EE2A88EFFE3;
+   m_digest[5] = 0xBE5E1E2553863992;
+   m_digest[6] = 0x2B0199FC2C85B8AA;
+   m_digest[7] = 0x0EB72DDC81C52CA2;
+   }
+
+void SHA_384::clear()
+   {
+   MDx_HashFunction::clear();
+   m_digest[0] = 0xCBBB9D5DC1059ED8;
+   m_digest[1] = 0x629A292A367CD507;
+   m_digest[2] = 0x9159015A3070DD17;
+   m_digest[3] = 0x152FECD8F70E5939;
+   m_digest[4] = 0x67332667FFC00B31;
+   m_digest[5] = 0x8EB44A8768581511;
+   m_digest[6] = 0xDB0C2E0D64F98FA7;
+   m_digest[7] = 0x47B5481DBEFA4FA4;
+   }
+
+void SHA_512::clear()
+   {
+   MDx_HashFunction::clear();
+   m_digest[0] = 0x6A09E667F3BCC908;
+   m_digest[1] = 0xBB67AE8584CAA73B;
+   m_digest[2] = 0x3C6EF372FE94F82B;
+   m_digest[3] = 0xA54FF53A5F1D36F1;
+   m_digest[4] = 0x510E527FADE682D1;
+   m_digest[5] = 0x9B05688C2B3E6C1F;
+   m_digest[6] = 0x1F83D9ABFB41BD6B;
+   m_digest[7] = 0x5BE0CD19137E2179;
+   }
 
 }
 /*

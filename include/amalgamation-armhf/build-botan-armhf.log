@@ -1,0 +1,32 @@
+rootdir /usr/local/projects/zafena/cipherpack
+logfile /usr/local/projects/zafena/cipherpack/build-botan-armhf.log
+CPU armhf
+CFG_OPTIONS_THIS --disable-neon
+MOD_BASIC base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1
+MOD_CIPHER chacha,chacha20poly1305,aead,stream
+MOD_HASH sha2_32,sha2_64,blake2,blake2mac
+MOD_RNG system_rng
+MOD_HW_THIS simd,chacha_simd32,chacha_avx2,simd_avx2
+   INFO: ./configure.py invoked with options "--cpu=armhf --disable-neon --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-armhf-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen"
+   INFO: Configuring to build Botan 3.0.0-alpha0 (revision git:15228710faef1b85aaad0cad4f207b8b6dfcdf74)
+   INFO: Running under 3.9.2 (default, Feb 28 2021, 17:03:44) [GCC 10.2.1 20210110]
+   INFO: Autodetected platform information: OS="Linux" machine="armv7l" proc=""
+   INFO: Guessing target OS is linux (use --os to set)
+   INFO: Guessing to use compiler gcc (use --cc or CXX to set)
+   INFO: Using /etc/ssl/certs/ca-certificates.crt as system certificate store
+   INFO: Canonicalized CPU target armhf to arm32
+   INFO: Auto-detected compiler version 10.2
+   INFO: Auto-detected compiler arch arm32
+   INFO: Target is gcc:10.2-linux-arm32
+   INFO: Assuming target arm32 is little endian
+   INFO: Skipping (dependency failure): chacha_simd32
+   INFO: Skipping (incompatible CPU): aes_armv8 aes_ni aes_power8 aes_vperm argon2_ssse3 chacha_avx2 ghash_cpu ghash_vperm idea_sse2 processor_rng rdseed serpent_avx2 sha1_armv8 sha1_sse2 sha1_x86 sha2_32_armv8 sha2_32_bmi2 sha2_32_x86 sha2_64_bmi2 sha3_bmi2 shacal2_armv8 shacal2_avx2 shacal2_x86 simd simd_avx2 sm4_armv8 threefish_512_avx2 zfec_sse2 zfec_vperm
+   INFO: Skipping (incompatible OS): certstor_system_macos certstor_system_windows commoncrypto getentropy win32_stats
+   INFO: Skipping (not requested): adler32 aes argon2 argon2fmt aria asio auto_rng base32 base58 bcrypt bcrypt_pbkdf blowfish camellia cascade cast128 ccm cecpq1 certstor_flatfile certstor_sql certstor_sqlite3 certstor_system cfb chacha_rng checksum cmac comb4p compression crc24 crc32 cryptobox ctr curve25519 des dh dl_algo dl_group dlies dsa dyn_load eax ec_group ec_h2c ecc_key ecdh ecdsa ecgdsa ecies eckcdsa ed25519 elgamal emsa_x931 fd_unix ffi filters fpe_fe1 gcm ghash gmac gost_28147 gost_3410 gost_3411 hkdf hmac_drbg hotp http_util idea iso9796 kdf1 kdf1_iso18033 kdf2 keccak kyber kyber_90s kyber_common lion locking_allocator mce md4 md5 mem_pool newhope nist_keywrap noekeon noekeon_simd ocb ofb par_hash passhash9 pgp_s2k pkcs11 poly_dbl prf_tls prf_x942 psk_db rc4 rfc3394 rfc6979 rmd160 roughtime salsa20 scrypt seed serpent serpent_simd sessions_sql sessions_sqlite3 sha3 shacal2 shacal2_simd shake shake_cipher siphash siv skein sm2 sm3 sm4 socket sodium sp800_108 sp800_56a sp800_56c srp6 stateful_rng streebog thread_utils threefish_512 tls tls12 tls_cbc tss twofish uuid whirlpool x919_mac xmss xts zfec
+   INFO: Skipping (requires external dependency): boost bzip2 lzma sqlite3 tpm zlib
+   INFO: Loading modules: aead asn1 base base64 bigint blake2 blake2mac block cbc chacha chacha20poly1305 cpuid eme_oaep eme_pkcs1 eme_raw emsa1 emsa_pkcs1 emsa_pssr emsa_raw entropy hash hash_id hex hmac kdf keypair mac mdx_hash mgf1 mode_pad modes mp numbertheory pbes2 pbkdf pbkdf2 pem pk_pad poly1305 pubkey rng rsa sha1 sha2_32 sha2_64 stream system_rng utils x509
+   INFO: Using symlink to link files into build dir (use --link-method to change)
+   INFO: Writing amalgamation header to botan_all.h
+   INFO: Writing amalgamation source to botan_all.cpp
+WARNING: Unless you are building a DLL or .so from the amalgamation, use --disable-shared as well
+   INFO: Botan 3.0.0-alpha0 (revision git:15228710faef1b85aaad0cad4f207b8b6dfcdf74) (unreleased undated) build setup is complete
