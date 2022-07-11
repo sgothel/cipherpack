@@ -102,6 +102,12 @@ static const std::string default_pk_sign_algo           = "EMSA1(SHA-256)";
 
 static const std::string default_sym_enc_mac_algo       = "ChaCha20Poly1305"; // or "AES-256/GCM"
 
+static const std::string default_hash_algo_             = "BLAKE2b(512)";
+
+std::string_view cipherpack::default_hash_algo() noexcept {
+    return default_hash_algo_;
+}
+
 /**
  * Symmetric Encryption nonce size in bytes.
  *
@@ -165,7 +171,7 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
            ", parent "+payload_version_parent+crypto_str+
            "], fingerprints[sender '"+sender_fingerprint+
            "', recevr["+recevr_fingerprint_str+
-           "]]]";
+           "]], phash['"+payload_hash_algo+"', sz "+std::to_string(payload_hash.size())+"]]";
     return res;
 }
 
@@ -332,4 +338,56 @@ std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::stri
         return std::shared_ptr<Botan::Private_Key>();
     }
     return key;
+}
+
+std::string cipherpack::hash_util::file_suffix(const std::string& algo) noexcept {
+    std::string s = algo;
+    // lower-case
+    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+    // remove '-'
+    auto it = std::remove( s.begin(), s.end(), '-');
+    s.erase(it, s.end());
+    return s;
+}
+
+bool cipherpack::hash_util::append_to_file(const std::string& out_file, const std::string& hashed_file, const std::vector<uint8_t>& hash) noexcept {
+    const std::string hash_str = jau::bytesHexString(hash.data(), 0, hash.size(), true /* lsbFirst */, true /* lowerCase */);
+
+    std::ofstream out(out_file, std::ios::out | std::ios::binary | std::ios::ate);
+    if( !out.good() || !out.is_open() ) {
+        return false;
+    }
+    out.write(hash_str.data(), hash_str.size());
+    out.write(" *", 2);
+    out.write(hashed_file.data(), hashed_file.size());
+    out.write("\n", 1);
+    if( !out.good() || !out.is_open() ) {
+        return false;
+    }
+    return true;
+}
+
+std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, jau::io::ByteInStream& source) noexcept {
+    const std::string algo_s(algo);
+    std::unique_ptr<Botan::HashFunction> hash_func = Botan::HashFunction::create(algo_s);
+    if( nullptr == hash_func ) {
+        ERR_PRINT2("Hash failed: Algo %s not available", algo_s.c_str());
+        return nullptr;
+    }
+    jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        (void) is_final;
+        hash_func->update(data);
+        return true;
+    };
+    jau::io::secure_vector<uint8_t> io_buffer;
+    io_buffer.reserve(Constants::buffer_size);
+    const uint64_t in_bytes_total = jau::io::read_stream(source, io_buffer, consume_data);
+    source.close();
+    if( source.has_content_size() && in_bytes_total != source.content_size() ) {
+        ERR_PRINT2("Hash failed: Only read %" PRIu64 " bytes of %s", in_bytes_total, source.to_string().c_str());
+        return nullptr;
+    }
+    std::unique_ptr<std::vector<uint8_t>> res = std::make_unique<std::vector<uint8_t>>(hash_func->output_length());
+    hash_func->final(res->data());
+    return res;
 }

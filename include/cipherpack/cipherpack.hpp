@@ -249,6 +249,8 @@ namespace cipherpack {
             std::string sender_fingerprint;
             std::vector<std::string> recevr_fingerprints;
             ssize_t used_recevr_key_idx;
+            std::string payload_hash_algo;
+            std::vector<uint8_t> payload_hash;
             bool valid;
 
         public:
@@ -264,6 +266,8 @@ namespace cipherpack {
               sender_fingerprint(),
               recevr_fingerprints(),
               used_recevr_key_idx(-1),
+              payload_hash_algo(),
+              payload_hash(),
               valid(false)
             { }
 
@@ -279,6 +283,8 @@ namespace cipherpack {
               sender_fingerprint(),
               recevr_fingerprints(),
               used_recevr_key_idx(-1),
+              payload_hash_algo(),
+              payload_hash(),
               valid(false)
             { }
 
@@ -302,6 +308,8 @@ namespace cipherpack {
               sender_fingerprint(sender_fingerprint_),
               recevr_fingerprints(recevr_fingerprints_),
               used_recevr_key_idx(used_recevr_key_idx_),
+              payload_hash_algo(),
+              payload_hash(),
               valid(valid_)
             { }
 
@@ -341,6 +349,36 @@ namespace cipherpack {
              * @return the receiver's key index of getReceiverFingerprints(), or -1 if not found or not decrypting.
              */
             ssize_t getUsedReceiverKeyIndex() const noexcept { return used_recevr_key_idx; }
+
+            /**
+             * Return optional plaintext payload hash algorithm as produced for convenience, not wired.
+             *
+             * If not used, returned string is empty.
+             *
+             * @see getPayloadHash()
+             * @see setPayloadHash()
+             */
+            const std::string& getPayloadHashAlgo() const noexcept { return payload_hash_algo; }
+
+            /**
+             * Return optional plaintext payload hash value as produced for convenience, not wired.
+             *
+             * If not used, i.e. getPayloadHashAlgo() is empty, vector has zero size.
+             *
+             * @see getPayloadHashAlgo()
+             * @see setPayloadHash()
+             */
+            const std::vector<uint8_t>& getPayloadHash() const noexcept { return payload_hash; }
+
+            /**
+             * Set optional plaintext payload hash algo and value produced for convenience, not wired.
+             * @see getPayloadHash()
+             * @see getPayloadHashAlgo()
+             */
+            void setPayloadHash(const std::string& algo, const std::vector<uint8_t>& hash) noexcept {
+                payload_hash_algo = algo;
+                payload_hash = hash;
+            }
 
             /**
              * Return a string representation
@@ -384,9 +422,9 @@ namespace cipherpack {
             }
 
             /**
-             * User notification of PackHeader
+             * User notification of preliminary PackHeader w/o optional payload hash
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-             * @param header the PackHeader
+             * @param header the preliminary PackHeader
              * @param verified true if header signature is verified and deemed valid, otherwise false regardless of true == PackHeader::isValid().
              */
             virtual void notifyHeader(const bool decrypt_mode, const PackHeader& header, const bool verified) noexcept {
@@ -414,7 +452,7 @@ namespace cipherpack {
             /**
              * User notification of process completion.
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-             * @param header the PackHeader
+             * @param header the final PackHeader
              * @param success true if process has successfully completed and result is deemed valid, otherwise result is invalid regardless of true == PackHeader::isValid().
              */
             virtual void notifyEnd(const bool decrypt_mode, const PackHeader& header, const bool success) noexcept {
@@ -483,6 +521,26 @@ namespace cipherpack {
     typedef std::shared_ptr<CipherpackListener> CipherpackListenerRef;
 
     /**
+     * Name of default plaintext payload hash algo,
+     * e.g. for encryptThenSign() and checkSignThenDecrypt().
+     *
+     * Value is `BLAKE2b(512)`.
+     *
+     * Note:
+     * - SHA-256 performs 64 rounds over 512 bits (blocks size) at a time.
+     *   - Often better optimized and hardware implemented.
+     * - SHA-512 performs 80 rounds over 1024 bits (blocks size) at a time.
+     *   - Requires double storage size than SHA-256, i.e. 512/256 bits.
+     *   - 25% more rounds, i.e. calculations than SHA-256
+     *   - Operating on 64-bit words instead of SHA-256's 32-bit words
+     *   - Theoretically shall outperform SHA-256 by 2 / 1.25 = 1.6 on 64-bit architectures,
+     *     however, SHA-256 is often better optimized and hardware implemented.
+     * - BLAKE2b(512) usually beats both, SHA-256 and SHA-512 on 64-bit machines.
+     *   - It even matches their performance if using hardware accelerated implementations.
+     */
+    std::string_view default_hash_algo() noexcept;
+
+    /**
      * Encrypt then sign the source producing a cipherpack stream passed to the CipherpackListener if opt-in and also optionally store into destination_fname.
      *
      * @param crypto_cfg             Used CryptoConfig, consider using CryptoConfig::getDefault()
@@ -496,6 +554,8 @@ namespace cipherpack {
      * @param payload_version_parent Version of the parent's message payload
      * @param listener               CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
+     * @param payload_hash_algo      Optional hash algo name for plaintext payload, computed while encrypting for PackHeader::setPayloadHash() only. See def_payload_hash_algo.
+     *                               Set to empty string to disable.
      * @param destination_fname      Optional filename of the ciphertext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
@@ -513,6 +573,7 @@ namespace cipherpack {
                                const std::string& payload_version,
                                const std::string& payload_version_parent,
                                CipherpackListenerRef listener,
+                               const std::string_view& payload_hash_algo,
                                const std::string destination_fname = "");
 
     /**
@@ -526,6 +587,8 @@ namespace cipherpack {
      * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
+     * @param payload_hash_algo  Optional hash algo name for plaintext payload, computed while decrypting for PackHeader::setPayloadHash() only. See def_payload_hash_algo.
+     *                           Set to empty string to disable.
      * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
@@ -539,7 +602,34 @@ namespace cipherpack {
                                     const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                     jau::io::ByteInStream& source,
                                     CipherpackListenerRef listener,
+                                    const std::string_view& payload_hash_algo,
                                     const std::string destination_fname = "");
+
+    /**
+     * Hash utility functions to produce a hash file compatible to `sha256sum`
+     * as well as to produce the hash value itself for validation.
+     */
+    namespace hash_util {
+        /** Return a lower-case file suffix used to store a `sha256sum` compatible hash signature w/o dot and w/o dashes. */
+        std::string file_suffix(const std::string& algo) noexcept;
+
+        /**
+         * Append the `sha256sum` compatible hash signature of hashed_file to text file out_file
+         * @param out_file the text file to append the `sha256sum` compatible hash signature of hashed_file.
+         * @param hashed_file the file of the hash signature
+         * @param hash the hash of hashed_file
+         * @return true if successful, otherwise false
+         */
+        bool append_to_file(const std::string& out_file, const std::string& hashed_file, const std::vector<uint8_t>& hash) noexcept;
+
+        /**
+         * Return the calculated hash value using given algo name and byte input stream.
+         * @param algo the hash algo name
+         * @param source the byte input stream
+         * @return the calculated hash value or nullptr in case of error
+         */
+        std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, jau::io::ByteInStream& source) noexcept;
+    }
 
     /**@}*/
 

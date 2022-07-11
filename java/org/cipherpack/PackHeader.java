@@ -23,11 +23,20 @@
  */
 package org.cipherpack;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.jau.io.PrintUtil;
+import org.jau.util.BasicTypes;
 
 /**
  * Cipherpack header less encrypted keys or signatures as described in @ref cipherpack_stream "Cipherpack Data Stream"
@@ -68,6 +77,20 @@ public class PackHeader {
     /** Index of the matching receiver's public-key fingerprint used to decrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream", -1 if not found or not decrypting. */
     public final int used_recevr_key_idx;
 
+    /**
+     * Optional plaintext payload hash algorithm as produced for convenience, not wired.
+     *
+     * If not used, {@link #payload_hash_algo} is empty.
+     */
+    public final String payload_hash_algo;
+
+    /**
+     * Optional plaintext payload hash value as produced for convenience, not wired.
+     *
+     * If not used, i.e. {@link #payload_hash_algo} is empty, array has zero size.
+     */
+    public final byte[] payload_hash;
+
     /** True if packet is valid, otherwise false. */
     public final boolean valid;
 
@@ -83,6 +106,8 @@ public class PackHeader {
         this.sender_fingerprint = "";
         this.recevr_fingerprints = new ArrayList<String>();
         this.used_recevr_key_idx = -1;
+        this.payload_hash_algo = "";
+        this.payload_hash = new byte[0];
         this.valid = false;
     }
 
@@ -96,6 +121,8 @@ public class PackHeader {
                final String sender_key_fingerprint_,
                final List<String> recevr_fingerprint_,
                final int used_recevr_key_idx_,
+               final String payload_hash_algo_,
+               final byte[] payload_hash_,
                final boolean valid_) {
         this.target_path = target_path_;
         this.content_size = content_size_;
@@ -108,6 +135,8 @@ public class PackHeader {
         this.sender_fingerprint = sender_key_fingerprint_;
         this.recevr_fingerprints = recevr_fingerprint_;
         this.used_recevr_key_idx = used_recevr_key_idx_;
+        this.payload_hash_algo = payload_hash_algo_;
+        this.payload_hash = payload_hash_;
         this.valid = valid_;
     }
 
@@ -146,7 +175,7 @@ public class PackHeader {
                ", parent "+payload_version_parent+crypto_str+
                "], fingerprints[sender '"+sender_fingerprint+
                "', recevr["+recevr_fingerprint+
-               "]]]";
+               "]], phash['"+payload_hash_algo+"', sz "+payload_hash.length+"]]";
         return res;
     }
 
@@ -160,5 +189,4 @@ public class PackHeader {
     public String toString() {
         return toString(false, false);
     }
-
 }

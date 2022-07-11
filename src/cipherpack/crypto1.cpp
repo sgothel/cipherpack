@@ -104,7 +104,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                                        const std::string& target_path, const std::string& subject,
                                        const std::string& payload_version,
                                        const std::string& payload_version_parent,
-                                       CipherpackListenerRef listener) {
+                                       CipherpackListenerRef listener,
+                                       const std::string_view& payload_hash_algo) {
     const bool decrypt_mode = false;
     environment::get();
     const jau::fraction_timespec ts_creation = jau::getWallClockTime();
@@ -149,6 +150,15 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
     uint64_t out_bytes_header = 0;
 
     try {
+        std::unique_ptr<Botan::HashFunction> hash_func = nullptr;
+        if( !payload_hash_algo.empty() ) {
+            const std::string payload_hash_algo_s(payload_hash_algo);
+            hash_func = Botan::HashFunction::create(payload_hash_algo_s);
+            if( nullptr == hash_func ) {
+                ERR_PRINT2("Encrypt failed: Payload hash algo %s not available", payload_hash_algo_s.c_str());
+                return header;
+            }
+        }
         Botan::RandomNumberGenerator& rng = Botan::system_rng();
 
         std::shared_ptr<Botan::Private_Key> sign_sec_key = load_private_key(sign_sec_key_fname, passphrase);
@@ -220,6 +230,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                    .encode( recevr_data_list.size(), Botan::ASN1_Type::Integer )
                    .end_cons(); // data push
             }
+
             Botan::PK_Signer signer(*sign_sec_key, rng, crypto_cfg.pk_sign_algo);
             signer.update(header_buffer);
             out_bytes_header += header_buffer.size();
@@ -285,7 +296,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         listener->notifyHeader(decrypt_mode, header, true /* verified */);
 
         //
-        // Symmetric Encryption
+        // Symmetric Encryption incl. hash
         //
 
         aead->set_key(plain_sym_key);
@@ -297,6 +308,9 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
             if( !is_final ) {
+                if( nullptr != hash_func ) {
+                    hash_func->update(data);
+                }
                 aead->update(data);
                 if( sent_content_to_user ) {
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, false /* is_final */);
@@ -306,6 +320,9 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                         data.size(), out_bytes_payload, content_size, sent_content_to_user, res);
                 listener->notifyProgress(decrypt_mode, content_size, source.bytes_read());
             } else {
+                if( nullptr != hash_func ) {
+                    hash_func->update(data);
+                }
                 aead->finish(data);
                 if( sent_content_to_user ) {
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, true /* is_final */);
@@ -321,6 +338,12 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         io_buffer.reserve(Constants::buffer_size);
         const uint64_t in_bytes_total = jau::io::read_stream(source, io_buffer, consume_data);
         source.close();
+
+        if( nullptr != hash_func ) {
+            std::vector<uint8_t> hash_value( hash_func->output_length() );
+            hash_func->final(hash_value.data());
+            header.setPayloadHash(hash_func->name(), hash_value);
+        }
 
         if ( 0==in_bytes_total || source.error() ) {
             ERR_PRINT2("Encrypt failed: Source read failed %s", source.to_string().c_str());
@@ -361,6 +384,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                        const std::string& payload_version,
                                        const std::string& payload_version_parent,
                                        CipherpackListenerRef listener,
+                                       const std::string_view& payload_hash_algo,
                                        const std::string destination_fname) {
     environment::get();
     const bool decrypt_mode = false;
@@ -373,7 +397,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                              target_path, subject,
                                              payload_version,
                                              payload_version_parent,
-                                             listener);
+                                             listener, payload_hash_algo);
         listener->notifyEnd(decrypt_mode, ph, ph.isValid());
         return ph;
     }
@@ -470,7 +494,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                          target_path, subject,
                                          payload_version,
                                          payload_version_parent,
-                                         my_listener);
+                                         my_listener, payload_hash_algo);
     if ( outfile.fail() ) {
         ERR_PRINT2("Encrypt failed: Output file write failed %s", destination_fname.c_str());
         jau::fs::remove(destination_fname);
@@ -507,7 +531,8 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
 static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign_pub_keys,
                                             const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                             jau::io::ByteInStream& source,
-                                            CipherpackListenerRef listener) {
+                                            CipherpackListenerRef listener,
+                                            const std::string_view& payload_hash_algo) {
     const bool decrypt_mode = true;
     environment::get();
     jau::fraction_timespec ts_creation;
@@ -565,6 +590,16 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         std::vector<uint8_t> encrypted_nonce;
 
         std::vector<uint8_t> sender_signature;
+
+        std::unique_ptr<Botan::HashFunction> hash_func = nullptr;
+        if( !payload_hash_algo.empty() ) {
+            const std::string payload_hash_algo_s(payload_hash_algo);
+            hash_func = Botan::HashFunction::create(payload_hash_algo_s);
+            if( nullptr == hash_func ) {
+                ERR_PRINT2("Decrypt failed: Payload hash algo %s not available", payload_hash_algo_s.c_str());
+                return header;
+            }
+        }
 
         jau::io::secure_vector<uint8_t> input_buffer;
         jau::io::ByteInStream_Recorder input(source, input_buffer);
@@ -831,6 +866,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             bool res = true;
             if( !is_final && out_bytes_payload + data.size() < content_size ) {
                 aead->update(data);
+                if( nullptr != hash_func ) {
+                    hash_func->update(data);
                 }
                 if( sent_content_to_user ) {
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, false /* is_final */);
@@ -842,6 +879,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 return res; // continue if user so desires
             } else {
                 aead->finish(data);
+                if( nullptr != hash_func ) {
+                    hash_func->update(data);
+                }
                 if( sent_content_to_user ) {
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, true /* is_final */);
                 }
@@ -856,6 +896,12 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         io_buffer.reserve(Constants::buffer_size);
         const uint64_t in_bytes_total = jau::io::read_stream(input, io_buffer, consume_data);
         input.close();
+
+        if( nullptr != hash_func ) {
+            std::vector<uint8_t> hash_value( hash_func->output_length() );
+            hash_func->final(hash_value.data());
+            header.setPayloadHash(hash_func->name(), hash_value);
+        }
 
         if ( 0==in_bytes_total || source.error() ) {
             ERR_PRINT2("Decrypt failed: Input file read failed %s", source.to_string().c_str());
@@ -891,6 +937,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                                             const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                             jau::io::ByteInStream& source,
                                             CipherpackListenerRef listener,
+                                            const std::string_view& payload_hash_algo,
                                             const std::string destination_fname) {
     environment::get();
     const bool decrypt_mode = true;
@@ -898,7 +945,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     if( destination_fname.empty() ) {
         PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
                                                   dec_sec_key_fname, passphrase,
-                                                  source, listener);
+                                                  source, listener, payload_hash_algo);
         listener->notifyEnd(decrypt_mode, ph, ph.isValid());
         return ph;
     }
@@ -970,7 +1017,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
 
     PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
                                               dec_sec_key_fname, passphrase,
-                                              source, my_listener);
+                                              source, my_listener, payload_hash_algo);
     if ( outfile.fail() ) {
         ERR_PRINT2("Decrypt failed: Output file write failed %s", destination_fname.c_str());
         jau::fs::remove(destination_fname);

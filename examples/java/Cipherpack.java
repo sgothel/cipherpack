@@ -38,8 +38,8 @@ public class Cipherpack {
 
     static void print_usage() {
         PrintUtil.println(System.err, "Usage: pack [-epk <enc-pub-key>]+ -ssk <sign-sec-key> -sskp <sign-sec-key-passphrase> -in <input-source> -target_path <target-path-filename> "+
-                        "-intention <string> -version <file-version-str> -version_parent <file-version-parent-str> -out <output-filename>");
-        PrintUtil.println(System.err, "Usage: unpack [-spk <sign-pub-key>]+ -dsk <dec-sec-key> -dskp <dec-sec-key-passphrase> -in <input-source> -out <output-filename>");
+                        "-intention <string> -version <file-version-str> -version_parent <file-version-parent-str> -phash <payload-hash-algo> -out <output-filename>");
+        PrintUtil.println(System.err, "Usage: unpack [-spk <sign-pub-key>]+ -dsk <dec-sec-key> -dskp <dec-sec-key-passphrase> -in <input-source> -phash <payload-hash-algo> -out <output-filename>");
     }
 
     public static void main(final String[] args) throws InterruptedException {
@@ -80,6 +80,7 @@ public class Cipherpack {
             String intention = new String();
             String payload_version = "0";
             String payload_version_parent = "0";
+            String payload_hash_algo = org.cipherpack.Cipherpack.default_hash_algo();
             String fname_output = new String();
             for(int i=argi; i + 1 < argc; ++i) {
                 final String arg = args[i];
@@ -101,6 +102,8 @@ public class Cipherpack {
                     payload_version = args[++i];
                 } else if( arg.equals("-version_parent") ) {
                     payload_version_parent = args[++i];
+                } else if( arg.equals("-phash") ) {
+                    payload_hash_algo = args[++i];
                 } else if( arg.equals("-out") ) {
                     fname_output = args[++i];
                 }
@@ -123,7 +126,7 @@ public class Cipherpack {
                                                 source,
                                                 target_path, intention,
                                                 payload_version, payload_version_parent,
-                                                new CipherpackListener(), fname_output);
+                                                new CipherpackListener(), payload_hash_algo, fname_output);
 
             PrintUtil.fprintf_td(System.err, "Pack: Encrypted %s to %s\n", source_name, fname_output);
             PrintUtil.fprintf_td(System.err, "Pack: %s\n", ph.toString(true, true));
@@ -134,6 +137,7 @@ public class Cipherpack {
             String dec_sec_key_fname = new String();
             final ByteBuffer dec_sec_key_passphrase = null;
             String source_name = new String();
+            String payload_hash_algo = org.cipherpack.Cipherpack.default_hash_algo();
             String fname_output = new String();
             for(int i=argi; i + 1 < argc; ++i) {
                 final String arg = args[i];
@@ -147,6 +151,8 @@ public class Cipherpack {
                     // dec_sec_key_passphrase = args[++i];
                 } else if( arg.equals("-in") ) {
                     source_name = args[++i];
+                } else if( arg.equals("-phash") ) {
+                    payload_hash_algo = args[++i];
                 } else if( arg.equals("-out") ) {
                     fname_output = args[++i];
                 }
@@ -165,7 +171,7 @@ public class Cipherpack {
             final PackHeader ph = org.cipherpack.Cipherpack.checkSignThenDecrypt(
                                         sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                         source,
-                                        new CipherpackListener(), fname_output);
+                                        new CipherpackListener(), payload_hash_algo, fname_output);
 
             // dec_sec_key_passphrase.resize(0);
             PrintUtil.fprintf_td(System.err, "Unpack: Decypted %s to %s\n", source_name, fname_output);

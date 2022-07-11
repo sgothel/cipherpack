@@ -23,11 +23,16 @@
  */
 package org.cipherpack;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.nio.ByteBuffer;
 import java.util.List;
 
 import org.jau.io.ByteInStream;
 import org.jau.io.ByteInStream_Feed;
+import org.jau.io.PrintUtil;
+import org.jau.util.BasicTypes;
 
 /**
  * @anchor cipherpack_overview
@@ -116,6 +121,27 @@ import org.jau.io.ByteInStream_Feed;
 public final class Cipherpack {
 
     /**
+     * Name of default plaintext payload hash algo,
+     * e.g. for {@link #encryptThenSign(CryptoConfig, List, String, ByteBuffer, ByteInStream, String, String, String, String, CipherpackListener, String, String) encryptThenSign()}
+     * and {@link #checkSignThenDecrypt(List, String, ByteBuffer, ByteInStream, CipherpackListener, String, String) checkSignThenDecrypt()}.
+     *
+     * Value is `BLAKE2b(512)`.
+     *
+     * Note:
+     * - SHA-256 performs 64 rounds over 512 bits (blocks size) at a time.
+     *   - Often better optimized and hardware implemented.
+     * - SHA-512 performs 80 rounds over 1024 bits (blocks size) at a time.
+     *   - Requires double storage size than SHA-256, i.e. 512/256 bits.
+     *   - 25% more rounds, i.e. calculations than SHA-256
+     *   - Operating on 64-bit words instead of SHA-256's 32-bit words
+     *   - Theoretically shall outperform SHA-256 by 2 / 1.25 = 1.6 on 64-bit architectures,
+     *     however, SHA-256 is often better optimized and hardware implemented.
+     * - BLAKE2b(512) usually beats both, SHA-256 and SHA-512 on 64-bit machines.
+     *   - It even matches their performance if using hardware accelerated implementations.
+     */
+    public static final String default_hash_algo() { return "BLAKE2b(512)"; }
+
+    /**
      * Encrypt then sign the source producing a cipherpack stream passed to the CipherpackListener if opt-in and also optionally store into destination_fname.
      *
      * @param crypto_cfg             Used CryptoConfig, consider using CryptoConfig::getDefault()
@@ -129,6 +155,8 @@ public final class Cipherpack {
      * @param payload_version_parent Version of the parent's message payload
      * @param listener               CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
+     * @param payload_hash_algo      Optional hash algo name for plaintext payload, computed while encrypting for PackHeader only. See {@link #defPayloadHashAlgo}.
+     *                               Set to empty string to disable.
      * @param destination_fname      Optional filename of the plaintext destination file, not used if null or empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
@@ -147,7 +175,9 @@ public final class Cipherpack {
                                              final String target_path, final String subject,
                                              final String payload_version,
                                              final String payload_version_parent,
-                                             final CipherpackListener listener, final String destination_fname) {
+                                             final CipherpackListener listener,
+                                             final String payload_hash_algo,
+                                             final String destination_fname) {
         return encryptThenSignImpl1(crypto_cfg,
                                     enc_pub_keys,
                                     sign_sec_key_fname, passphrase,
@@ -155,7 +185,9 @@ public final class Cipherpack {
                                     target_path, subject,
                                     payload_version,
                                     payload_version_parent,
-                                    listener, destination_fname);
+                                    listener,
+                                    payload_hash_algo,
+                                    destination_fname);
     }
     private static native PackHeader encryptThenSignImpl1(final CryptoConfig crypto_cfg,
                                                           final List<String> enc_pub_keys,
@@ -165,7 +197,9 @@ public final class Cipherpack {
                                                           final String target_path, final String subject,
                                                           final String payload_version,
                                                           final String payload_version_parent,
-                                                          final CipherpackListener listener, final String destination_fname);
+                                                          final CipherpackListener listener,
+                                                          final String payload_hash_algo,
+                                                          final String destination_fname);
 
 
     /**
@@ -179,6 +213,8 @@ public final class Cipherpack {
      * @param source             The source ByteInStream of the cipherpack containing the encrypted payload.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
+     * @param payload_hash_algo  Optional hash algo name for plaintext payload, computed while decrypting for PackHeader only. See {@link #defPayloadHashAlgo}.
+     *                           Set to empty string to disable.
      * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
@@ -193,14 +229,64 @@ public final class Cipherpack {
     public static PackHeader checkSignThenDecrypt(final List<String> sign_pub_keys,
                                                   final String dec_sec_key_fname, final ByteBuffer passphrase,
                                                   final ByteInStream source,
-                                                  final CipherpackListener listener, final String destination_fname) {
+                                                  final CipherpackListener listener,
+                                                  final String payload_hash_algo,
+                                                  final String destination_fname) {
         return checkSignThenDecrypt1(sign_pub_keys,
                                      dec_sec_key_fname, passphrase,
                                      source,
-                                     listener, destination_fname);
+                                     listener,
+                                     payload_hash_algo,
+                                     destination_fname);
     }
     private static native PackHeader checkSignThenDecrypt1(final List<String> sign_pub_keys,
                                                            final String dec_sec_key_fname, final ByteBuffer passphrase,
                                                            final ByteInStream source,
-                                                           final CipherpackListener listener, final String destination_fname);
+                                                           final CipherpackListener listener,
+                                                           final String payload_hash_algo,
+                                                           final String destination_fname);
+
+    /**
+     * Hash utility functions to produce a hash file compatible to `sha256sum`
+     * as well as to produce the hash value itself for validation.
+     */
+    public static class HashUtil {
+        /** Return a lower-case file suffix used to store a `sha256sum` compatible hash signature w/o dot and w/o dashes. */
+        public static String fileSuffix(final String algo) {
+            return algo.toLowerCase().replace("-", "");
+        }
+
+        /**
+         * Append the `sha256sum` compatible hash signature of hashedFile to text file outFileName
+         * @param outFileName the text file to append the `sha256sum` compatible hash signature of hashedFile.
+         * @param hashedFile the file of the hash signature
+         * @param hash the hash of hashedFile
+         * @return true if successful, otherwise false
+         */
+        public static boolean appendToFile(final String outFileName, final String hashedFile, final byte[] hash) {
+            final String hash_str = BasicTypes.bytesHexString(hash, 0, hash.length, true /* lsbFirst */);
+            final String seperator = new String(" *");
+            final File file = new File( outFileName );
+
+            try( BufferedWriter out = new BufferedWriter( new FileWriter(file, true) ); ) {
+                out.write(hash_str);
+                out.write(seperator);
+                out.write(hashedFile);
+                out.newLine();
+                return true;
+            } catch (final Exception ex) {
+                PrintUtil.println(System.err, "Write hash to file failed: "+outFileName+": "+ex.getMessage());
+                ex.printStackTrace();
+            }
+            return false;
+        }
+
+        /**
+         * Return the calculated hash value using given algo name and byte input stream.
+         * @param algo the hash algo name
+         * @param source the byte input stream
+         * @return the calculated hash value or null in case of error
+         */
+        public static native byte[] calc(final String algo, final ByteInStream source);
+    }
 }

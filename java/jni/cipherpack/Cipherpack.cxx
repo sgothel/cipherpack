@@ -23,6 +23,7 @@
  */
 
 #include "org_cipherpack_Cipherpack.h"
+#include "org_cipherpack_Cipherpack_HashUtil.h"
 
 // #define VERBOSE_ON 1
 #include <jau/debug.hpp>
@@ -38,7 +39,9 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         jstring jtarget_path, jstring jsubject,
         jstring jpayload_version,
         jstring jpayload_version_parent,
-        jobject cpListener, jstring jdestination_fname)
+        jobject cpListener,
+        jstring jpayload_hash_algo,
+        jstring jdestination_fname)
 {
     try {
         jau::jni::shared_ptr_ref<jau::io::ByteInStream> refSource(env, jsource_feed); // hold until done
@@ -52,11 +55,12 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         std::string subject = jau::jni::from_jstring_to_string(env, jsubject);
         std::string payload_version = jau::jni::from_jstring_to_string(env, jpayload_version);
         std::string payload_version_parent = jau::jni::from_jstring_to_string(env, jpayload_version_parent);
+        std::string payload_hash_algo = jau::jni::from_jstring_to_string(env, jpayload_hash_algo);
         std::string destination_fname = nullptr != jdestination_fname ? jau::jni::from_jstring_to_string(env, jdestination_fname) : "";
 
         cipherpack::PackHeader ph = encryptThenSign(ccfg, enc_pub_keys, sign_sec_key_fname, passphrase, *refSource,
                                                     target_path, subject, payload_version, payload_version_parent,
-                                                    refListener.shared_ptr(), destination_fname);
+                                                    refListener.shared_ptr(), payload_hash_algo, destination_fname);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);
 
@@ -71,7 +75,9 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
         jobject jsign_pub_keys,
         jstring jdec_sec_key_fname, jobject jpassphrase,
         jobject jsource_feed,
-        jobject cpListener, jstring jdestination_fname)
+        jobject cpListener,
+        jstring jpayload_hash_algo,
+        jstring jdestination_fname)
 {
     try {
         jau::jni::shared_ptr_ref<jau::io::ByteInStream> refSource(env, jsource_feed); // hold until done
@@ -80,14 +86,34 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
         std::vector<std::string> sign_pub_keys = jau::jni::convert_jlist_string_to_vector(env, jsign_pub_keys);
         std::string dec_sec_key_fname = jau::jni::from_jstring_to_string(env, jdec_sec_key_fname);
         jau::io::secure_string passphrase = nullptr != jpassphrase ? jau::jni::from_jbytebuffer_to_sstring(env, jpassphrase) : jau::io::secure_string();
+        std::string payload_hash_algo = jau::jni::from_jstring_to_string(env, jpayload_hash_algo);
         std::string destination_fname = nullptr != jdestination_fname ? jau::jni::from_jstring_to_string(env, jdestination_fname) : "";
 
         cipherpack::PackHeader ph = checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, passphrase, *refSource,
-                                                         refListener.shared_ptr(), destination_fname);
+                                                         refListener.shared_ptr(), payload_hash_algo, destination_fname);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);
 
         return jph;
+    } catch(...) {
+        rethrow_and_raise_java_exception(env);
+    }
+    return nullptr;
+}
+
+jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calc(JNIEnv *env, jclass jclazz, jstring jalgo, jobject jsource_feed) {
+    try {
+        jau::jni::shared_ptr_ref<jau::io::ByteInStream> refSource(env, jsource_feed); // hold until done
+        std::string algo = jau::jni::from_jstring_to_string(env, jalgo);
+
+        std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(algo, *refSource);
+        if( nullptr == hash ) {
+            return nullptr;
+        }
+        jbyteArray jhash = env->NewByteArray((jsize)hash->size());
+        env->SetByteArrayRegion(jhash, 0, (jsize)hash->size(), (const jbyte *)hash->data());
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+        return jhash;
     } catch(...) {
         rethrow_and_raise_java_exception(env);
     }

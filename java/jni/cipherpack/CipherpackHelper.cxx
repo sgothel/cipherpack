@@ -32,7 +32,7 @@ static const std::string _cryptoConfigClassName("org/cipherpack/CryptoConfig");
 static const std::string _cryptoConfigClazzCtorArgs("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V");
 
 static const std::string _packHeaderClassName("org/cipherpack/PackHeader");
-static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lorg/cipherpack/CryptoConfig;Ljava/lang/String;Ljava/util/List;IZ)V");
+static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lorg/cipherpack/CryptoConfig;Ljava/lang/String;Ljava/util/List;ILjava/lang/String;[BZ)V");
 
 cipherpack::CryptoConfig jcipherpack::to_CryptoConfig(JNIEnv *env, jobject jccfg) {
     std::string pk_type_ = jau::jni::getStringFieldValue(env, jccfg, "pk_type");
@@ -93,6 +93,10 @@ jobject jcipherpack::to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& p
     jstring jsender_fprint = jau::jni::from_string_to_jstring(env, ph.getSenderFingerprint());
     const std::vector<std::string>& recevr_fprints = ph.getReceiverFingerprints();
     jobject jrecevr_fprints = jau::jni::convert_vector_string_to_jarraylist(env, recevr_fprints);
+    jstring jpayload_hash_algo = jau::jni::from_string_to_jstring(env, ph.getPayloadHashAlgo());
+    const size_t payload_hash_size = ph.getPayloadHash().size();
+    jbyteArray jpayload_hash = env->NewByteArray((jsize)payload_hash_size);
+    env->SetByteArrayRegion(jpayload_hash, 0, (jsize)payload_hash_size, (const jbyte *)ph.getPayloadHash().data());
     jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 
     jclass packHeaderClazz = jau::jni::search_class(env, _packHeaderClassName.c_str());
@@ -109,6 +113,8 @@ jobject jcipherpack::to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& p
             jsender_fprint,
             jrecevr_fprints,
             ph.getUsedReceiverKeyIndex(),
+            jpayload_hash_algo,
+            jpayload_hash,
             ph.isValid());
     jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 
