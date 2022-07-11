@@ -187,7 +187,7 @@ std::atomic<int> JNICipherpackListener::iname_next(0);
  */
 jlong Java_org_cipherpack_CipherpackListener_ctorImpl(JNIEnv *env, jobject obj) {
     try {
-        cipherpack::Environment::env_init();
+        cipherpack::environment::get();
 
         // new instance
         jau::jni::shared_ptr_ref<JNICipherpackListener> ref( new JNICipherpackListener(env, obj) );

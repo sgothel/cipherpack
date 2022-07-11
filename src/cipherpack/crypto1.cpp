@@ -106,7 +106,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                                        const std::string& payload_version_parent,
                                        CipherpackListenerRef listener) {
     const bool decrypt_mode = false;
-    Environment::env_init();
+    environment::get();
     const jau::fraction_timespec ts_creation = jau::getWallClockTime();
 
     PackHeader header(target_path,
@@ -362,7 +362,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                        const std::string& payload_version_parent,
                                        CipherpackListenerRef listener,
                                        const std::string destination_fname) {
-    Environment::env_init();
+    environment::get();
     const bool decrypt_mode = false;
 
     if( destination_fname.empty() ) {
@@ -509,7 +509,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                             jau::io::ByteInStream& source,
                                             CipherpackListenerRef listener) {
     const bool decrypt_mode = true;
-    Environment::env_init();
+    environment::get();
     jau::fraction_timespec ts_creation;
     PackHeader header(ts_creation);
 
@@ -892,7 +892,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                                             jau::io::ByteInStream& source,
                                             CipherpackListenerRef listener,
                                             const std::string destination_fname) {
-    Environment::env_init();
+    environment::get();
     const bool decrypt_mode = true;
 
     if( destination_fname.empty() ) {
