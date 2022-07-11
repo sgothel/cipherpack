@@ -50,6 +50,22 @@ add_custom_command (OUTPUT ${cipherpack_fat_jar_file} ${cipherpack_java_src_file
                        --no-manifest
                        -C ${PROJECT_SOURCE_DIR}/java org
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_base org/jau/util/BasicTypes.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/sys/Clock.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/PrintUtil.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/MemUtil.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream_File.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream_URL.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream_Feed.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStreamUtil.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/UriTk.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/CopyOptions.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/DirItem.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/FileStats.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/FileUtil.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/FMode.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/TraverseEvent.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/TraverseOptions.java
                     DEPENDS jaulib_fat_jar cipherpack cipherpack_jar javacipherpack
                     COMMENT "producing cipherpack [fat] jar files and its java source zip"
                     VERBATIM

@@ -12,6 +12,12 @@ add_jar(cipherpack_jar
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/sys/Clock.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/PrintUtil.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/MemUtil.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_File.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_URL.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_Feed.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStreamUtil.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/UriTk.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/CopyOptions.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/DirItem.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/FileStats.java
@@ -19,12 +25,6 @@ add_jar(cipherpack_jar
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/FMode.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/TraverseEvent.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/TraverseOptions.java
-        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream.java
-        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_File.java
-        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_URL.java
-        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_Feed.java
-        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStreamUtil.java
-        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/UriTk.java
         INCLUDE_JARS ${jaulib_fat_jar_file}
         MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/manifest.txt
         OUTPUT_NAME cipherpack
