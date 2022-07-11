@@ -85,12 +85,12 @@ import org.jau.io.ByteInStream_Feed;
  *     ASN1_Type::OctetString               subject                   // designated subject of message
  *     ASN1_Type::OctetString               payload_version           // version of this message's payload
  *     ASN1_Type::OctetString               payload_version_parent    // version of the parent's message payload
- *     ASN1_Type::OctetString               pk_type                   // public-key type: "RSA"
- *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash: "SHA-256"
- *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding: "OAEP"
- *     ASN1_Type::OctetString               pk_enc_hash_algo          // public-key encryption hash: "SHA-256"
- *     ASN1_Type::OctetString               pk_sign_algo              // public-key signature algorithm: "EMSA1(SHA-256)",
- *     ASN1_Type::ObjectId                  sym_enc_mac_oid           // symmetric-key encryption+MAC algorithm: "ChaCha20Poly1305",
+ *     ASN1_Type::OctetString               pk_type                   // public-key type. Default "RSA".
+ *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash. Default "SHA-256".
+ *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding. Default "OAEP".
+ *     ASN1_Type::OctetString               pk_enc_hash_algo          // public-key encryption hash. Default "SHA-256".
+ *     ASN1_Type::OctetString               pk_sign_algo              // public-key signature algorithm. Default "EMSA1(SHA-256)".
+ *     ASN1_Type::ObjectId                  sym_enc_mac_oid           // symmetric-key encryption+MAC algorithm. Default "ChaCha20Poly1305".
  *     ASN1_Type::OctetString               fingerprt_sender          // fingerprint of public sender key used for header signature
  *     ASN1_Type::Integer                   receiver_count,           // number of receiver triples { fingerprint, encrypted-symmetric-keys, encrypted-nonce }
  * }
@@ -107,7 +107,7 @@ import org.jau.io.ByteInStream_Feed;
  * DER Header 2 {
  *     ASN1_Type::OctetString               sign_sender               // sender's signature over whole header, matching fingerprt_sender
  * },
- * uint8_t encrypted_data[]
+ * uint8_t encrypted_data[content_size]                               // the encrypted payload, content_size bytes
  * ```
  *
  * @see encryptThenSign()
