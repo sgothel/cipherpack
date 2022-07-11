@@ -105,11 +105,11 @@ static const std::string default_sym_enc_mac_algo       = "ChaCha20Poly1305"; //
 /**
  * Symmetric Encryption nonce size in bytes.
  *
- * We only process one message per 'encrypted_key', hence small nonce size of 64 bit.
+ * We only process one message per 'encrypted_key', hence medium nonce size of 96 bit.
  *
  * ChaCha Nonce Sizes are usually: 64-bit classic, 96-bit IETF, 192-bit big
  */
-static constexpr const size_t ChaCha_Nonce_BitSize = 64;
+static constexpr const size_t ChaCha_Nonce_BitSize      = 96;
 
 CryptoConfig CryptoConfig::getDefault() noexcept {
     return CryptoConfig (

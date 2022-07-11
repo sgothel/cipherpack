@@ -88,8 +88,19 @@ public class CryptoConfig {
     private static String default_pk_enc_hash_algo       = "SHA-256";
     private static String default_pk_sign_algo           = "EMSA1(SHA-256)";
     private static String default_sym_enc_mac_algo       = "ChaCha20Poly1305"; // or "AES-256/GCM"
-    private static long ChaCha_Nonce_BitSize = 64;
+    private static long ChaCha_Nonce_BitSize = 96;
 
+    /**
+     * Returns default CryptoConfig.
+     *
+     * - Public-Key type is {@code RSA}.
+     * - Public key fingerprint hash algorithm is {@code SHA-256}.
+     * - Public-Key padding algorithm is {@code OAEP}.
+     * - Public-Key hash algorithm is {@code SHA-256}.
+     * - Public-Key hash algorithm is {@code EMSA1(SHA-256)}.
+     * - Symmetric Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo is {@code ChaCha20Poly1305}.
+     * - Symmetric AEAD ChaCha Nonce size 96 bit for one message per symmetric-key. Sizes are usually: 64-bit classic, 96-bit IETF, 192-bit big.
+     */
     public static CryptoConfig getDefault() {
         return new CryptoConfig (
             default_pk_type, default_pk_fingerprt_hash_algo,
