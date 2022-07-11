@@ -69,9 +69,24 @@ apt install build-essential g++ gcc libc-dev libpthread-stubs0-dev
 apt install libunwind8 libunwind-dev
 apt install cmake cmake-extras extra-cmake-modules pkg-config
 apt install doxygen graphviz
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To test `jau::fs::mount_image()` and `jau::fs::umount()` under `Linux`
+with enabled cmake option `-DTEST_WITH_SUDO=ON`, <br />
+the following build dependencies are added
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+apt install libcap-dev libcap2-bin
+apt install squashfs-tools
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To use URL streaming functionality via the `curl` library in `jau_io_util.hpp` and `jau/io_util.cpp`,
+the cmake option `-DUSE_LIBCURL=ON` must be set. <br />
+This also requires installation of the following packets:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 apt install libcurl4 libcurl4-gnutls-dev
 apt install mini-httpd
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Note: `mini-httpd` is being used for unit testing URL streaming only.
 
 ### Build Procedure
 
