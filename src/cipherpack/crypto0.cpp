@@ -166,7 +166,7 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
     std::string res = "Header[";
     res += "valid "+std::to_string( isValid() )+
            ", file[target_path "+target_path+", content_size "+jau::to_decstring(content_size).c_str()+
-           "], creation "+ts_creation.to_iso8601_string(true)+" UTC, subject '"+subject+"', "+
+           "], creation "+ts_creation.to_iso8601_string()+" UTC, subject '"+subject+"', "+
            " version["+payload_version+
            ", parent "+payload_version_parent+crypto_str+
            "], fingerprints[sender '"+sender_fingerprint+

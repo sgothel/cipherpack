@@ -468,12 +468,12 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         if( output_stats.exists() ) {
             if( output_stats.is_file() ) {
                 if( !jau::fs::remove(destination_fname) ) {
-                    ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
+                    ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string().c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
                 }
             } else {
-                ERR_PRINT2("Encrypt failed: Not overwriting existing %s", output_stats.to_string(true).c_str());
+                ERR_PRINT2("Encrypt failed: Not overwriting existing %s", output_stats.to_string().c_str());
                 my_listener->notifyEnd(decrypt_mode, header, false);
                 return header;
             }
@@ -522,7 +522,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         return header;
     }
 
-    WORDY_PRINT("Encrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
+    WORDY_PRINT("Encrypt: Writing done: output: %s", output_stats.to_string().c_str());
     my_listener->notifyEnd(decrypt_mode, ph, true);
     return ph;
 }
@@ -817,7 +817,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 payload_version.c_str(),
                 payload_version_parent.c_str(),
                 subject.c_str());
-        DBG_PRINT("Decrypt: creation time %s UTC", ts_creation.to_iso8601_string(true).c_str());
+        DBG_PRINT("Decrypt: creation time %s UTC", ts_creation.to_iso8601_string().c_str());
 
         listener->notifyHeader(decrypt_mode, header, true);
 
@@ -996,12 +996,12 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         if( output_stats.exists() ) {
             if( output_stats.is_file() ) {
                 if( !jau::fs::remove(destination_fname) ) {
-                    ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_stats.to_string(true).c_str());
+                    ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_stats.to_string().c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
                 }
             } else {
-                ERR_PRINT2("Decrypt failed: Not overwriting existing %s", output_stats.to_string(true).c_str());
+                ERR_PRINT2("Decrypt failed: Not overwriting existing %s", output_stats.to_string().c_str());
                 my_listener->notifyEnd(decrypt_mode, header, false);
                 return header;
             }
@@ -1044,7 +1044,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         return ph;
     }
 
-    WORDY_PRINT("Decrypt: Writing done: output: %s", output_stats.to_string(true).c_str());
+    WORDY_PRINT("Decrypt: Writing done: output: %s", output_stats.to_string().c_str());
     my_listener->notifyEnd(decrypt_mode, ph, true);
     return ph;
 }
