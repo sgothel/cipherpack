@@ -34,6 +34,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,12 +47,17 @@ import org.cipherpack.Cipherpack;
 import org.cipherpack.CipherpackListener;
 import org.cipherpack.CryptoConfig;
 import org.cipherpack.PackHeader;
+import org.jau.fs.CopyOptions;
+import org.jau.fs.FileStats;
+import org.jau.fs.FileUtil;
+import org.jau.fs.TraverseOptions;
 import org.jau.io.ByteInStream;
 import org.jau.io.ByteInStreamUtil;
 import org.jau.io.ByteInStream_Feed;
 import org.jau.io.ByteInStream_File;
 import org.jau.io.ByteInStream_URL;
 import org.jau.io.PrintUtil;
+import org.jau.sys.Clock;
 import org.jau.util.BasicTypes;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -158,7 +165,7 @@ public class Test01Cipherpack extends data_test {
 
     CipherpackListener silentListener = new CipherpackListener();
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public final void test01_enc_dec_file_ok() {
         CPFactory.checkInitialized();
         final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
@@ -235,20 +242,7 @@ public class Test01Cipherpack extends data_test {
                 PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
                 Assert.assertTrue( ph2.isValid() );
-                {
-                    final String hashedDescryptedFile = fname_payload_decrypted_lst.get(file_idx);
-                    final String suffix = Cipherpack.HashUtil.fileSuffix(ph2.payload_hash_algo);
-                    final String outFile = hashedDescryptedFile + "." + suffix;
-                    remove_file( outFile );
-                    Assert.assertTrue( Cipherpack.HashUtil.appendToFile(outFile, hashedDescryptedFile, ph2.payload_hash) );
-
-                    final String origFile = fname_payload_lst.get(file_idx);
-                    final ByteInStream origIn = ByteInStreamUtil.to_ByteInStream(origFile);
-                    Assert.assertNotNull( origIn );
-                    final byte[] origHashValue = Cipherpack.HashUtil.calc(ph2.payload_hash_algo, origIn);
-                    Assert.assertNotNull( origHashValue );
-                    Assert.assertArrayEquals(ph2.payload_hash, origHashValue);
-                }
+                hash_retest(fname_payload_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx), ph2.payload_hash_algo, ph2.payload_hash);
             }
             {
                 final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
@@ -258,25 +252,44 @@ public class Test01Cipherpack extends data_test {
                 PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
                 Assert.assertTrue( ph2.isValid() );
-                {
-                    final String hashedDescryptedFile = fname_payload_decrypted_lst.get(file_idx);
-                    final String suffix = Cipherpack.HashUtil.fileSuffix(ph2.payload_hash_algo);
-                    final String outFile = hashedDescryptedFile + "." + suffix;
-                    remove_file( outFile );
-                    Assert.assertTrue( Cipherpack.HashUtil.appendToFile(outFile, hashedDescryptedFile, ph2.payload_hash) );
-
-                    final String origFile = fname_payload_lst.get(file_idx);
-                    final ByteInStream origIn = ByteInStreamUtil.to_ByteInStream(origFile);
-                    Assert.assertNotNull( origIn );
-                    final byte[] origHashValue = Cipherpack.HashUtil.calc(ph2.payload_hash_algo, origIn);
-                    Assert.assertNotNull( origHashValue );
-                    Assert.assertArrayEquals(ph2.payload_hash, origHashValue);
-                }
+                hash_retest(fname_payload_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx), ph2.payload_hash_algo, ph2.payload_hash);
+            }
+            {
+                final ByteInStream_File enc_stream = new ByteInStream_File(fname_payload_encrypted_lst.get(file_idx));
+                final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
+                                                                       enc_stream,
+                                                                       silentListener, "BLAKE2b(512)", fname_payload_decrypted_lst.get(file_idx));
+                PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: Decypted %s to %s\n", fname_payload_encrypted_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx));
+                PrintUtil.fprintf_td(System.err, "test01_enc_dec_file_ok: %s\n", ph2.toString(true, true));
+                Assert.assertTrue( ph2.isValid() );
+                hash_retest(fname_payload_lst.get(file_idx), fname_payload_decrypted_lst.get(file_idx), ph2.payload_hash_algo, ph2.payload_hash);
             }
         }
     }
 
-    @Test(timeout = 10000)
+    public static void hash_retest(final String origFile, final String hashedDescryptedFile,
+                                   final String hashAlgo, final byte[] hashValue)
+    {
+        final String suffix = Cipherpack.HashUtil.fileSuffix(hashAlgo);
+        final String outFile = hashedDescryptedFile + "." + suffix;
+        FileUtil.remove(outFile, TraverseOptions.none);
+
+        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(outFile, hashedDescryptedFile, hashValue) );
+
+        final ByteInStream origIn = ByteInStreamUtil.to_ByteInStream(origFile);
+        Assert.assertNotNull( origIn );
+        final Instant t0 = Clock.getMonotonicTime();
+        final byte[] origHashValue = Cipherpack.HashUtil.calc(hashAlgo, origIn);
+        Assert.assertNotNull( origHashValue );
+        Assert.assertArrayEquals(hashValue, origHashValue);
+
+        final Instant t1 = Clock.getMonotonicTime();
+        final long td_ms = t0.until(t1, ChronoUnit.MILLIS);
+        ByteInStreamUtil.print_stats("Hash '"+hashAlgo+"'", origIn.content_size(), td_ms);
+        PrintUtil.fprintf_td(System.err, "\n");
+    }
+
+    @Test(timeout = 20000)
     public final void test02_enc_dec_file_error() {
         CPFactory.checkInitialized();
 
@@ -317,7 +330,7 @@ public class Test01Cipherpack extends data_test {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public final void test11_dec_http_ok() {
         CPFactory.checkInitialized();
         if( !org.jau.io.UriTk.protocol_supported("http:") ) {
@@ -372,7 +385,7 @@ public class Test01Cipherpack extends data_test {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public final void test12_dec_http_ok() {
         CPFactory.checkInitialized();
         if( !org.jau.io.UriTk.protocol_supported("http:") ) {
@@ -409,7 +422,7 @@ public class Test01Cipherpack extends data_test {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public final void test13_dec_http_error() {
         CPFactory.checkInitialized();
         if( !org.jau.io.UriTk.protocol_supported("http:") ) {
@@ -625,7 +638,7 @@ public class Test01Cipherpack extends data_test {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public final void test21_enc_dec_fed_ok() {
         CPFactory.checkInitialized();
         final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
@@ -710,7 +723,7 @@ public class Test01Cipherpack extends data_test {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test(timeout = 20000)
     public final void test22_enc_dec_fed_irq() {
         CPFactory.checkInitialized();
         final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
@@ -762,6 +775,61 @@ public class Test01Cipherpack extends data_test {
                 Assert.assertFalse( ph2.isValid() );
             }
         }
+    }
+
+    final static String root = "test_data";
+    // submodule location with jaulib directly hosted below main project
+    final static String project_root2 = "../../../jaulib/test_data";
+
+    @Test(timeout = 20000)
+    public final void test50_copy_and_verify() {
+        final String title = "test50_copy_and_verify";
+        final String hash_file = title+".hash";
+
+        PrintUtil.fprintf_td(System.err, "\n");
+        PrintUtil.fprintf_td(System.err, "%s\n", title);
+
+        FileUtil.remove(hash_file, TraverseOptions.none);
+
+        final FileStats source_stats = new FileStats(project_root2);
+        Assert.assertTrue( source_stats.exists() );
+        Assert.assertTrue( source_stats.is_dir() );
+
+        final long[] source_bytes_hashed = { 0 };
+        final byte[] source_hash = Cipherpack.HashUtil.calc(Cipherpack.default_hash_algo(), source_stats.path(), source_bytes_hashed);
+        Assert.assertNotNull( source_hash );
+        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(hash_file, source_stats.path(), source_hash));
+
+        // copy folder
+        final String dest = root+"_copy_verify_test50";
+        {
+            final CopyOptions copts = new CopyOptions();
+            copts.set(CopyOptions.Bit.recursive);
+            copts.set(CopyOptions.Bit.preserve_all);
+            copts.set(CopyOptions.Bit.sync);
+            copts.set(CopyOptions.Bit.verbose);
+
+            FileUtil.remove(dest, TraverseOptions.recursive);
+            Assert.assertTrue( true == FileUtil.copy(source_stats.path(), dest, copts) );
+        }
+        final FileStats dest_stats = new FileStats(dest);
+        Assert.assertTrue( source_stats.exists() );
+        Assert.assertTrue( source_stats.ok() );
+        Assert.assertTrue( source_stats.is_dir() );
+
+        final long[] dest_bytes_hashed = { 0 };
+        final byte[] dest_hash = Cipherpack.HashUtil.calc(Cipherpack.default_hash_algo(), dest_stats.path(), dest_bytes_hashed);
+        Assert.assertNotNull( dest_hash );
+        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(hash_file, dest_stats.path(), dest_hash));
+
+        // actual validation of hash values, i.e. same content
+        Assert.assertArrayEquals(source_hash, dest_hash);
+        Assert.assertEquals( source_bytes_hashed[0], dest_bytes_hashed[0] );
+
+        PrintUtil.fprintf_td(System.err, "%s: bytes %,d, '%s'\n", title, dest_bytes_hashed[0],
+                BasicTypes.bytesHexString(dest_hash, 0, dest_hash.length, true /* lsbFirst */));
+
+        Assert.assertTrue( FileUtil.remove(dest, TraverseOptions.recursive) );
     }
 
     public static void main(final String args[]) {

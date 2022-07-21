@@ -250,7 +250,7 @@ public final class Cipherpack {
      * Hash utility functions to produce a hash file compatible to `sha256sum`
      * as well as to produce the hash value itself for validation.
      */
-    public static class HashUtil {
+    public static final class HashUtil {
         /** Return a lower-case file suffix used to store a `sha256sum` compatible hash signature w/o dot and w/o dashes. */
         public static String fileSuffix(final String algo) {
             return algo.toLowerCase().replace("-", "");
@@ -287,6 +287,21 @@ public final class Cipherpack {
          * @param source the byte input stream
          * @return the calculated hash value or null in case of error
          */
-        public static native byte[] calc(final String algo, final ByteInStream source);
+        public static byte[] calc(final String algo, final ByteInStream source) {
+            return calcImpl1(algo, source);
+        }
+        private static native byte[] calcImpl1(final String algo, final ByteInStream source);
+
+        /**
+         * Return the calculated hash value using given algo name and all actual files (not symbolic links) within the given path.
+         * @param algo the hash algo name
+         * @param path source path, either a single file or directory for which all files (not symbolic links) are considered
+         * @param bytes_hashed returns overall bytes hashed, an array of length 1
+         * @return the calculated hash value or nullptr in case of error
+         */
+        public static byte[] calc(final String algo, final String path, final long bytes_hashed[/*0*/]) {
+            return calcImpl2(algo, path, bytes_hashed);
+        }
+        private static native byte[] calcImpl2(final String algo, final String path, final long bytes_hashed[/*0*/]);
     }
 }

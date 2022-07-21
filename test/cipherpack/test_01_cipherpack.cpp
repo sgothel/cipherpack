@@ -239,7 +239,7 @@ class Test01Cipherpack : public TestData {
             REQUIRE( hash_value == *orig_hash_value );
 
             const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-            jau::io::print_stats("Hash "+hash_algo, orig_in->content_size(), _td);
+            jau::io::print_stats("Hash '"+hash_algo+"'", orig_in->content_size(), _td);
             jau::PLAIN_PRINT(true, "");
         }
 
@@ -647,6 +647,59 @@ class Test01Cipherpack : public TestData {
             }
         }
 
+        const std::string root = "test_data";
+        // submodule location with jaulib directly hosted below main project
+        const std::string project_root2 = "../../../jaulib/test_data";
+
+        void test50_copy_and_verify() {
+            const std::string title("test50_copy_and_verify");
+            const std::string hash_file = title+".hash";
+
+            jau::fprintf_td(stderr, "\n");
+            jau::fprintf_td(stderr, "%s\n", title.c_str());
+
+            jau::fs::remove(hash_file);
+
+            jau::fs::file_stats source_stats(project_root2);
+            REQUIRE( true == source_stats.exists() );
+            REQUIRE( true == source_stats.is_dir() );
+
+            uint64_t source_bytes_hashed = 0;
+            std::unique_ptr<std::vector<uint8_t>> source_hash = cipherpack::hash_util::calc(cipherpack::default_hash_algo(), source_stats.path(), source_bytes_hashed);
+            REQUIRE( nullptr != source_hash );
+            REQUIRE( true == cipherpack::hash_util::append_to_file(hash_file, source_stats.path(), *source_hash));
+
+            // copy folder
+            const std::string dest = root+"_copy_verify_test50";
+            {
+                const jau::fs::copy_options copts = jau::fs::copy_options::recursive |
+                                                    jau::fs::copy_options::preserve_all |
+                                                    jau::fs::copy_options::sync |
+                                                    jau::fs::copy_options::verbose;
+                jau::fs::remove(dest, jau::fs::traverse_options::recursive);
+                REQUIRE( true == jau::fs::copy(source_stats.path(), dest, copts) );
+            }
+            jau::fs::file_stats dest_stats(dest);
+            REQUIRE( true == dest_stats.exists() );
+            REQUIRE( true == dest_stats.ok() );
+            REQUIRE( true == dest_stats.is_dir() );
+
+            uint64_t dest_bytes_hashed = 0;
+            std::unique_ptr<std::vector<uint8_t>> dest_hash = cipherpack::hash_util::calc(cipherpack::default_hash_algo(), dest_stats.path(), dest_bytes_hashed);
+            REQUIRE( nullptr != dest_hash );
+            REQUIRE( true == cipherpack::hash_util::append_to_file(hash_file, dest_stats.path(), *dest_hash));
+
+            // actual validation of hash values, i.e. same content
+            REQUIRE( *source_hash == *dest_hash );
+            REQUIRE( source_bytes_hashed == dest_bytes_hashed );
+
+            jau::fprintf_td(stderr, "%s: bytes %s, '%s'\n", title.c_str(),
+                    jau::to_decstring(dest_bytes_hashed).c_str(),
+                    jau::bytesHexString(dest_hash->data(), 0, dest_hash->size(), true /* lsbFirst */, true /* lowerCase */).c_str());
+
+            REQUIRE( true == jau::fs::remove(dest, jau::fs::traverse_options::recursive) );
+        }
+
 };
 
 std::vector<std::string> Test01Cipherpack::fname_payload_lst;
@@ -663,4 +716,4 @@ METHOD_AS_TEST_CASE( Test01Cipherpack::test13_dec_http_error,     "CipherPack 02
 METHOD_AS_TEST_CASE( Test01Cipherpack::test21_enc_dec_fed_ok,     "CipherPack 03 test21_enc_dec_fed_ok");
 METHOD_AS_TEST_CASE( Test01Cipherpack::test22_enc_dec_fed_irq,    "CipherPack 03 test22_enc_dec_fed_irq");
 
-
+METHOD_AS_TEST_CASE( Test01Cipherpack::test50_copy_and_verify,    "CipherPack 03 test50_copy_and_verify");

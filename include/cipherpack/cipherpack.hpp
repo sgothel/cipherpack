@@ -629,6 +629,15 @@ namespace cipherpack {
          * @return the calculated hash value or nullptr in case of error
          */
         std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, jau::io::ByteInStream& source) noexcept;
+
+        /**
+         * Return the calculated hash value using given algo name and all actual files (not symbolic links) within the given path.
+         * @param algo the hash algo name
+         * @param path source path, either a single file or directory for which all files (not symbolic links) are considered
+         * @param bytes_hashed returns overall bytes hashed
+         * @return the calculated hash value or nullptr in case of error
+         */
+        std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, const std::string& path, uint64_t& bytes_hashed) noexcept;
     }
 
     /**@}*/

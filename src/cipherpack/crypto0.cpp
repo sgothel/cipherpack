@@ -391,3 +391,76 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     hash_func->final(res->data());
     return res;
 }
+
+std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, const std::string& path, uint64_t& bytes_hashed) noexcept {
+    bytes_hashed = 0;
+    jau::fs::file_stats source_stats(path);
+    if( source_stats.is_file() ) {
+        jau::io::ByteInStream_File in(path);
+        if( in.error() ) {
+            return nullptr;
+        }
+        return calc(algo, in);
+    }
+    if( !source_stats.is_dir() ) {
+        ERR_PRINT("path is neither file nor dir: %s", source_stats.to_string());
+        return nullptr;
+    }
+
+    //
+    // directory handling
+    //
+    struct context_t {
+        std::vector<int> dirfds;
+        std::unique_ptr<Botan::HashFunction> hash_func;
+        jau::io::secure_vector<uint8_t> io_buffer;
+        jau::io::StreamConsumerFunc consume_data;
+        uint64_t bytes_hashed;
+    };
+    context_t ctx { std::vector<int>(), nullptr, jau::io::secure_vector<uint8_t>(), nullptr, 0 };
+    {
+        const std::string algo_s(algo);
+        ctx.hash_func = Botan::HashFunction::create(algo_s);
+        if( nullptr == ctx.hash_func ) {
+            ERR_PRINT2("Hash failed: Algo %s not available", algo_s.c_str());
+            return nullptr;
+        }
+    }
+    ctx.consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        (void) is_final;
+        ctx.hash_func->update(data);
+        return true;
+    };
+    ctx.io_buffer.reserve(Constants::buffer_size);
+
+    const jau::fs::path_visitor pv = jau::bindCaptureRefFunc<bool, context_t, jau::fs::traverse_event, const jau::fs::file_stats&>(&ctx,
+            ( bool(*)(context_t*, jau::fs::traverse_event, const jau::fs::file_stats&) ) /* help template type deduction of function-ptr */
+                ( [](context_t* ctx_ptr, jau::fs::traverse_event tevt, const jau::fs::file_stats& element_stats) -> bool {
+                    if( is_set(tevt, jau::fs::traverse_event::file) && !is_set(tevt, jau::fs::traverse_event::symlink) ) {
+                        // FIXME: It would be desirable to have ByteInStream_File handle dirfd,
+                        // i.e. implementation based on OS level I/O.
+                        //
+                        // const int dirfd = ctx_ptr->dirfds.back();
+                        // const std::string& basename_ = element_stats.item().basename();
+                        jau::io::ByteInStream_File in(element_stats.path());
+                        if( in.error() ) {
+                            return false;
+                        }
+                        const uint64_t in_bytes_total = jau::io::read_stream(in, ctx_ptr->io_buffer, ctx_ptr->consume_data);
+                        in.close();
+                        if( in.has_content_size() && in_bytes_total != in.content_size() ) {
+                            ERR_PRINT2("Hash failed: Only read %" PRIu64 " bytes of %s", in_bytes_total, in.to_string().c_str());
+                            return false;
+                        }
+                        ctx_ptr->bytes_hashed += in_bytes_total;
+                    }
+                    return true;
+                  } ) );
+    if( jau::fs::visit(source_stats, jau::fs::traverse_options::recursive, pv, &ctx.dirfds) ) {
+        std::unique_ptr<std::vector<uint8_t>> res = std::make_unique<std::vector<uint8_t>>(ctx.hash_func->output_length());
+        ctx.hash_func->final(res->data());
+        bytes_hashed = ctx.bytes_hashed;
+        return res;
+    }
+    return nullptr;
+}

@@ -101,12 +101,44 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
     return nullptr;
 }
 
-jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calc(JNIEnv *env, jclass jclazz, jstring jalgo, jobject jsource_feed) {
+jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl1(JNIEnv *env, jclass jclazz, jstring jalgo, jobject jsource_feed) {
     try {
         jau::jni::shared_ptr_ref<jau::io::ByteInStream> refSource(env, jsource_feed); // hold until done
         std::string algo = jau::jni::from_jstring_to_string(env, jalgo);
 
         std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(algo, *refSource);
+        if( nullptr == hash ) {
+            return nullptr;
+        }
+        jbyteArray jhash = env->NewByteArray((jsize)hash->size());
+        env->SetByteArrayRegion(jhash, 0, (jsize)hash->size(), (const jbyte *)hash->data());
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+        return jhash;
+    } catch(...) {
+        rethrow_and_raise_java_exception(env);
+    }
+    return nullptr;
+}
+
+jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, jclass jclazz, jstring jalgo, jstring jpath, jlongArray jbytes_hashed) {
+    try {
+        std::string algo = jau::jni::from_jstring_to_string(env, jalgo);
+        std::string path = jau::jni::from_jstring_to_string(env, jpath);
+
+        if( nullptr == jbytes_hashed ) {
+            throw jau::IllegalArgumentException("bytes_hashed null", E_FILE_LINE);
+        }
+        const size_t bh_size = env->GetArrayLength(jbytes_hashed);
+        if( 1 > bh_size ) {
+            throw jau::IllegalArgumentException("bytes_hashed size "+std::to_string(bh_size)+" < 1", E_FILE_LINE);
+        }
+        jau::jni::JNICriticalArray<uint64_t, jlongArray> criticalArray(env); // RAII - release
+        uint64_t * bh_ptr = criticalArray.get(jbytes_hashed, criticalArray.Mode::UPDATE_AND_RELEASE);
+        if( NULL == bh_ptr ) {
+            throw jau::InternalError("GetPrimitiveArrayCritical(address byte array) is null", E_FILE_LINE);
+        }
+
+        std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(algo, path, *bh_ptr);
         if( nullptr == hash ) {
             return nullptr;
         }
