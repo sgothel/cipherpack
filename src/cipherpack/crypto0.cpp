@@ -353,7 +353,7 @@ std::string cipherpack::hash_util::file_suffix(const std::string& algo) noexcept
 bool cipherpack::hash_util::append_to_file(const std::string& out_file, const std::string& hashed_file, const std::vector<uint8_t>& hash) noexcept {
     const std::string hash_str = jau::bytesHexString(hash.data(), 0, hash.size(), true /* lsbFirst */, true /* lowerCase */);
 
-    std::ofstream out(out_file, std::ios::out | std::ios::binary | std::ios::ate);
+    std::ofstream out(out_file, std::ios::out | std::ios::binary | std::ios::app);
     if( !out.good() || !out.is_open() ) {
         return false;
     }
