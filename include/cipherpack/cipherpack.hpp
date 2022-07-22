@@ -50,7 +50,7 @@ namespace cipherpack {
       * authenticate the sender and public-key encryption of a symmetric-key for multiple receiver
       * ensuring their privacy and high-performance message encryption.
       *
-      * A *Cipherpack* can be understood as a message, which can be streamed via any media,
+      * *Cipherpack* securely streams messages through any media,
       * via file using
       * [ByteInStream_File](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__File.html)
       * and via all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html)
