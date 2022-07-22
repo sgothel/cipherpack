@@ -45,11 +45,11 @@ import org.jau.util.BasicTypes;
  * @see @ref cipherpack_stream "Cipherpack Data Stream"
  */
 public class PackHeader {
-    /** Designated target path for message, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    /** Designated target path for this plaintext message, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final String target_path;
 
-    /** Plaintext content size in bytes, i.e. decrypted payload size, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final long content_size;
+    /** Plaintext message size in bytes, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    public final long plaintext_size;
 
     /** Creation time since Unix epoch, second component, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final long ts_creation_sec;
@@ -60,11 +60,11 @@ public class PackHeader {
     /** Designated subject of message, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final String subject;
 
-    /** Payload version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final String payload_version;
+    /** Version of this plaintext message, user semantic, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    public final String plaintext_version;
 
-    /** Payload's parent version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final String payload_version_parent;
+    /** Version of this plaintext message's preceding message, user semantic, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    public final String plaintext_version_parent;
 
     public final CryptoConfig crypto_cfg;
 
@@ -78,36 +78,36 @@ public class PackHeader {
     public final int used_recevr_key_idx;
 
     /**
-     * Optional plaintext payload hash algorithm as produced for convenience, not wired.
+     * Optional hash algorithm for the plaintext message, produced for convenience and not wired.
      *
-     * If not used, {@link #payload_hash_algo} is empty.
+     * If not used, {@link #plaintext_hash_algo} is empty.
      */
-    public final String payload_hash_algo;
+    public final String plaintext_hash_algo;
 
     /**
-     * Optional plaintext payload hash value as produced for convenience, not wired.
+     * Optional hash value of the plaintext message, produced for convenience and not wired.
      *
-     * If not used, i.e. {@link #payload_hash_algo} is empty, array has zero size.
+     * If not used, i.e. {@link #plaintext_hash_algo} is empty, array has zero size.
      */
-    public final byte[] payload_hash;
+    public final byte[] plaintext_hash;
 
     /** True if packet is valid, otherwise false. */
     public final boolean valid;
 
     PackHeader() {
         this.target_path = "";
-        this.content_size = 0;
+        this.plaintext_size = 0;
         this.ts_creation_sec = 0;
         this.ts_creation_nsec = 0;
         this.subject = "";
-        this.payload_version = "0";
-        this.payload_version_parent = "0";
+        this.plaintext_version = "0";
+        this.plaintext_version_parent = "0";
         this.crypto_cfg = new CryptoConfig();
         this.sender_fingerprint = "";
         this.recevr_fingerprints = new ArrayList<String>();
         this.used_recevr_key_idx = -1;
-        this.payload_hash_algo = "";
-        this.payload_hash = new byte[0];
+        this.plaintext_hash_algo = "";
+        this.plaintext_hash = new byte[0];
         this.valid = false;
     }
 
@@ -121,22 +121,22 @@ public class PackHeader {
                final String sender_key_fingerprint_,
                final List<String> recevr_fingerprint_,
                final int used_recevr_key_idx_,
-               final String payload_hash_algo_,
-               final byte[] payload_hash_,
+               final String plaintext_hash_algo_,
+               final byte[] plaintext_hash_,
                final boolean valid_) {
         this.target_path = target_path_;
-        this.content_size = content_size_;
+        this.plaintext_size = content_size_;
         this.ts_creation_sec = ts_creation_sec_;
         this.ts_creation_nsec = ts_creation_nsec_;
         this.subject = subject_;
-        this.payload_version = pversion;
-        this.payload_version_parent = pversion_parent;
+        this.plaintext_version = pversion;
+        this.plaintext_version_parent = pversion_parent;
         this.crypto_cfg = crypto_cfg_;
         this.sender_fingerprint = sender_key_fingerprint_;
         this.recevr_fingerprints = recevr_fingerprint_;
         this.used_recevr_key_idx = used_recevr_key_idx_;
-        this.payload_hash_algo = payload_hash_algo_;
-        this.payload_hash = payload_hash_;
+        this.plaintext_hash_algo = plaintext_hash_algo_;
+        this.plaintext_hash = plaintext_hash_;
         this.valid = valid_;
     }
 
@@ -169,13 +169,13 @@ public class PackHeader {
         }
         final ZonedDateTime utc_creation = Instant.ofEpochSecond(ts_creation_sec, ts_creation_nsec).atZone(ZoneOffset.UTC);
         final String res = "Header[valid "+valid+
-               ", file[target_path "+target_path+", content_size "+String.format("%,d", content_size)+
+               ", file[target_path "+target_path+", content_size "+String.format("%,d", plaintext_size)+
                "], creation "+utc_creation.toString()+" , subject '"+subject+"', "+
-               " version["+payload_version+
-               ", parent "+payload_version_parent+crypto_str+
+               " version["+plaintext_version+
+               ", parent "+plaintext_version_parent+crypto_str+
                "], fingerprints[sender '"+sender_fingerprint+
                "', recevr["+recevr_fingerprint+
-               "]], phash['"+payload_hash_algo+"', sz "+payload_hash.length+"]]";
+               "]], phash['"+plaintext_hash_algo+"', sz "+plaintext_hash.length+"]]";
         return res;
     }
 

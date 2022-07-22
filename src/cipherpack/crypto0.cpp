@@ -165,13 +165,13 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
 
     std::string res = "Header[";
     res += "valid "+std::to_string( isValid() )+
-           ", file[target_path "+target_path+", content_size "+jau::to_decstring(content_size).c_str()+
+           ", file[target_path "+target_path+", content_size "+jau::to_decstring(plaintext_size).c_str()+
            "], creation "+ts_creation.to_iso8601_string()+" UTC, subject '"+subject+"', "+
-           " version["+payload_version+
-           ", parent "+payload_version_parent+crypto_str+
+           " version["+plaintext_version+
+           ", parent "+plaintext_version_parent+crypto_str+
            "], fingerprints[sender '"+sender_fingerprint+
            "', recevr["+recevr_fingerprint_str+
-           "]], phash['"+payload_hash_algo+"', sz "+std::to_string(payload_hash.size())+"]]";
+           "]], phash['"+plaintext_hash_algo+"', sz "+std::to_string(plaintext_hash.size())+"]]";
     return res;
 }
 

@@ -33,7 +33,7 @@ package org.cipherpack;
 public class CipherpackListener extends CPNativeDownlink {
     public static enum ContentType {
         HEADER ( (byte)0 ),
-        PAYLOAD ( (byte)1 );
+        MESSAGE ( (byte)1 );
 
         /**
          * Maps the specified integer value to a constant of {@link ContentType}.
@@ -44,7 +44,7 @@ public class CipherpackListener extends CPNativeDownlink {
         public static ContentType get(final byte value) throws IllegalArgumentException {
             switch(value) {
                 case (byte)0x01: return HEADER;
-                case (byte)0x02: return PAYLOAD;
+                case (byte)0x02: return MESSAGE;
                 default: throw new IllegalArgumentException("Unknown ContentType value "+value);
             }
         }
@@ -124,7 +124,7 @@ public class CipherpackListener extends CPNativeDownlink {
      * In case contentProcessed() gets called, notifyProgress() is called thereafter.
      *
      * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-     * @param ctype content_type of passed data. Always {@link ContentType#PAYLOAD} if decrypt_mode is true.
+     * @param ctype content_type of passed data. Always {@link ContentType#MESSAGE} if decrypt_mode is true.
      * @param data the processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
      * @param is_final true if this is the last content call, otherwise false
      * @return true to signal continuation, false to end streaming.
@@ -133,7 +133,7 @@ public class CipherpackListener extends CPNativeDownlink {
     public boolean contentProcessed(final boolean decrypt_mode, final ContentType ctype, final byte[] data, final boolean is_final) { return true; }
 
     private final boolean contentProcessedImpl(final boolean decrypt_mode, final boolean is_header, final byte[] data, final boolean is_final) {
-        return contentProcessed(decrypt_mode, is_header ? ContentType.HEADER : ContentType.PAYLOAD, data, is_final);
+        return contentProcessed(decrypt_mode, is_header ? ContentType.HEADER : ContentType.MESSAGE, data, is_final);
     }
 
     @Override

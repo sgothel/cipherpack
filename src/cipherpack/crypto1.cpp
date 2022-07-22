@@ -102,10 +102,10 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                                        const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
                                        jau::io::ByteInStream& source,
                                        const std::string& target_path, const std::string& subject,
-                                       const std::string& payload_version,
-                                       const std::string& payload_version_parent,
+                                       const std::string& plaintext_version,
+                                       const std::string& plaintext_version_parent,
                                        CipherpackListenerRef listener,
-                                       const std::string_view& payload_hash_algo) {
+                                       const std::string_view& plaintext_hash_algo) {
     const bool decrypt_mode = false;
     environment::get();
     const jau::fraction_timespec ts_creation = jau::getWallClockTime();
@@ -114,7 +114,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                       source.content_size(),
                       ts_creation,
                       subject,
-                      payload_version, payload_version_parent,
+                      plaintext_version, plaintext_version_parent,
                       crypto_cfg,
                       std::string(),
                       std::vector<std::string>(),
@@ -151,11 +151,11 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
 
     try {
         std::unique_ptr<Botan::HashFunction> hash_func = nullptr;
-        if( !payload_hash_algo.empty() ) {
-            const std::string payload_hash_algo_s(payload_hash_algo);
-            hash_func = Botan::HashFunction::create(payload_hash_algo_s);
+        if( !plaintext_hash_algo.empty() ) {
+            const std::string plaintext_hash_algo_s(plaintext_hash_algo);
+            hash_func = Botan::HashFunction::create(plaintext_hash_algo_s);
             if( nullptr == hash_func ) {
-                ERR_PRINT2("Encrypt failed: Payload hash algo %s not available", payload_hash_algo_s.c_str());
+                ERR_PRINT2("Encrypt failed: Plaintext hash algo %s not available", plaintext_hash_algo_s.c_str());
                 return header;
             }
         }
@@ -218,8 +218,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                    .encode( to_BigInt( static_cast<uint64_t>( ts_creation.tv_sec ) ), Botan::ASN1_Type::Integer )
                    .encode( to_BigInt( static_cast<uint64_t>( ts_creation.tv_nsec ) ), Botan::ASN1_Type::Integer )
                    .encode( to_OctetString( subject ), Botan::ASN1_Type::OctetString )
-                   .encode( to_OctetString( payload_version ), Botan::ASN1_Type::OctetString )
-                   .encode( to_OctetString( payload_version_parent ), Botan::ASN1_Type::OctetString )
+                   .encode( to_OctetString( plaintext_version ), Botan::ASN1_Type::OctetString )
+                   .encode( to_OctetString( plaintext_version_parent ), Botan::ASN1_Type::OctetString )
                    .encode( to_OctetString( crypto_cfg.pk_type ), Botan::ASN1_Type::OctetString )
                    .encode( to_OctetString( crypto_cfg.pk_fingerprt_hash_algo ), Botan::ASN1_Type::OctetString )
                    .encode( to_OctetString( crypto_cfg.pk_enc_padding_algo ), Botan::ASN1_Type::OctetString )
@@ -283,7 +283,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                             content_size,
                             ts_creation,
                             subject,
-                            payload_version, payload_version_parent,
+                            plaintext_version, plaintext_version_parent,
                             crypto_cfg,
                             sender_fingerprint,
                             recevr_fingerprints,
@@ -304,7 +304,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         aead->start(nonce);
 
         const bool sent_content_to_user = listener->getSendContent( decrypt_mode );
-        uint64_t out_bytes_payload = 0;
+        uint64_t out_bytes_plaintext = 0;
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
             if( !is_final ) {
@@ -313,11 +313,11 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 }
                 aead->update(data);
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, false /* is_final */);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, false /* is_final */);
                 }
-                out_bytes_payload += data.size();
+                out_bytes_plaintext += data.size();
                 DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
-                        data.size(), out_bytes_payload, content_size, sent_content_to_user, res);
+                        data.size(), out_bytes_plaintext, content_size, sent_content_to_user, res);
                 listener->notifyProgress(decrypt_mode, content_size, source.bytes_read());
             } else {
                 if( nullptr != hash_func ) {
@@ -325,11 +325,11 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 }
                 aead->finish(data);
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, true /* is_final */);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, true /* is_final */);
                 }
-                out_bytes_payload += data.size();
+                out_bytes_plaintext += data.size();
                 DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
-                        data.size(), out_bytes_payload, content_size, sent_content_to_user, res);
+                        data.size(), out_bytes_plaintext, content_size, sent_content_to_user, res);
                 listener->notifyProgress(decrypt_mode, content_size, source.bytes_read());
             }
             return res;
@@ -357,16 +357,16 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             return header;
         } else if( jau::environment::get().verbose ) {
             WORDY_PRINT("Encrypt: Reading done from %s", source.to_string().c_str());
-            WORDY_PRINT("Encrypt: Writing done, %s header + %s payload for %s bytes written, ratio %lf out/in",
+            WORDY_PRINT("Encrypt: Writing done, %s header + %s plaintext for %s bytes written, ratio %lf out/in",
                     jau::to_decstring(out_bytes_header).c_str(),
-                    jau::to_decstring(out_bytes_payload).c_str(),
-                    jau::to_decstring(in_bytes_total).c_str(), (double)(out_bytes_header+out_bytes_payload)/(double)in_bytes_total);
+                    jau::to_decstring(out_bytes_plaintext).c_str(),
+                    jau::to_decstring(in_bytes_total).c_str(), (double)(out_bytes_header+out_bytes_plaintext)/(double)in_bytes_total);
             WORDY_PRINT("Encrypt: Writing done: source: %s", source.to_string().c_str());
         }
 
         if( jau::environment::get().verbose ) {
             const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-            jau::io::print_stats("Encrypt", (out_bytes_header+out_bytes_payload), _td);
+            jau::io::print_stats("Encrypt", (out_bytes_header+out_bytes_plaintext), _td);
         }
         header.setValid(true);
         return header;
@@ -381,10 +381,10 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                        const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
                                        jau::io::ByteInStream& source,
                                        const std::string& target_path, const std::string& subject,
-                                       const std::string& payload_version,
-                                       const std::string& payload_version_parent,
+                                       const std::string& plaintext_version,
+                                       const std::string& plaintext_version_parent,
                                        CipherpackListenerRef listener,
-                                       const std::string_view& payload_hash_algo,
+                                       const std::string_view& plaintext_hash_algo,
                                        const std::string destination_fname) {
     environment::get();
     const bool decrypt_mode = false;
@@ -395,9 +395,9 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                              sign_sec_key_fname, passphrase,
                                              source,
                                              target_path, subject,
-                                             payload_version,
-                                             payload_version_parent,
-                                             listener, payload_hash_algo);
+                                             plaintext_version,
+                                             plaintext_version_parent,
+                                             listener, plaintext_hash_algo);
         listener->notifyEnd(decrypt_mode, ph, ph.isValid());
         return ph;
     }
@@ -408,7 +408,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                       source.content_size(),
                       ts_creation,
                       subject,
-                      payload_version, payload_version_parent,
+                      plaintext_version, plaintext_version_parent,
                       crypto_cfg,
                       std::string(),
                       std::vector<std::string>(),
@@ -424,11 +424,11 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         private:
             std::ofstream* outfile_;
             uint64_t& out_bytes_header_;
-            uint64_t& out_bytes_payload_;
+            uint64_t& out_bytes_plaintext_;
         public:
-            MyListener(CipherpackListenerRef parent_, uint64_t& bytes_header, uint64_t& bytes_payload)
+            MyListener(CipherpackListenerRef parent_, uint64_t& bytes_header, uint64_t& bytes_plaintext)
             : WrappingCipherpackListener(parent_), outfile_(nullptr),
-              out_bytes_header_(bytes_header), out_bytes_payload_(bytes_payload)
+              out_bytes_header_(bytes_header), out_bytes_plaintext_(bytes_plaintext)
             {}
 
             void set_outfile(std::ofstream* of) noexcept { outfile_ = of; }
@@ -447,10 +447,10 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                         case content_type::header:
                             out_bytes_header_ += data.size();
                             break;
-                        case content_type::payload:
+                        case content_type::message:
                             [[fallthrough]];
                         default:
-                            out_bytes_payload_ += data.size();
+                            out_bytes_plaintext_ += data.size();
                             break;
                     }
                 }
@@ -461,8 +461,8 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                 }
             }
     };
-    uint64_t out_bytes_header=0, out_bytes_payload=0;
-    std::shared_ptr<MyListener> my_listener = std::make_shared<MyListener>(listener, out_bytes_header, out_bytes_payload);
+    uint64_t out_bytes_header=0, out_bytes_plaintext=0;
+    std::shared_ptr<MyListener> my_listener = std::make_shared<MyListener>(listener, out_bytes_header, out_bytes_plaintext);
     {
         const jau::fs::file_stats output_stats(destination_fname);
         if( output_stats.exists() ) {
@@ -492,9 +492,9 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                          sign_sec_key_fname, passphrase,
                                          source,
                                          target_path, subject,
-                                         payload_version,
-                                         payload_version_parent,
-                                         my_listener, payload_hash_algo);
+                                         plaintext_version,
+                                         plaintext_version_parent,
+                                         my_listener, plaintext_hash_algo);
     if ( outfile.fail() ) {
         ERR_PRINT2("Encrypt failed: Output file write failed %s", destination_fname.c_str());
         jau::fs::remove(destination_fname);
@@ -511,10 +511,10 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
     }
 
     const jau::fs::file_stats output_stats(destination_fname);
-    if( out_bytes_header + out_bytes_payload != output_stats.size() ) {
-        ERR_PRINT2("Encrypt: Writing done, %s header + %s payload != %s total bytes",
+    if( out_bytes_header + out_bytes_plaintext != output_stats.size() ) {
+        ERR_PRINT2("Encrypt: Writing done, %s header + %s plaintext != %s total bytes",
                 jau::to_decstring(out_bytes_header).c_str(),
-                jau::to_decstring(out_bytes_payload).c_str(),
+                jau::to_decstring(out_bytes_plaintext).c_str(),
                 jau::to_decstring(output_stats.size()).c_str());
         jau::fs::remove(destination_fname);
         ph.setValid(false);
@@ -532,7 +532,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                             const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                             jau::io::ByteInStream& source,
                                             CipherpackListenerRef listener,
-                                            const std::string_view& payload_hash_algo) {
+                                            const std::string_view& plaintext_hash_algo) {
     const bool decrypt_mode = true;
     environment::get();
     jau::fraction_timespec ts_creation;
@@ -577,8 +577,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         std::string target_path;
         std::string subject;
         uint64_t content_size;
-        std::string payload_version;
-        std::string payload_version_parent;
+        std::string plaintext_version;
+        std::string plaintext_version_parent;
 
         CryptoConfig crypto_cfg;
         Botan::OID sym_enc_algo_oid;
@@ -592,11 +592,11 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         std::vector<uint8_t> sender_signature;
 
         std::unique_ptr<Botan::HashFunction> hash_func = nullptr;
-        if( !payload_hash_algo.empty() ) {
-            const std::string payload_hash_algo_s(payload_hash_algo);
-            hash_func = Botan::HashFunction::create(payload_hash_algo_s);
+        if( !plaintext_hash_algo.empty() ) {
+            const std::string plaintext_hash_algo_s(plaintext_hash_algo);
+            hash_func = Botan::HashFunction::create(plaintext_hash_algo_s);
             if( nullptr == hash_func ) {
-                ERR_PRINT2("Decrypt failed: Payload hash algo %s not available", payload_hash_algo_s.c_str());
+                ERR_PRINT2("Decrypt failed: Payload hash algo %s not available", plaintext_hash_algo_s.c_str());
                 return header;
             }
         }
@@ -628,8 +628,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 Botan::BigInt bi_ts_creation_sec;
                 Botan::BigInt bi_ts_creation_nsec;
                 std::vector<uint8_t> subject_charvec;
-                std::vector<uint8_t> payload_version_charvec;
-                std::vector<uint8_t> payload_version_parent_charvec;
+                std::vector<uint8_t> plaintext_version_charvec;
+                std::vector<uint8_t> plaintext_version_parent_charvec;
 
                 std::vector<uint8_t> pk_type_cv;
                 std::vector<uint8_t> pk_fingerprt_hash_algo_cv;
@@ -645,8 +645,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                    .decode( bi_ts_creation_sec, Botan::ASN1_Type::Integer )
                    .decode( bi_ts_creation_nsec, Botan::ASN1_Type::Integer )
                    .decode( subject_charvec, Botan::ASN1_Type::OctetString )
-                   .decode( payload_version_charvec, Botan::ASN1_Type::OctetString )
-                   .decode( payload_version_parent_charvec, Botan::ASN1_Type::OctetString )
+                   .decode( plaintext_version_charvec, Botan::ASN1_Type::OctetString )
+                   .decode( plaintext_version_parent_charvec, Botan::ASN1_Type::OctetString )
                    .decode( pk_type_cv, Botan::ASN1_Type::OctetString )
                    .decode( pk_fingerprt_hash_algo_cv, Botan::ASN1_Type::OctetString )
                    .decode( pk_enc_padding_algo_cv, Botan::ASN1_Type::OctetString )
@@ -663,8 +663,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 content_size = to_uint64_t(bi_content_size);
                 ts_creation.tv_sec = static_cast<int64_t>( to_uint64_t(bi_ts_creation_sec) );
                 ts_creation.tv_nsec = static_cast<int64_t>( to_uint64_t(bi_ts_creation_nsec) );
-                payload_version = to_string(payload_version_charvec);
-                payload_version_parent = to_string(payload_version_parent_charvec);
+                plaintext_version = to_string(plaintext_version_charvec);
+                plaintext_version_parent = to_string(plaintext_version_parent_charvec);
                 crypto_cfg.pk_type = to_string( pk_type_cv );
                 crypto_cfg.pk_fingerprt_hash_algo = to_string( pk_fingerprt_hash_algo_cv );
                 crypto_cfg.pk_enc_padding_algo = to_string( pk_enc_padding_algo_cv );
@@ -679,7 +679,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                 content_size,
                                 ts_creation,
                                 subject,
-                                payload_version, payload_version_parent,
+                                plaintext_version, plaintext_version_parent,
                                 crypto_cfg,
                                 fingerprt_sender,
                                 recevr_fingerprints,
@@ -760,7 +760,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                     content_size,
                                     ts_creation,
                                     subject,
-                                    payload_version, payload_version_parent,
+                                    plaintext_version, plaintext_version_parent,
                                     crypto_cfg,
                                     fingerprt_sender,
                                     recevr_fingerprints,
@@ -774,7 +774,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                 content_size,
                                 ts_creation,
                                 subject,
-                                payload_version, payload_version_parent,
+                                plaintext_version, plaintext_version_parent,
                                 crypto_cfg,
                                 fingerprt_sender,
                                 recevr_fingerprints,
@@ -814,8 +814,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         }
         DBG_PRINT("Decrypt: target_path '%s', net_file_size %s, version %s (parent %s), intention %s",
                 target_path.c_str(), jau::to_decstring(content_size).c_str(),
-                payload_version.c_str(),
-                payload_version_parent.c_str(),
+                plaintext_version.c_str(),
+                plaintext_version_parent.c_str(),
                 subject.c_str());
         DBG_PRINT("Decrypt: creation time %s UTC", ts_creation.to_iso8601_string().c_str());
 
@@ -842,7 +842,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                             content_size,
                             ts_creation,
                             subject,
-                            payload_version, payload_version_parent,
+                            plaintext_version, plaintext_version_parent,
                             crypto_cfg,
                             fingerprt_sender,
                             recevr_fingerprints,
@@ -861,21 +861,21 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         aead->start(nonce);
 
         const bool sent_content_to_user = listener->getSendContent( decrypt_mode );
-        uint64_t out_bytes_payload = 0;
+        uint64_t out_bytes_plaintext = 0;
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
-            if( !is_final && out_bytes_payload + data.size() < content_size ) {
+            if( !is_final && out_bytes_plaintext + data.size() < content_size ) {
                 aead->update(data);
                 if( nullptr != hash_func ) {
                     hash_func->update(data);
                 }
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, false /* is_final */);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, false /* is_final */);
                 }
-                out_bytes_payload += data.size();
+                out_bytes_plaintext += data.size();
                 DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
-                        data.size(), out_bytes_payload, content_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, content_size, out_bytes_payload);
+                        data.size(), out_bytes_plaintext, content_size, sent_content_to_user, res);
+                listener->notifyProgress(decrypt_mode, content_size, out_bytes_plaintext);
                 return res; // continue if user so desires
             } else {
                 aead->finish(data);
@@ -883,12 +883,12 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     hash_func->update(data);
                 }
                 if( sent_content_to_user ) {
-                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::payload, data, true /* is_final */);
+                    res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, true /* is_final */);
                 }
-                out_bytes_payload += data.size();
+                out_bytes_plaintext += data.size();
                 DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
-                        data.size(), out_bytes_payload, content_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, content_size, out_bytes_payload);
+                        data.size(), out_bytes_plaintext, content_size, sent_content_to_user, res);
+                listener->notifyProgress(decrypt_mode, content_size, out_bytes_plaintext);
                 return false; // EOS
             }
         };
@@ -907,22 +907,22 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             ERR_PRINT2("Decrypt failed: Input file read failed %s", source.to_string().c_str());
             return header;
         }
-        if( out_bytes_payload != content_size ) {
-            ERR_PRINT2("Decrypt: Writing done, %s output payload != %s header files size from %s",
-                    jau::to_decstring(out_bytes_payload).c_str(),
+        if( out_bytes_plaintext != content_size ) {
+            ERR_PRINT2("Decrypt: Writing done, %s output plaintext != %s header files size from %s",
+                    jau::to_decstring(out_bytes_plaintext).c_str(),
                     jau::to_decstring(content_size).c_str(), source.to_string().c_str());
             return header;
         } else {
             WORDY_PRINT("Decrypt: Reading done from %s", source.to_string().c_str());
             WORDY_PRINT("Decrypt: Writing done, %s total bytes from %s bytes input, ratio %lf in/out",
-                    jau::to_decstring(out_bytes_payload).c_str(),
+                    jau::to_decstring(out_bytes_plaintext).c_str(),
                     jau::to_decstring(in_bytes_total).c_str(),
-                    (double)out_bytes_payload/(double)in_bytes_total);
+                    (double)out_bytes_plaintext/(double)in_bytes_total);
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
         if( jau::environment::get().verbose ) {
-            jau::io::print_stats("Decrypt", out_bytes_payload, _td);
+            jau::io::print_stats("Decrypt", out_bytes_plaintext, _td);
         }
 
         header.setValid(true);
@@ -937,7 +937,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                                             const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                             jau::io::ByteInStream& source,
                                             CipherpackListenerRef listener,
-                                            const std::string_view& payload_hash_algo,
+                                            const std::string_view& plaintext_hash_algo,
                                             const std::string destination_fname) {
     environment::get();
     const bool decrypt_mode = true;
@@ -945,7 +945,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     if( destination_fname.empty() ) {
         PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
                                                   dec_sec_key_fname, passphrase,
-                                                  source, listener, payload_hash_algo);
+                                                  source, listener, plaintext_hash_algo);
         listener->notifyEnd(decrypt_mode, ph, ph.isValid());
         return ph;
     }
@@ -961,11 +961,11 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     class MyListener : public WrappingCipherpackListener {
         private:
             std::ofstream* outfile_;
-            uint64_t& out_bytes_payload_;
+            uint64_t& out_bytes_plaintext_;
         public:
-            MyListener(CipherpackListenerRef parent_, uint64_t& bytes_payload)
+            MyListener(CipherpackListenerRef parent_, uint64_t& bytes_plaintext)
             : WrappingCipherpackListener(parent_), outfile_(nullptr),
-              out_bytes_payload_(bytes_payload)
+              out_bytes_plaintext_(bytes_plaintext)
             {}
 
             void set_outfile(std::ofstream* of) noexcept { outfile_ = of; }
@@ -975,12 +975,12 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
             }
 
             bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
-                if( nullptr != outfile_ && content_type::payload == ctype ) {
+                if( nullptr != outfile_ && content_type::message == ctype ) {
                     outfile_->write(reinterpret_cast<char*>(data.data()), data.size());
                     if( outfile_->fail() ) {
                         return false;
                     }
-                    out_bytes_payload_ += data.size();
+                    out_bytes_plaintext_ += data.size();
                 }
                 if( parent->getSendContent(decrypt_mode) ) {
                     return parent->contentProcessed(decrypt_mode, ctype, data, is_final);
@@ -989,8 +989,8 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                 }
             }
     };
-    uint64_t out_bytes_payload=0;
-    std::shared_ptr<MyListener> my_listener = std::make_shared<MyListener>(listener, out_bytes_payload);
+    uint64_t out_bytes_plaintext=0;
+    std::shared_ptr<MyListener> my_listener = std::make_shared<MyListener>(listener, out_bytes_plaintext);
     {
         const jau::fs::file_stats output_stats(destination_fname);
         if( output_stats.exists() ) {
@@ -1017,7 +1017,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
 
     PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
                                               dec_sec_key_fname, passphrase,
-                                              source, my_listener, payload_hash_algo);
+                                              source, my_listener, plaintext_hash_algo);
     if ( outfile.fail() ) {
         ERR_PRINT2("Decrypt failed: Output file write failed %s", destination_fname.c_str());
         jau::fs::remove(destination_fname);
@@ -1034,9 +1034,9 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     }
 
     const jau::fs::file_stats output_stats(destination_fname);
-    if( ph.getContentSize() != output_stats.size() ) {
+    if( ph.getPlaintextSize() != output_stats.size() ) {
         ERR_PRINT2("Decrypt: Writing done, %s content_size != %s total bytes",
-                jau::to_decstring(ph.getContentSize()).c_str(),
+                jau::to_decstring(ph.getPlaintextSize()).c_str(),
                 jau::to_decstring(output_stats.size()).c_str());
         jau::fs::remove(destination_fname);
         ph.setValid(false);

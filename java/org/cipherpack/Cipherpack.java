@@ -39,12 +39,17 @@ import org.jau.util.BasicTypes;
  * ### Cipherpack Overview
  * *Cipherpack*, a secure stream processor utilizing public-key signatures to
  * authenticate the sender and public-key encryption of a symmetric-key for multiple receiver
- * ensuring their privacy and high-performance payload encryption.
+ * ensuring their privacy and high-performance message encryption.
  *
  * A *Cipherpack* can be understood as a message, which can be streamed via any media,
- * while file and all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html) are *build-in* via a location string and supported.
+ * via file using [ByteInStream_File](https://jausoft.com/projects/jaulib/build/documentation/java/html/classorg_1_1jau_1_1io_1_1ByteInStream__File.html)
+ * and via all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html)
+ * using [ByteInStream_URL](https://jausoft.com/projects/jaulib/build/documentation/java/html/classorg_1_1jau_1_1io_1_1ByteInStream__URL.html)
+ * are *build-in* and supported. <br/>
+ * Note: *libcurl* must be enabled via `-DUSE_LIBCURL=ON` at build.
  *
- * A user may use the media agnostic ByteInStream_Feed
+ * A user may use the media agnostic
+ * [ByteInStream_Feed](https://jausoft.com/projects/jaulib/build/documentation/java/html/classorg_1_1jau_1_1io_1_1ByteInStream__Feed.html)
  * to produce the input stream by injecting data off-thread and a CipherpackListener to receive the processed output stream.
  *
  * *Cipherpack* is implemented using C++17 and accessible via C++ and Java.
@@ -54,11 +59,11 @@ import org.jau.util.BasicTypes;
  * READY TO USE
  *
  * #### Cipherpack Operations
- * The following public-key signature and encryption, as well as symmetric-key payload encryption operations are performed:
+ * The following public-key signature and encryption, as well as symmetric-key message encryption operations are performed:
  * - Writing a DER Header-1, containing the general message information and receiver count, see {@link PackHeader} details.
  * - Writing a DER Header for each recevr, containing the fingerprint, encrypted symmetric-key and encrypted symmetric-nonce.
  * - Writing a DER Header-2, containing the sender's signature over the whole header
- * - Writing the symmetrically encrypted payload, using the symmetric-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
+ * - Writing the symmetrically encrypted message, using the symmetric-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
  *
  * Implementation performs all operation `in-place` without redundant copies, processing the stream.
  *
@@ -70,7 +75,7 @@ import org.jau.util.BasicTypes;
  * Further, the stream contains triples per receiver, its public-key fingerprint,
  * the encrypted symmetric-key and the encrypted symmetric-nonce for each receiver,
  * allowing a secure messaging between multiple parties:
- * - Symmetric encryption of the actual payload ensures high-performance processing.
+ * - Symmetric encryption of the plaintext message ensures high-performance processing.
  * - Symmetric stream-key is unique for each message
  *
  * Implementation uses an Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo,
@@ -83,13 +88,13 @@ import org.jau.util.BasicTypes;
  * ```
  * DER Header 1 {
  *     ASN1_Type::OctetString               stream_magic              // simple stream identifier to be matched
- *     ASN1_Type::OctetString               target_path               // designated target path for message
- *     ASN1_Type::Integer                   content_size              // content size of plaintext payload
+ *     ASN1_Type::OctetString               target_path               // designated target path for this plaintext message, user semantic
+ *     ASN1_Type::Integer                   plaintext_size            // content size of plaintext message
  *     ASN1_Type::Integer                   creation_timestamp_sec    // message creation timestamp, second component
  *     ASN1_Type::Integer                   creation_timestamp_nsec   // message creation timestamp, nanoseconds component
  *     ASN1_Type::OctetString               subject                   // designated subject of message
- *     ASN1_Type::OctetString               payload_version           // version of this message's payload
- *     ASN1_Type::OctetString               payload_version_parent    // version of the parent's message payload
+ *     ASN1_Type::OctetString               plaintext_version         // version of this plaintext message, user semantic
+ *     ASN1_Type::OctetString               plaintext_version_parent  // version of this plaintext message's preceding message, user semantic
  *     ASN1_Type::OctetString               pk_type                   // public-key type. Default "RSA".
  *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash. Default "SHA-256".
  *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding. Default "OAEP".
@@ -112,7 +117,7 @@ import org.jau.util.BasicTypes;
  * DER Header 2 {
  *     ASN1_Type::OctetString               sign_sender               // sender's signature over whole header, matching fingerprt_sender
  * },
- * uint8_t encrypted_data[content_size]                               // the encrypted payload, content_size bytes
+ * uint8_t encrypted_data[content_size]                               // the encrypted message, content_size bytes
  * ```
  *
  * @see encryptThenSign()
@@ -121,7 +126,7 @@ import org.jau.util.BasicTypes;
 public final class Cipherpack {
 
     /**
-     * Name of default plaintext payload hash algo,
+     * Name of default hash algo for the plaintext message,
      * e.g. for {@link #encryptThenSign(CryptoConfig, List, String, ByteBuffer, ByteInStream, String, String, String, String, CipherpackListener, String, String) encryptThenSign()}
      * and {@link #checkSignThenDecrypt(List, String, ByteBuffer, ByteInStream, CipherpackListener, String, String) checkSignThenDecrypt()}.
      *
@@ -148,15 +153,15 @@ public final class Cipherpack {
      * @param enc_pub_keys           Public keys of the receiver, used to encrypt the symmetric-key for multiple parties.
      * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
      * @param passphrase             Passphrase for `sign_sec_key_fname`, may be null or empty for no passphrase.
-     * @param source                 The source ByteInStream of the cipherpack containing the encrypted payload.
+     * @param source                 The source ByteInStream of the plaintext message.
      * @param target_path            Designated target path for the message
-     * @param subject                Designated subject of payload from sender
-     * @param payload_version        Version of this message's payload
-     * @param payload_version_parent Version of the parent's message payload
+     * @param subject                Designated subject of message from sender
+     * @param plaintext_version        Version of this plaintext message, user semantic.
+     * @param plaintext_version_parent Version of this plaintext message's preceding message, user semantic.
      * @param listener               CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
-     * @param payload_hash_algo      Optional hash algo name for plaintext payload, computed while encrypting for PackHeader only. See {@link #defPayloadHashAlgo}.
-     *                               Set to empty string to disable.
+     * @param plaintext_hash_algo    Optional hash algorithm for the plaintext message, produced for convenience and not wired. See {@link Cipherpack#default_hash_algo()}.
+     *                               Pass an empty string to disable.
      * @param destination_fname      Optional filename of the plaintext destination file, not used if null or empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
@@ -173,20 +178,20 @@ public final class Cipherpack {
                                              final String sign_sec_key_fname, final ByteBuffer passphrase,
                                              final ByteInStream source,
                                              final String target_path, final String subject,
-                                             final String payload_version,
-                                             final String payload_version_parent,
+                                             final String plaintext_version,
+                                             final String plaintext_version_parent,
                                              final CipherpackListener listener,
-                                             final String payload_hash_algo,
+                                             final String plaintext_hash_algo,
                                              final String destination_fname) {
         return encryptThenSignImpl1(crypto_cfg,
                                     enc_pub_keys,
                                     sign_sec_key_fname, passphrase,
                                     source,
                                     target_path, subject,
-                                    payload_version,
-                                    payload_version_parent,
+                                    plaintext_version,
+                                    plaintext_version_parent,
                                     listener,
-                                    payload_hash_algo,
+                                    plaintext_hash_algo,
                                     destination_fname);
     }
     private static native PackHeader encryptThenSignImpl1(final CryptoConfig crypto_cfg,
@@ -195,10 +200,10 @@ public final class Cipherpack {
                                                           final ByteBuffer passphrase,
                                                           final ByteInStream source,
                                                           final String target_path, final String subject,
-                                                          final String payload_version,
-                                                          final String payload_version_parent,
+                                                          final String plaintext_version,
+                                                          final String plaintext_version_parent,
                                                           final CipherpackListener listener,
-                                                          final String payload_hash_algo,
+                                                          final String plaintext_hash_algo,
                                                           final String destination_fname);
 
 
@@ -206,15 +211,15 @@ public final class Cipherpack {
      * Verify signature then decrypt the source passing to the CipherpackListener if opt-in and also optionally store into destination file.
      *
      * @param sign_pub_keys      Authorized sender public-keys to verify the sender's signature
-     *                           and hence the authenticity of the message incl. encrypted symmetric-key and payload.
+     *                           and hence the authenticity of the message incl. encrypted symmetric-key and ciphertext message.
      * @param dec_sec_key_fname  Private key of the receiver, used to decrypt the symmetric-key.
      *                           It shall match one of the keys used to encrypt.
      * @param passphrase         The passphrase for `dec_sec_key_fname`, may be null or empty for no passphrase.
-     * @param source             The source ByteInStream of the cipherpack containing the encrypted payload.
+     * @param source             The source ByteInStream of the cipherpack containing the encrypted message.
      * @param listener           The CipherpackListener listener used for notifications and optionally
      *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
-     * @param payload_hash_algo  Optional hash algo name for plaintext payload, computed while decrypting for PackHeader only. See {@link #defPayloadHashAlgo}.
-     *                           Set to empty string to disable.
+     * @param plaintext_hash_algo Optional hash algorithm for the plaintext message, produced for convenience and not wired. See {@link Cipherpack#default_hash_algo()}.
+     *                            Pass an empty string to disable.
      * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
@@ -230,20 +235,20 @@ public final class Cipherpack {
                                                   final String dec_sec_key_fname, final ByteBuffer passphrase,
                                                   final ByteInStream source,
                                                   final CipherpackListener listener,
-                                                  final String payload_hash_algo,
+                                                  final String plaintext_hash_algo,
                                                   final String destination_fname) {
         return checkSignThenDecrypt1(sign_pub_keys,
                                      dec_sec_key_fname, passphrase,
                                      source,
                                      listener,
-                                     payload_hash_algo,
+                                     plaintext_hash_algo,
                                      destination_fname);
     }
     private static native PackHeader checkSignThenDecrypt1(final List<String> sign_pub_keys,
                                                            final String dec_sec_key_fname, final ByteBuffer passphrase,
                                                            final ByteInStream source,
                                                            final CipherpackListener listener,
-                                                           final String payload_hash_algo,
+                                                           final String plaintext_hash_algo,
                                                            final String destination_fname);
 
     /**

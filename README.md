@@ -9,14 +9,15 @@ This project's canonical repositories is hosted on [Gothel Software](https://jau
 ## Overview
 *Cipherpack*, a secure stream processor utilizing public-key signatures to
 authenticate the sender and public-key encryption of a symmetric-key for multiple receiver
-ensuring their privacy and high-performance payload encryption.
+ensuring their privacy and high-performance message encryption.
 
 A *Cipherpack* can be understood as a message, which can be streamed via any media, 
-while file via 
+via file using 
 [ByteInStream_File](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__File.html)
-and all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html) via 
+and via all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html) using 
 [ByteInStream_URL](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__URL.html)
-are *build-in* and supported.
+are *build-in* and supported. <br/>
+Note: *libcurl* must be [enabled via `-DUSE_LIBCURL=ON` at build](#build-procedure).
 
 A user may use the media agnostic
 [ByteInStream_Feed](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__Feed.html)

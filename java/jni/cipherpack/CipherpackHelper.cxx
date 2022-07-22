@@ -84,8 +84,8 @@ jobject jcipherpack::to_jCryptoConfig(JNIEnv *env, const cipherpack::CryptoConfi
 jobject jcipherpack::to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& ph) {
     jstring jtarget_path = jau::jni::from_string_to_jstring(env, ph.getTargetPath());
     jstring jsubject = jau::jni::from_string_to_jstring(env, ph.getSubject());
-    jstring jpversion = jau::jni::from_string_to_jstring(env, ph.getPayloadVersion());
-    jstring jpversion_parent = jau::jni::from_string_to_jstring(env, ph.getPayloadVersionParent());
+    jstring jpversion = jau::jni::from_string_to_jstring(env, ph.getPlaintextVersion());
+    jstring jpversion_parent = jau::jni::from_string_to_jstring(env, ph.getPlaintextVersionParent());
 
     const cipherpack::CryptoConfig& ccfg = ph.getCryptoConfig();
     jobject jccfg = to_jCryptoConfig(env, ccfg);
@@ -93,10 +93,10 @@ jobject jcipherpack::to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& p
     jstring jsender_fprint = jau::jni::from_string_to_jstring(env, ph.getSenderFingerprint());
     const std::vector<std::string>& recevr_fprints = ph.getReceiverFingerprints();
     jobject jrecevr_fprints = jau::jni::convert_vector_string_to_jarraylist(env, recevr_fprints);
-    jstring jpayload_hash_algo = jau::jni::from_string_to_jstring(env, ph.getPayloadHashAlgo());
-    const size_t payload_hash_size = ph.getPayloadHash().size();
-    jbyteArray jpayload_hash = env->NewByteArray((jsize)payload_hash_size);
-    env->SetByteArrayRegion(jpayload_hash, 0, (jsize)payload_hash_size, (const jbyte *)ph.getPayloadHash().data());
+    jstring jplaintext_hash_algo = jau::jni::from_string_to_jstring(env, ph.getPlaintextHashAlgo());
+    const size_t plaintext_hash_size = ph.getPlaintextHash().size();
+    jbyteArray jplaintext_hash = env->NewByteArray((jsize)plaintext_hash_size);
+    env->SetByteArrayRegion(jplaintext_hash, 0, (jsize)plaintext_hash_size, (const jbyte *)ph.getPlaintextHash().data());
     jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 
     jclass packHeaderClazz = jau::jni::search_class(env, _packHeaderClassName.c_str());
@@ -104,7 +104,7 @@ jobject jcipherpack::to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& p
 
     jobject jph = env->NewObject(packHeaderClazz, packHeaderClazzCtor,
             jtarget_path,
-            static_cast<jlong>(ph.getContentSize()),
+            static_cast<jlong>(ph.getPlaintextSize()),
             static_cast<jlong>(ph.getCreationTime().tv_sec),
             static_cast<jlong>(ph.getCreationTime().tv_nsec),
             jsubject,
@@ -113,8 +113,8 @@ jobject jcipherpack::to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& p
             jsender_fprint,
             jrecevr_fprints,
             ph.getUsedReceiverKeyIndex(),
-            jpayload_hash_algo,
-            jpayload_hash,
+            jplaintext_hash_algo,
+            jplaintext_hash,
             ph.isValid());
     jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 

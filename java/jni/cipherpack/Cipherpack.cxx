@@ -37,10 +37,10 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         jstring jsign_sec_key_fname, jobject jpassphrase,
         jobject jsource_feed,
         jstring jtarget_path, jstring jsubject,
-        jstring jpayload_version,
-        jstring jpayload_version_parent,
+        jstring jplaintext_version,
+        jstring jplaintext_version_parent,
         jobject cpListener,
-        jstring jpayload_hash_algo,
+        jstring jplaintext_hash_algo,
         jstring jdestination_fname)
 {
     try {
@@ -53,14 +53,14 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         jau::io::secure_string passphrase = nullptr != jpassphrase ? jau::jni::from_jbytebuffer_to_sstring(env, jpassphrase) : jau::io::secure_string();
         std::string target_path = jau::jni::from_jstring_to_string(env, jtarget_path);
         std::string subject = jau::jni::from_jstring_to_string(env, jsubject);
-        std::string payload_version = jau::jni::from_jstring_to_string(env, jpayload_version);
-        std::string payload_version_parent = jau::jni::from_jstring_to_string(env, jpayload_version_parent);
-        std::string payload_hash_algo = jau::jni::from_jstring_to_string(env, jpayload_hash_algo);
+        std::string plaintext_version = jau::jni::from_jstring_to_string(env, jplaintext_version);
+        std::string plaintext_version_parent = jau::jni::from_jstring_to_string(env, jplaintext_version_parent);
+        std::string plaintext_hash_algo = jau::jni::from_jstring_to_string(env, jplaintext_hash_algo);
         std::string destination_fname = nullptr != jdestination_fname ? jau::jni::from_jstring_to_string(env, jdestination_fname) : "";
 
         cipherpack::PackHeader ph = encryptThenSign(ccfg, enc_pub_keys, sign_sec_key_fname, passphrase, *refSource,
-                                                    target_path, subject, payload_version, payload_version_parent,
-                                                    refListener.shared_ptr(), payload_hash_algo, destination_fname);
+                                                    target_path, subject, plaintext_version, plaintext_version_parent,
+                                                    refListener.shared_ptr(), plaintext_hash_algo, destination_fname);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);
 
@@ -76,7 +76,7 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
         jstring jdec_sec_key_fname, jobject jpassphrase,
         jobject jsource_feed,
         jobject cpListener,
-        jstring jpayload_hash_algo,
+        jstring jplaintext_hash_algo,
         jstring jdestination_fname)
 {
     try {
@@ -86,11 +86,11 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
         std::vector<std::string> sign_pub_keys = jau::jni::convert_jlist_string_to_vector(env, jsign_pub_keys);
         std::string dec_sec_key_fname = jau::jni::from_jstring_to_string(env, jdec_sec_key_fname);
         jau::io::secure_string passphrase = nullptr != jpassphrase ? jau::jni::from_jbytebuffer_to_sstring(env, jpassphrase) : jau::io::secure_string();
-        std::string payload_hash_algo = jau::jni::from_jstring_to_string(env, jpayload_hash_algo);
+        std::string plaintext_hash_algo = jau::jni::from_jstring_to_string(env, jplaintext_hash_algo);
         std::string destination_fname = nullptr != jdestination_fname ? jau::jni::from_jstring_to_string(env, jdestination_fname) : "";
 
         cipherpack::PackHeader ph = checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, passphrase, *refSource,
-                                                         refListener.shared_ptr(), payload_hash_algo, destination_fname);
+                                                         refListener.shared_ptr(), plaintext_hash_algo, destination_fname);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);
 

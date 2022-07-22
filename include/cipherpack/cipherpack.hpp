@@ -48,14 +48,15 @@ namespace cipherpack {
       * ### Cipherpack Overview
       * *Cipherpack*, a secure stream processor utilizing public-key signatures to
       * authenticate the sender and public-key encryption of a symmetric-key for multiple receiver
-      * ensuring their privacy and high-performance payload encryption.
+      * ensuring their privacy and high-performance message encryption.
       *
-      * A *Cipherpack* can be understood as a message, which can be streamed via any media while,
-      * file via
+      * A *Cipherpack* can be understood as a message, which can be streamed via any media,
+      * via file using
       * [ByteInStream_File](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__File.html)
-      * and all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html) via
-      * [ByteInStream_URL](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__URL.html)
-      * are *build-in* and supported.
+      * and via all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html)
+      * using [ByteInStream_URL](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__URL.html)
+      * are *build-in* and supported. <br/>
+      * Note: *libcurl* must be enabled via `-DUSE_LIBCURL=ON` at build.
       *
       * A user may use the media agnostic
       * [ByteInStream_Feed](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__Feed.html)
@@ -68,11 +69,11 @@ namespace cipherpack {
       * READY TO USE
       *
       * #### Cipherpack Operations
-      * The following public-key signature and encryption, as well as symmetric-key payload encryption operations are performed:
+      * The following public-key signature and encryption, as well as symmetric-key message encryption operations are performed:
       * - Writing a DER Header-1, containing the general message information and receiver count, see {@link PackHeader} details.
       * - Writing a DER Header for each recevr, containing the fingerprint, encrypted symmetric-key and encrypted symmetric-nonce.
       * - Writing a DER Header-2, containing the sender's signature over the whole header
-      * - Writing the symmetrically encrypted payload, using the symmetric-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
+      * - Writing the symmetrically encrypted message, using the symmetric-key for encryption + MAC via AEAD `ChaCha20Poly1305`.
       *
       * Implementation performs all operation `in-place` without redundant copies, processing the stream.
       *
@@ -84,7 +85,7 @@ namespace cipherpack {
       * Further, the stream contains triples per receiver, its public-key fingerprint,
       * the encrypted symmetric-key and the encrypted symmetric-nonce for each receiver,
       * allowing a secure messaging between multiple parties:
-      * - Symmetric encryption of the actual payload ensures high-performance processing.
+      * - Symmetric encryption of the plaintext message ensures high-performance processing.
       * - Symmetric stream-key is unique for each message
       *
       * Implementation uses an Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo,
@@ -97,13 +98,13 @@ namespace cipherpack {
       * ```
       * DER Header 1 {
       *     ASN1_Type::OctetString               stream_magic              // simple stream identifier to be matched
-      *     ASN1_Type::OctetString               target_path               // designated target path for message
-      *     ASN1_Type::Integer                   content_size              // content size of plaintext payload
+      *     ASN1_Type::OctetString               target_path               // designated target path for this plaintext message, user semantic
+      *     ASN1_Type::Integer                   plaintext_size            // content size of plaintext message
       *     ASN1_Type::Integer                   creation_timestamp_sec    // message creation timestamp, second component
       *     ASN1_Type::Integer                   creation_timestamp_nsec   // message creation timestamp, nanoseconds component
       *     ASN1_Type::OctetString               subject                   // designated subject of message
-      *     ASN1_Type::OctetString               payload_version           // version of this message's payload
-      *     ASN1_Type::OctetString               payload_version_parent    // version of the parent's message payload
+      *     ASN1_Type::OctetString               plaintext_version         // version of this plaintext message, user semantic
+      *     ASN1_Type::OctetString               plaintext_version_parent  // version of this plaintext message's preceding message, user semantic
       *     ASN1_Type::OctetString               pk_type                   // public-key type. Default "RSA".
       *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash. Default "SHA-256".
       *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding. Default "OAEP".
@@ -126,7 +127,7 @@ namespace cipherpack {
       * DER Header 2 {
       *     ASN1_Type::OctetString               sign_sender               // sender's signature over whole header, matching fingerprt_sender
       * },
-      * uint8_t encrypted_data[content_size]                               // the encrypted payload, content_size bytes
+      * uint8_t encrypted_data[content_size]                               // the encrypted message, content_size bytes
       * ```
       *
       * @see encryptThenSign()
@@ -240,57 +241,57 @@ namespace cipherpack {
     class PackHeader {
         private:
             std::string target_path;
-            uint64_t content_size;
+            uint64_t plaintext_size;
             jau::fraction_timespec ts_creation;
             std::string subject;
-            std::string payload_version;
-            std::string payload_version_parent;
+            std::string plaintext_version;
+            std::string plaintext_version_parent;
             CryptoConfig crypto_cfg;
             std::string sender_fingerprint;
             std::vector<std::string> recevr_fingerprints;
             ssize_t used_recevr_key_idx;
-            std::string payload_hash_algo;
-            std::vector<uint8_t> payload_hash;
+            std::string plaintext_hash_algo;
+            std::vector<uint8_t> plaintext_hash;
             bool valid;
 
         public:
             /** default ctor, denoting an invalid package header. */
             PackHeader()
             : target_path("none"),
-              content_size(0),
+              plaintext_size(0),
               ts_creation( jau::getWallClockTime() ),
               subject("none"),
-              payload_version(),
-              payload_version_parent(),
+              plaintext_version(),
+              plaintext_version_parent(),
               crypto_cfg(),
               sender_fingerprint(),
               recevr_fingerprints(),
               used_recevr_key_idx(-1),
-              payload_hash_algo(),
-              payload_hash(),
+              plaintext_hash_algo(),
+              plaintext_hash(),
               valid(false)
             { }
 
             /** ctor, denoting an invalid package header. */
             PackHeader(const jau::fraction_timespec& ts_creation_)
             : target_path("none"),
-              content_size(0),
+              plaintext_size(0),
               ts_creation( ts_creation_ ),
               subject("none"),
-              payload_version(),
-              payload_version_parent(),
+              plaintext_version(),
+              plaintext_version_parent(),
               crypto_cfg(),
               sender_fingerprint(),
               recevr_fingerprints(),
               used_recevr_key_idx(-1),
-              payload_hash_algo(),
-              payload_hash(),
+              plaintext_hash_algo(),
+              plaintext_hash(),
               valid(false)
             { }
 
             /** Complete ctor, denoting a complete package header, see @ref cipherpack_stream "Cipherpack Data Stream". */
             PackHeader(const std::string& target_path_,
-                       const uint64_t& content_size_,
+                       const uint64_t& plaintext_size_,
                        const jau::fraction_timespec& ts_creation_,
                        const std::string& subject_,
                        const std::string& pversion, const std::string& pversion_parent,
@@ -300,24 +301,24 @@ namespace cipherpack {
                        const size_t used_recevr_key_idx_,
                        const bool valid_)
             : target_path(target_path_),
-              content_size(content_size_),
+              plaintext_size(plaintext_size_),
               ts_creation(ts_creation_),
               subject(subject_),
-              payload_version(pversion), payload_version_parent(pversion_parent),
+              plaintext_version(pversion), plaintext_version_parent(pversion_parent),
               crypto_cfg(crypto_cfg_),
               sender_fingerprint(sender_fingerprint_),
               recevr_fingerprints(recevr_fingerprints_),
               used_recevr_key_idx(used_recevr_key_idx_),
-              payload_hash_algo(),
-              payload_hash(),
+              plaintext_hash_algo(),
+              plaintext_hash(),
               valid(valid_)
             { }
 
-            /** Returns the designated target path for message, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            /** Returns the designated target path for this plaintext message, see @ref cipherpack_stream "Cipherpack Data Stream". */
             const std::string& getTargetPath() const noexcept { return target_path; }
 
-            /** Returns the plaintext content size in bytes, i.e. decrypted payload size, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            uint64_t getContentSize() const noexcept { return content_size; }
+            /** Returns the plaintext message size in bytes, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            uint64_t getPlaintextSize() const noexcept { return plaintext_size; }
 
             /** Returns the creation time since Unix epoch, see @ref cipherpack_stream "Cipherpack Data Stream". */
             constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
@@ -325,11 +326,11 @@ namespace cipherpack {
             /** Returns the designated subject of message, see @ref cipherpack_stream "Cipherpack Data Stream". */
             constexpr const std::string& getSubject() const noexcept { return subject; }
 
-            /** Returns the payload version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr const std::string& getPayloadVersion() const noexcept { return payload_version;}
+            /** Returns version of this plaintext message, user semantic, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            constexpr const std::string& getPlaintextVersion() const noexcept { return plaintext_version;}
 
-            /** Returns the payload's parent version, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr const std::string& getPayloadVersionParent() const noexcept { return payload_version_parent;}
+            /** Returns version of this plaintext message's preceding message, user semantic, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            constexpr const std::string& getPlaintextVersionParent() const noexcept { return plaintext_version_parent;}
 
             constexpr const CryptoConfig& getCryptoConfig() const noexcept { return crypto_cfg; }
 
@@ -351,33 +352,33 @@ namespace cipherpack {
             ssize_t getUsedReceiverKeyIndex() const noexcept { return used_recevr_key_idx; }
 
             /**
-             * Return optional plaintext payload hash algorithm as produced for convenience, not wired.
+             * Return optional hash algorithm for the plaintext message, produced for convenience and not wired.
              *
              * If not used, returned string is empty.
              *
-             * @see getPayloadHash()
-             * @see setPayloadHash()
+             * @see getPlaintextHash()
+             * @see setPlaintextHash()
              */
-            const std::string& getPayloadHashAlgo() const noexcept { return payload_hash_algo; }
+            const std::string& getPlaintextHashAlgo() const noexcept { return plaintext_hash_algo; }
 
             /**
-             * Return optional plaintext payload hash value as produced for convenience, not wired.
+             * Return optional hash value of the plaintext message, produced for convenience and not wired.
              *
-             * If not used, i.e. getPayloadHashAlgo() is empty, vector has zero size.
+             * If not used, i.e. getPlaintextHashAlgo() is empty, returned vector has zero size.
              *
-             * @see getPayloadHashAlgo()
-             * @see setPayloadHash()
+             * @see getPlaintextHashAlgo()
+             * @see setPlaintextHash()
              */
-            const std::vector<uint8_t>& getPayloadHash() const noexcept { return payload_hash; }
+            const std::vector<uint8_t>& getPlaintextHash() const noexcept { return plaintext_hash; }
 
             /**
-             * Set optional plaintext payload hash algo and value produced for convenience, not wired.
-             * @see getPayloadHash()
-             * @see getPayloadHashAlgo()
+             * Set optional hash-algo and -value of the plaintext messages, produced for convenience and not wired.
+             * @see getPlaintextHash()
+             * @see getPlaintextHashAlgo()
              */
             void setPayloadHash(const std::string& algo, const std::vector<uint8_t>& hash) noexcept {
-                payload_hash_algo = algo;
-                payload_hash = hash;
+                plaintext_hash_algo = algo;
+                plaintext_hash = hash;
             }
 
             /**
@@ -406,7 +407,7 @@ namespace cipherpack {
         public:
             enum class content_type : uint8_t {
                 header = 0,
-                payload = 1
+                message = 1
             };
 
             /**
@@ -422,7 +423,7 @@ namespace cipherpack {
             }
 
             /**
-             * User notification of preliminary PackHeader w/o optional payload hash
+             * User notification of preliminary PackHeader w/o optional hash of the plaintext message
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
              * @param header the preliminary PackHeader
              * @param verified true if header signature is verified and deemed valid, otherwise false regardless of true == PackHeader::isValid().
@@ -480,7 +481,7 @@ namespace cipherpack {
              * In case contentProcessed() gets called, notifyProgress() is called thereafter.
              *
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-             * @param ctype content_type of passed data. Always content_type::payload if decrypt_mode is true.
+             * @param ctype content_type of passed data. Always content_type::message if decrypt_mode is true.
              * @param data the processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
              * @param is_final true if this is the last content call, otherwise false
              * @return true to signal continuation, false to end streaming.
@@ -521,7 +522,7 @@ namespace cipherpack {
     typedef std::shared_ptr<CipherpackListener> CipherpackListenerRef;
 
     /**
-     * Name of default plaintext payload hash algo,
+     * Name of default hash algo for the plaintext message,
      * e.g. for encryptThenSign() and checkSignThenDecrypt().
      *
      * Value is `BLAKE2b(512)`.
@@ -547,15 +548,15 @@ namespace cipherpack {
      * @param enc_pub_keys           Public keys of the receiver, used to encrypt the symmetric-key for multiple parties.
      * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
      * @param passphrase             Passphrase for `sign_sec_key_fname`, may be an empty secure_string for no passphrase.
-     * @param source                 The source jau::io::ByteInStream of the plaintext payload.
+     * @param source                 The source jau::io::ByteInStream of the plaintext message.
      * @param target_path            Designated target path for the message
-     * @param subject                Designated subject of payload from sender
-     * @param payload_version        Version of this message's payload
-     * @param payload_version_parent Version of the parent's message payload
+     * @param subject                Designated subject of message from sender
+     * @param plaintext_version      Version of this plaintext message, user semantic
+     * @param plaintext_version_parent Version of this plaintext message's preceding message, user semantic.
      * @param listener               CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
-     * @param payload_hash_algo      Optional hash algo name for plaintext payload, computed while encrypting for PackHeader::setPayloadHash() only. See def_payload_hash_algo.
-     *                               Set to empty string to disable.
+     * @param plaintext_hash_algo    Optional hash algorithm for the plaintext message, produced for convenience and not wired. See default_hash_algo().
+     *                               Pass an empty string to disable.
      * @param destination_fname      Optional filename of the ciphertext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
@@ -570,26 +571,26 @@ namespace cipherpack {
                                const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
                                jau::io::ByteInStream& source,
                                const std::string& target_path, const std::string& subject,
-                               const std::string& payload_version,
-                               const std::string& payload_version_parent,
+                               const std::string& plaintext_version,
+                               const std::string& plaintext_version_parent,
                                CipherpackListenerRef listener,
-                               const std::string_view& payload_hash_algo,
+                               const std::string_view& plaintext_hash_algo,
                                const std::string destination_fname = "");
 
     /**
      * Verify signature then decrypt the source passing to the CipherpackListener if opt-in and also optionally store into destination file.
      *
-     * @param sign_pub_keys      Authorized sender public-keys to verify the sender's signature
-     *                           and hence the authenticity of the message incl. encrypted symmetric-key and payload.
-     * @param dec_sec_key_fname  Private key of the receiver, used to decrypt the symmetric-key.
-     *                           It shall match one of the keys used to encrypt.
-     * @param passphrase         The passphrase for `dec_sec_key_fname`, may be an empty secure_string for no passphrase.
-     * @param source             The source jau::io::ByteInStream of the cipherpack containing the encrypted payload.
-     * @param listener           The CipherpackListener listener used for notifications and optionally
-     *                           to send the plaintext destination bytes via CipherpackListener::contentProcessed()
-     * @param payload_hash_algo  Optional hash algo name for plaintext payload, computed while decrypting for PackHeader::setPayloadHash() only. See def_payload_hash_algo.
-     *                           Set to empty string to disable.
-     * @param destination_fname  Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
+     * @param sign_pub_keys          Authorized sender public-keys to verify the sender's signature
+     *                               and hence the authenticity of the message incl. encrypted symmetric-key and ciphertext message.
+     * @param dec_sec_key_fname      Private key of the receiver, used to decrypt the symmetric-key.
+     *                               It shall match one of the keys used to encrypt.
+     * @param passphrase             The passphrase for `dec_sec_key_fname`, may be an empty secure_string for no passphrase.
+     * @param source                 The source jau::io::ByteInStream of the cipherpack containing the encrypted message.
+     * @param listener               The CipherpackListener listener used for notifications and optionally
+     *                               to send the plaintext destination bytes via CipherpackListener::contentProcessed()
+     * @param plaintext_hash_algo    Optional hash algorithm for the plaintext message, produced for convenience and not wired. See default_hash_algo().
+     *                               Pass an empty string to disable.
+     * @param destination_fname      Optional filename of the plaintext destination file, not used if empty (default). If not empty and file already exists, file will be overwritten.
      * @return PackHeader, where true == PackHeader::isValid() if successful, otherwise not.
      *
      * @see @ref cipherpack_overview "Cipherpack Overview"
@@ -602,7 +603,7 @@ namespace cipherpack {
                                     const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                     jau::io::ByteInStream& source,
                                     CipherpackListenerRef listener,
-                                    const std::string_view& payload_hash_algo,
+                                    const std::string_view& plaintext_hash_algo,
                                     const std::string destination_fname = "");
 
     /**
