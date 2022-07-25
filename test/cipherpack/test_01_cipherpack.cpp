@@ -47,6 +47,12 @@ extern "C" {
     #include <unistd.h>
 }
 
+#if defined(__FreeBSD__)
+    constexpr inline std::string_view mini_httpd_exe = "/usr/local/sbin/mini_httpd";
+#else
+    constexpr inline std::string_view mini_httpd_exe = "/usr/sbin/mini_httpd";
+#endif
+
 using namespace jau::fractions_i64_literals;
 
 class Test01Cipherpack : public TestData {
@@ -116,7 +122,7 @@ class Test01Cipherpack : public TestData {
             if( jau::io::uri_tk::protocol_supported("http:") ) {
                 int res = std::system("killall mini_httpd");
                 const std::string cwd = jau::fs::get_cwd();
-                const std::string cmd = "/usr/sbin/mini_httpd -p 8080 -l "+cwd+"/mini_httpd.log";
+                const std::string cmd = std::string(mini_httpd_exe)+" -p 8080 -l "+cwd+"/mini_httpd.log";
                 jau::PLAIN_PRINT(true, "%s", cmd.c_str());
                 res = std::system(cmd.c_str());
                 (void)res;
@@ -436,6 +442,7 @@ class Test01Cipherpack : public TestData {
                     jau::sleep_for( 16_ms );
                 }
             }
+            (void)xfer_total;
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
             enc_feed->set_eof( jau::io::async_io_result_t::SUCCESS );
         }

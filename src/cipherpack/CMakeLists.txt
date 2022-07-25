@@ -7,6 +7,7 @@ set (cipherpack_LIB_INCLUDE_DIRS
 include_directories(
   ${cipherpack_LIB_INCLUDE_DIRS}
   ${CMAKE_CURRENT_BINARY_DIR}
+  ${SYS_INCLUDE_DIRS}
 )
 
 set (cipherpack_LIB_SRCS
@@ -27,8 +28,8 @@ set (cipherpack_LIB_SRCS
 add_library (cipherpack SHARED ${cipherpack_LIB_SRCS})
 target_link_libraries (
   cipherpack
+  ${LIBCURL_LIBNAME}
   ${LIBUNWIND_LIBNAME}
-  curl
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
