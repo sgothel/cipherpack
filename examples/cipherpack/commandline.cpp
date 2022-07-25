@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
         }
         return 0;
     }
-    jau::PLAIN_PRINT(true, "Pack: Error: Unknown command");
+    fprintf(stderr, "Unknown command\n");
     print_usage(argv[0]);
     return -1;
 }
