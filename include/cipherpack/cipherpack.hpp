@@ -98,13 +98,13 @@ namespace cipherpack {
       * ```
       * DER Header 1 {
       *     ASN1_Type::OctetString               stream_magic              // simple stream identifier to be matched
-      *     ASN1_Type::OctetString               target_path               // designated target path for this plaintext message, user semantic
-      *     ASN1_Type::Integer                   plaintext_size            // content size of plaintext message
+      *     ASN1_Type::OctetString               target_path               // optional target path for the plaintext message, user application specific.
+      *     ASN1_Type::Integer                   plaintext_size            // size in bytes of plaintext message, zero if not determined at start of streaming
       *     ASN1_Type::Integer                   creation_timestamp_sec    // message creation timestamp, second component
       *     ASN1_Type::Integer                   creation_timestamp_nsec   // message creation timestamp, nanoseconds component
-      *     ASN1_Type::OctetString               subject                   // designated subject of message
-      *     ASN1_Type::OctetString               plaintext_version         // version of this plaintext message, user semantic
-      *     ASN1_Type::OctetString               plaintext_version_parent  // version of this plaintext message's preceding message, user semantic
+      *     ASN1_Type::OctetString               subject                   // optional subject of message, user application specific.
+      *     ASN1_Type::OctetString               plaintext_version         // version of this plaintext message, user application specific.
+      *     ASN1_Type::OctetString               plaintext_version_parent  // version of this plaintext message's preceding message, user application specific.
       *     ASN1_Type::OctetString               pk_type                   // public-key type. Default "RSA".
       *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash. Default "SHA-256".
       *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding. Default "OAEP".
@@ -317,8 +317,10 @@ namespace cipherpack {
             /** Returns the designated target path for this plaintext message, see @ref cipherpack_stream "Cipherpack Data Stream". */
             const std::string& getTargetPath() const noexcept { return target_path; }
 
-            /** Returns the plaintext message size in bytes, see @ref cipherpack_stream "Cipherpack Data Stream". */
+            /** Returns the plaintext message size in bytes, zero if not determined yet. See @ref cipherpack_stream "Cipherpack Data Stream". */
             uint64_t getPlaintextSize() const noexcept { return plaintext_size; }
+
+            void setPlaintextSize(const uint64_t v) noexcept { plaintext_size=v; }
 
             /** Returns the creation time since Unix epoch, see @ref cipherpack_stream "Cipherpack Data Stream". */
             constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
@@ -440,13 +442,13 @@ namespace cipherpack {
              * In case contentProcessed() gets called, notifyProgress() is called thereafter.
              *
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-             * @param content_size the unencrypted content size
+             * @param plaintext_size the plaintext message size, zero if not determined yet
              * @param bytes_processed the number of unencrypted bytes processed
              * @see contentProcessed()
              */
-            virtual void notifyProgress(const bool decrypt_mode, const uint64_t content_size, const uint64_t bytes_processed) noexcept {
+            virtual void notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept {
                 (void)decrypt_mode;
-                (void)content_size;
+                (void)plaintext_size;
                 (void)bytes_processed;
             }
 
@@ -549,10 +551,10 @@ namespace cipherpack {
      * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
      * @param passphrase             Passphrase for `sign_sec_key_fname`, may be an empty secure_string for no passphrase.
      * @param source                 The source jau::io::ByteInStream of the plaintext message.
-     * @param target_path            Designated target path for the message
-     * @param subject                Designated subject of message from sender
+     * @param target_path            Optional target path for the message, user application specific.
+     * @param subject                Optional subject of message, user application specific.
      * @param plaintext_version      Version of this plaintext message, user semantic
-     * @param plaintext_version_parent Version of this plaintext message's preceding message, user semantic.
+     * @param plaintext_version_parent Version of this plaintext message's preceding message, user application specific
      * @param listener               CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
      * @param plaintext_hash_algo    Optional hash algorithm for the plaintext message, produced for convenience and not wired. See default_hash_algo().

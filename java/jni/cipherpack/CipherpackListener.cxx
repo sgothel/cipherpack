@@ -115,13 +115,13 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         env->DeleteLocalRef(jph);
     }
 
-    void notifyProgress(const bool decrypt_mode, const uint64_t content_size, const uint64_t bytes_processed) noexcept override {
+    void notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override {
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
         env->CallVoidMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyProgress,
                             decrypt_mode ? JNI_TRUE : JNI_FALSE,
-                            static_cast<jlong>(content_size),
+                            static_cast<jlong>(plaintext_size),
                             static_cast<jlong>(bytes_processed));
         jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
     }

@@ -88,13 +88,13 @@ import org.jau.util.BasicTypes;
  * ```
  * DER Header 1 {
  *     ASN1_Type::OctetString               stream_magic              // simple stream identifier to be matched
- *     ASN1_Type::OctetString               target_path               // designated target path for this plaintext message, user semantic
- *     ASN1_Type::Integer                   plaintext_size            // content size of plaintext message
+ *     ASN1_Type::OctetString               target_path               // optional target path for the plaintext message, user application specific.
+ *     ASN1_Type::Integer                   plaintext_size            // size in bytes of plaintext message, zero if not determined at start of streaming
  *     ASN1_Type::Integer                   creation_timestamp_sec    // message creation timestamp, second component
  *     ASN1_Type::Integer                   creation_timestamp_nsec   // message creation timestamp, nanoseconds component
- *     ASN1_Type::OctetString               subject                   // designated subject of message
- *     ASN1_Type::OctetString               plaintext_version         // version of this plaintext message, user semantic
- *     ASN1_Type::OctetString               plaintext_version_parent  // version of this plaintext message's preceding message, user semantic
+ *     ASN1_Type::OctetString               subject                   // optional subject of message, user application specific.
+ *     ASN1_Type::OctetString               plaintext_version         // version of this plaintext message, user application specific.
+ *     ASN1_Type::OctetString               plaintext_version_parent  // version of this plaintext message's preceding message, user application specific.
  *     ASN1_Type::OctetString               pk_type                   // public-key type. Default "RSA".
  *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash. Default "SHA-256".
  *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding. Default "OAEP".
@@ -154,10 +154,10 @@ public final class Cipherpack {
      * @param sign_sec_key_fname     Private key of the sender, used to sign the DER-Header-1 incl encrypted symmetric-key for authenticity.
      * @param passphrase             Passphrase for `sign_sec_key_fname`, may be null or empty for no passphrase.
      * @param source                 The source ByteInStream of the plaintext message.
-     * @param target_path            Designated target path for the message
-     * @param subject                Designated subject of message from sender
-     * @param plaintext_version        Version of this plaintext message, user semantic.
-     * @param plaintext_version_parent Version of this plaintext message's preceding message, user semantic.
+     * @param target_path            Optional target path for the message, user application specific.
+     * @param subject                Optional subject of message from sender, user application specific.
+     * @param plaintext_version        Version of this plaintext message, user application specific.
+     * @param plaintext_version_parent Version of this plaintext message's preceding message, user application specific.
      * @param listener               CipherpackListener listener used for notifications and optionally
      *                               to send the ciphertext destination bytes via CipherpackListener::contentProcessed()
      * @param plaintext_hash_algo    Optional hash algorithm for the plaintext message, produced for convenience and not wired. See {@link Cipherpack#default_hash_algo()}.

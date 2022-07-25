@@ -23,20 +23,11 @@
  */
 package org.cipherpack;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.jau.io.PrintUtil;
-import org.jau.util.BasicTypes;
 
 /**
  * Cipherpack header less encrypted keys or signatures as described in @ref cipherpack_stream "Cipherpack Data Stream"
@@ -48,7 +39,7 @@ public class PackHeader {
     /** Designated target path for this plaintext message, see @ref cipherpack_stream "Cipherpack Data Stream". */
     public final String target_path;
 
-    /** Plaintext message size in bytes, see @ref cipherpack_stream "Cipherpack Data Stream". */
+    /** Plaintext message size in bytes, zero if not determined yet. See @ref cipherpack_stream "Cipherpack Data Stream". */
     public final long plaintext_size;
 
     /** Creation time since Unix epoch, second component, see @ref cipherpack_stream "Cipherpack Data Stream". */
@@ -112,7 +103,7 @@ public class PackHeader {
     }
 
     PackHeader(final String target_path_,
-               final long content_size_,
+               final long plaintext_size_,
                final long ts_creation_sec_,
                final long ts_creation_nsec_,
                final String subject_,
@@ -125,7 +116,7 @@ public class PackHeader {
                final byte[] plaintext_hash_,
                final boolean valid_) {
         this.target_path = target_path_;
-        this.plaintext_size = content_size_;
+        this.plaintext_size = plaintext_size_;
         this.ts_creation_sec = ts_creation_sec_;
         this.ts_creation_nsec = ts_creation_nsec_;
         this.subject = subject_;
@@ -147,7 +138,7 @@ public class PackHeader {
      * @return string representation
      */
     public String toString(final boolean show_crypto_algos, final boolean force_all_fingerprints) {
-        final String crypto_str = show_crypto_algos ? crypto_cfg.toString() : "";
+        final String crypto_str = show_crypto_algos ? ", "+crypto_cfg.toString() : "";
 
         final StringBuilder recevr_fingerprint = new StringBuilder();
         {
@@ -169,11 +160,11 @@ public class PackHeader {
         }
         final ZonedDateTime utc_creation = Instant.ofEpochSecond(ts_creation_sec, ts_creation_nsec).atZone(ZoneOffset.UTC);
         final String res = "Header[valid "+valid+
-               ", file[target_path "+target_path+", content_size "+String.format("%,d", plaintext_size)+
+               ", file[target_path '"+target_path+"', plaintext_size "+String.format("%,d", plaintext_size)+
                "], creation "+utc_creation.toString()+" , subject '"+subject+"', "+
-               " version["+plaintext_version+
-               ", parent "+plaintext_version_parent+crypto_str+
-               "], fingerprints[sender '"+sender_fingerprint+
+               " version['"+plaintext_version+
+               "', parent '"+plaintext_version_parent+"']"+crypto_str+
+               ", fingerprints[sender '"+sender_fingerprint+
                "', recevr["+recevr_fingerprint+
                "]], phash['"+plaintext_hash_algo+"', sz "+plaintext_hash.length+"]]";
         return res;

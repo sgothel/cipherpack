@@ -94,11 +94,11 @@ public class CipherpackListener extends CPNativeDownlink {
      * In case contentProcessed() gets called, notifyProgress() is called thereafter.
      *
      * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-     * @param content_size the unencrypted content size
+     * @param plaintext_size the plaintext message size, zero if not determined yet
      * @param bytes_processed the number of unencrypted bytes processed
      * @see contentProcessed()
      */
-    public void notifyProgress(final boolean decrypt_mode, final long content_size, final long bytes_processed) { }
+    public void notifyProgress(final boolean decrypt_mode, final long plaintext_size, final long bytes_processed) { }
 
     /**
      * User notification of process completion.
