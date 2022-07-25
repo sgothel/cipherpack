@@ -617,13 +617,25 @@ namespace cipherpack {
         std::string file_suffix(const std::string& algo) noexcept;
 
         /**
-         * Append the `sha256sum` compatible hash signature of hashed_file to text file out_file
-         * @param out_file the text file to append the `sha256sum` compatible hash signature of hashed_file.
+         * Append the hash signature to the text file out_file
+         *
+         * The hash signature is composed as follows
+         * - hash algo name
+         * - space
+         * - hash value
+         * - space
+         * - `*` to denote binary processing
+         * - hashed file name
+         *
+         * The hash signature is similar to `sha256sum` output, but the added hash algo name upfront.
+         *
+         * @param out_file the text file to append hash signature of hashed_file.
          * @param hashed_file the file of the hash signature
-         * @param hash the hash of hashed_file
+         * @param hash_algo the hash algo name used
+         * @param hash_value the hash value of hashed_file
          * @return true if successful, otherwise false
          */
-        bool append_to_file(const std::string& out_file, const std::string& hashed_file, const std::vector<uint8_t>& hash) noexcept;
+        bool append_to_file(const std::string& out_file, const std::string& hashed_file, const std::string_view& hash_algo, const std::vector<uint8_t>& hash_value) noexcept;
 
         /**
          * Return the calculated hash value using given algo name and byte input stream.

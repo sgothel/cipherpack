@@ -283,7 +283,7 @@ public class Test01Cipherpack extends data_test {
         final String outFile = hashedDescryptedFile + "." + suffix;
         FileUtil.remove(outFile, TraverseOptions.none);
 
-        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(outFile, hashedDescryptedFile, hashValue) );
+        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(outFile, hashedDescryptedFile, hashAlgo, hashValue) );
 
         final ByteInStream origIn = ByteInStreamUtil.to_ByteInStream(origFile);
         Assert.assertNotNull( origIn );
@@ -807,7 +807,7 @@ public class Test01Cipherpack extends data_test {
         final long[] source_bytes_hashed = { 0 };
         final byte[] source_hash = Cipherpack.HashUtil.calc(Cipherpack.default_hash_algo(), source_stats.path(), source_bytes_hashed);
         Assert.assertNotNull( source_hash );
-        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(hash_file, source_stats.path(), source_hash));
+        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(hash_file, source_stats.path(), Cipherpack.default_hash_algo(), source_hash));
 
         // copy folder
         final String dest = root+"_copy_verify_test50";
@@ -829,7 +829,7 @@ public class Test01Cipherpack extends data_test {
         final long[] dest_bytes_hashed = { 0 };
         final byte[] dest_hash = Cipherpack.HashUtil.calc(Cipherpack.default_hash_algo(), dest_stats.path(), dest_bytes_hashed);
         Assert.assertNotNull( dest_hash );
-        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(hash_file, dest_stats.path(), dest_hash));
+        Assert.assertTrue( Cipherpack.HashUtil.appendToFile(hash_file, dest_stats.path(), Cipherpack.default_hash_algo(), dest_hash));
 
         // actual validation of hash values, i.e. same content
         Assert.assertArrayEquals(source_hash, dest_hash);

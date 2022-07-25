@@ -18,10 +18,20 @@ rm -rf ${data_dir_out}
 mkdir -p ${data_dir_out}
 
 cmp_hash_value() {
-    hash1=`awk ' { print $1 } ' $1`
-    hash2=`awk ' { print $1 } ' $2`
-    if [ "$hash1" != "$hash2" ] ; then
-        echo "Hash mismatch $1 $2"
+    hash1_algo=`awk '  { print $1 } ' $1`
+    hash1_value=`awk ' { print $2 } ' $1`
+    hash2_algo=`awk '  { print $1 } ' $2`
+    hash2_value=`awk ' { print $2 } ' $2`
+    if [ "$hash1_algo" != "$hash2_algo" ] ; then
+        echo "Hash algo mismatch"
+        echo "- 1: algo $hash1_algo in $1"
+        echo "- 2: algo $hash2_algo in $2"
+        return 1
+    fi
+    if [ "$hash1_value" != "$hash2_value" ] ; then
+        echo "Hash value mismatch"
+        echo "- 1: value $hash1_value in $1"
+        echo "- 2: value $hash2_value in $2"
         return 1
     fi
     return 0

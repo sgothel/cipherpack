@@ -235,7 +235,7 @@ class Test01Cipherpack : public TestData {
             const std::string suffix = cipherpack::hash_util::file_suffix(hash_algo);
             const std::string out_file = hashed_decrypted_file + "." + suffix;
             jau::fs::remove( out_file );
-            REQUIRE( true == cipherpack::hash_util::append_to_file(out_file, hashed_decrypted_file, hash_value) );
+            REQUIRE( true == cipherpack::hash_util::append_to_file(out_file, hashed_decrypted_file, hash_algo, hash_value) );
 
             std::unique_ptr<jau::io::ByteInStream> orig_in = jau::io::to_ByteInStream(orig_file);
             REQUIRE( nullptr != orig_in );
@@ -674,7 +674,7 @@ class Test01Cipherpack : public TestData {
             uint64_t source_bytes_hashed = 0;
             std::unique_ptr<std::vector<uint8_t>> source_hash = cipherpack::hash_util::calc(cipherpack::default_hash_algo(), source_stats.path(), source_bytes_hashed);
             REQUIRE( nullptr != source_hash );
-            REQUIRE( true == cipherpack::hash_util::append_to_file(hash_file, source_stats.path(), *source_hash));
+            REQUIRE( true == cipherpack::hash_util::append_to_file(hash_file, source_stats.path(), cipherpack::default_hash_algo(), *source_hash));
 
             // copy folder
             const std::string dest = root+"_copy_verify_test50";
@@ -694,7 +694,7 @@ class Test01Cipherpack : public TestData {
             uint64_t dest_bytes_hashed = 0;
             std::unique_ptr<std::vector<uint8_t>> dest_hash = cipherpack::hash_util::calc(cipherpack::default_hash_algo(), dest_stats.path(), dest_bytes_hashed);
             REQUIRE( nullptr != dest_hash );
-            REQUIRE( true == cipherpack::hash_util::append_to_file(hash_file, dest_stats.path(), *dest_hash));
+            REQUIRE( true == cipherpack::hash_util::append_to_file(hash_file, dest_stats.path(), cipherpack::default_hash_algo(), *dest_hash));
 
             // actual validation of hash values, i.e. same content
             REQUIRE( *source_hash == *dest_hash );

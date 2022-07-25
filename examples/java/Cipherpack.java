@@ -34,6 +34,10 @@ import org.jau.io.ByteInStream;
 import org.jau.io.ByteInStreamUtil;
 import org.jau.io.PrintUtil;
 
+/**
+ * @deprecated The Java commandline toolkit is deprecated, please use the native commandline toolkit `cipherpack` from `commandline.cpp`.
+ */
+@Deprecated
 public class Cipherpack {
 
     static void print_usage() {

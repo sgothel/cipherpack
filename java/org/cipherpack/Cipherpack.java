@@ -262,18 +262,33 @@ public final class Cipherpack {
         }
 
         /**
-         * Append the `sha256sum` compatible hash signature of hashedFile to text file outFileName
-         * @param outFileName the text file to append the `sha256sum` compatible hash signature of hashedFile.
+         * Append the hash signature to the text file out_file
+         *
+         * The hash signature is composed as follows
+         * - hash algo name
+         * - space
+         * - hash value
+         * - space
+         * - `*` to denote binary processing
+         * - hashed file name
+         *
+         * The hash signature is similar to `sha256sum` output, but the added hash algo name upfront.
+         *
+         * @param outFileName the text file to append hash signature of hashed_file.
          * @param hashedFile the file of the hash signature
-         * @param hash the hash of hashedFile
+         * @param hashAlgo the hash algo name used
+         * @param hashValue the hash value of hashed_file
          * @return true if successful, otherwise false
          */
-        public static boolean appendToFile(final String outFileName, final String hashedFile, final byte[] hash) {
-            final String hash_str = BasicTypes.bytesHexString(hash, 0, hash.length, true /* lsbFirst */);
+        public static boolean appendToFile(final String outFileName, final String hashedFile, final String hashAlgo, final byte[] hashValue) {
+            final String hash_str = BasicTypes.bytesHexString(hashValue, 0, hashValue.length, true /* lsbFirst */);
+            final String space = new String(" ");
             final String seperator = new String(" *");
             final File file = new File( outFileName );
 
             try( BufferedWriter out = new BufferedWriter( new FileWriter(file, true) ); ) {
+                out.write(hashAlgo);
+                out.write(space);
                 out.write(hash_str);
                 out.write(seperator);
                 out.write(hashedFile);
