@@ -114,14 +114,14 @@ int main(int argc, char *argv[])
         if( 0 == enc_pub_keys.size() ||
             sign_sec_key_fname.empty() )
         {
-            jau::PLAIN_PRINT(true, "Pack: Error: Arguments incomplete\n");
+            jau::PLAIN_PRINT(true, "Pack: Error: Arguments incomplete");
             print_usage(argv[0]);
             return -1;
         }
 
         std::unique_ptr<jau::io::ByteInStream> input = jau::io::to_ByteInStream(fname_input); // 20_s default timeout if uri
         if( nullptr == input ) {
-            jau::PLAIN_PRINT(true, "Pack: Error: source '%s' failed to open\n", fname_input.c_str());
+            jau::PLAIN_PRINT(true, "Pack: Error: source '%s' failed to open", fname_input.c_str());
             return -1;
         }
         cipherpack::PackHeader ph = cipherpack::encryptThenSign(cipherpack::CryptoConfig::getDefault(),
@@ -134,8 +134,8 @@ int main(int argc, char *argv[])
             cipherpack::hash_util::append_to_file(plaintext_fname_output, fname_input, ph.getPlaintextHashAlgo(), ph.getPlaintextHash());
         }
         if( verbose ) {
-            jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s\n", fname_input.c_str(), fname_output.c_str());
-            jau::PLAIN_PRINT(true, "Pack: %s\n", ph.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s", fname_input.c_str(), fname_output.c_str());
+            jau::PLAIN_PRINT(true, "Pack: %s", ph.toString(true, true).c_str());
         }
         return ph.isValid() ? 0 : -1;
     }
@@ -173,14 +173,14 @@ int main(int argc, char *argv[])
         if( 0 == sign_pub_keys.size() ||
             dec_sec_key_fname.empty() )
         {
-            jau::PLAIN_PRINT(true, "Unpack: Error: Arguments incomplete\n");
+            jau::PLAIN_PRINT(true, "Unpack: Error: Arguments incomplete");
             print_usage(argv[0]);
             return -1;
         }
 
         std::unique_ptr<jau::io::ByteInStream> input = jau::io::to_ByteInStream(fname_input); // 20_s default timeout if uri
         if( nullptr == input ) {
-            jau::PLAIN_PRINT(true, "Unpack: Error: source '%s' failed to open\n", fname_input.c_str());
+            jau::PLAIN_PRINT(true, "Unpack: Error: source '%s' failed to open", fname_input.c_str());
             return -1;
         }
         cipherpack::PackHeader ph = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
@@ -192,8 +192,8 @@ int main(int argc, char *argv[])
         }
         // dec_sec_key_passphrase.resize(0);
         if( verbose ) {
-            jau::PLAIN_PRINT(true, "Unpack: Decypted %s to %s\n", fname_input.c_str(), fname_output.c_str());
-            jau::PLAIN_PRINT(true, "Unpack: %s\n", ph.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "Unpack: Decypted %s to %s", fname_input.c_str(), fname_output.c_str());
+            jau::PLAIN_PRINT(true, "Unpack: %s", ph.toString(true, true).c_str());
         }
         return ph.isValid() ? 0 : -1;
     }
@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
             std::string hash_str = jau::bytesHexString(hash->data(), 0, hash->size(), true /* lsbFirst */, true /* lowerCase */);
             cipherpack::hash_util::append_to_file(fname_output, fname_input, hash_algo, *hash);
             if( verbose ) {
-                jau::PLAIN_PRINT(true, "Hash: algo '%s', bytes %s, '%s' of '%s'\n", hash_algo.c_str(), jau::to_decstring(bytes_hashed).c_str(),
+                jau::PLAIN_PRINT(true, "Hash: algo '%s', bytes %s, '%s' of '%s'", hash_algo.c_str(), jau::to_decstring(bytes_hashed).c_str(),
                         hash_str.c_str(), fname_input.c_str());
             }
             return 0;
