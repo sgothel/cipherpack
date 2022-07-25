@@ -26,6 +26,7 @@ static void print_usage(const char* progname) {
     fprintf(stderr, "Usage %s unpack [-spk <sign-pub-key>]+ -dsk <dec-sec-key> [-dskp <dec-sec-key-passphrase>]? "
                     "[-hash <plaintext-hash-algo>]? [-hashout <plaintext-hash-outfile>]? [-verbose]? [-out <output-filename>]? [<input-source>]?\n", bname.c_str());
     fprintf(stderr, "Usage %s hash [-hash <hash-algo>]? [-verbose]? [-out <output-filename>]? [<input-source>]?\n", bname.c_str());
+    fprintf(stderr, "Usage %s hashcheck [-verbose]? [<input-hash-signatures-file>]?\n", bname.c_str());
 }
 
 /**
@@ -226,7 +227,80 @@ int main(int argc, char *argv[])
         }
         return -1;
     }
-    jau::PLAIN_PRINT(true, "Pack: Error: Unknown command\n");
+    if( command == "hashcheck") {
+        bool verbose = false;
+        std::string fname_input = "/dev/stdin"; // stdin default
+        for(; argi < argc; ++argi) {
+            if( 0 == strcmp("-verbose", argv[argi]) ) {
+                verbose = true;
+            } else if( argi == argc - 1 ) {
+                fname_input = argv[argi];
+            }
+        }
+        std::ifstream in(fname_input, std::ios::in | std::ios::binary);
+        if( in.bad() ) {
+            jau::PLAIN_PRINT(true, "HashCheck: Error: Couldn't open file '%s'", fname_input.c_str());
+            return -1;
+        }
+        int line_no = 0;
+        std::string hash_line;
+        while( std::getline(in, hash_line) ) {
+            ++line_no;
+            std::string hash_algo;
+            std::string hash_value;
+            std::string hashed_file;
+            char* haystack = const_cast<char*>( hash_line.data() );
+            {
+                char* p = std::strstr(haystack, " ");
+                if( nullptr == p ) {
+                    jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: No separator to hash value found", fname_input.c_str(), line_no);
+                    return -1;
+                }
+                *p = 0; // EOS
+                hash_algo = std::string(haystack);
+                haystack = p + 1;
+            }
+            {
+                char* p = std::strstr(haystack, " *");
+                if( nullptr == p ) {
+                    jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: No separator to hashed file found", fname_input.c_str(), line_no);
+                    return -1;
+                }
+                *p = 0; // EOS
+                hash_value = std::string(haystack);
+                haystack = p + 2;
+            }
+            hashed_file = std::string(haystack);
+            const std::string hash_line2 = hash_algo+" "+hash_value+" *"+hashed_file;
+            {
+                jau::fs::file_stats hashed_file_stats(hashed_file);
+                if( hashed_file_stats.is_fd() ) {
+                    jau::PLAIN_PRINT(true, "HashCheck: Ignored: %s:%d: Named file descriptor: %s",
+                            hash_line2.c_str(), line_no, hashed_file_stats.to_string().c_str());
+                    continue;
+                }
+            }
+            uint64_t bytes_hashed = 0;
+            std::unique_ptr<std::vector<uint8_t>> hash2 = cipherpack::hash_util::calc(hash_algo, hashed_file, bytes_hashed); // 20_s default timeout if uri
+            if( nullptr == hash2 ) {
+                jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Bad format: %s", fname_input.c_str(), line_no, hash_line2.c_str());
+                return -1;
+            }
+            const std::string hash_value2 = jau::bytesHexString(hash2->data(), 0, hash2->size(), true /* lsbFirst */, true /* lowerCase */);
+            if( hash_value2 != hash_value ) {
+                const std::string hash_line3 = hash_algo+" "+hash_value2+" *"+hashed_file;
+                jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Hash value mismatch", fname_input.c_str(), line_no);
+                jau::PLAIN_PRINT(true,"- expected: %s", hash_line2.c_str());
+                jau::PLAIN_PRINT(true,"- produced: %s", hash_line3.c_str());
+                return -1;
+            } else if( verbose ) {
+                const std::string hash_line3 = hash_algo+" "+hash_value2+" *"+hashed_file;
+                jau::PLAIN_PRINT(true, "HashCheck: OK: %s:%d: %s", fname_input.c_str(), line_no, hash_line3.c_str());
+            }
+        }
+        return 0;
+    }
+    jau::PLAIN_PRINT(true, "Pack: Error: Unknown command");
     print_usage(argv[0]);
     return -1;
 }
