@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
                                                                 std::make_shared<cipherpack::CipherpackListener>(),
                                                                 plaintext_hash_algo, fname_output);
         if( !plaintext_fname_output.empty() ) {
-            cipherpack::hash_util::append_to_file(plaintext_fname_output, fname_input, ph.getPlaintextHash());
+            cipherpack::hash_util::append_to_file(plaintext_fname_output, fname_input, ph.getPlaintextHashAlgo(), ph.getPlaintextHash());
         }
         if( verbose ) {
             jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s\n", fname_input.c_str(), fname_output.c_str());
@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
                                                                      std::make_shared<cipherpack::CipherpackListener>(),
                                                                      plaintext_hash_algo, fname_output);
         if( !plaintext_fname_output.empty() ) {
-            cipherpack::hash_util::append_to_file(plaintext_fname_output, ph.getTargetPath(), ph.getPlaintextHash());
+            cipherpack::hash_util::append_to_file(plaintext_fname_output, ph.getTargetPath(), ph.getPlaintextHashAlgo(), ph.getPlaintextHash());
         }
         // dec_sec_key_passphrase.resize(0);
         if( verbose ) {
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
         std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(hash_algo, fname_input, bytes_hashed); // 20_s default timeout if uri
         if( nullptr != hash ) {
             std::string hash_str = jau::bytesHexString(hash->data(), 0, hash->size(), true /* lsbFirst */, true /* lowerCase */);
-            cipherpack::hash_util::append_to_file(fname_output, fname_input, *hash);
+            cipherpack::hash_util::append_to_file(fname_output, fname_input, hash_algo, *hash);
             if( verbose ) {
                 jau::PLAIN_PRINT(true, "Hash: algo '%s', bytes %s, '%s' of '%s'\n", hash_algo.c_str(), jau::to_decstring(bytes_hashed).c_str(),
                         hash_str.c_str(), fname_input.c_str());
