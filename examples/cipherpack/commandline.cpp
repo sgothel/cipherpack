@@ -271,15 +271,15 @@ int main(int argc, char *argv[])
                 haystack = p + 2;
             }
             hashed_file = std::string(haystack);
-            const std::string hash_line2 = hash_algo+" "+hash_value+" *"+hashed_file;
             {
                 jau::fs::file_stats hashed_file_stats(hashed_file);
                 if( hashed_file_stats.is_fd() ) {
                     jau::PLAIN_PRINT(true, "HashCheck: Ignored: %s:%d: Named file descriptor: %s",
-                            hash_line2.c_str(), line_no, hashed_file_stats.to_string().c_str());
+                            fname_input.c_str(), line_no, hashed_file_stats.to_string().c_str());
                     continue;
                 }
             }
+            const std::string hash_line2 = hash_algo+" "+hash_value+" *"+hashed_file;
             uint64_t bytes_hashed = 0;
             std::unique_ptr<std::vector<uint8_t>> hash2 = cipherpack::hash_util::calc(hash_algo, hashed_file, bytes_hashed); // 20_s default timeout if uri
             if( nullptr == hash2 ) {
