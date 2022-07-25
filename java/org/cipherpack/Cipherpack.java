@@ -298,15 +298,31 @@ public final class Cipherpack {
         private static native byte[] calcImpl1(final String algo, final ByteInStream source);
 
         /**
-         * Return the calculated hash value using given algo name and all actual files (not symbolic links) within the given path.
+         * Return the calculated hash value using given algo name and the bytes of a single file or all files if denoting a directory.
          * @param algo the hash algo name
-         * @param path source path, either a single file or directory for which all files (not symbolic links) are considered
-         * @param bytes_hashed returns overall bytes hashed, an array of length 1
+         * @param path_or_uri given path or uri, either a URI denoting a single file, a single file path or directory path for which all files (not symbolic links) are considered
+         * @param bytes_hashed returns overall bytes hashed
+         * @param timeoutMS in case `path_or_uri` refers to an URI, timeout is being used as maximum duration in milliseconds to wait for next bytes. Defaults to 20_s.
          * @return the calculated hash value or nullptr in case of error
+         * @see #calc(String, String, long[])
          */
-        public static byte[] calc(final String algo, final String path, final long bytes_hashed[/*0*/]) {
-            return calcImpl2(algo, path, bytes_hashed);
+        public static byte[] calc(final String algo, final String path_or_uri, final long bytes_hashed[/*0*/], final long timeoutMS) {
+            return calcImpl2(algo, path_or_uri, bytes_hashed, timeoutMS);
         }
-        private static native byte[] calcImpl2(final String algo, final String path, final long bytes_hashed[/*0*/]);
+        /**
+         * Return the calculated hash value using given algo name and the bytes of a single file or all files if denoting a directory.
+         *
+         * This variant uses a 20_s timeout to wait for next bytes.
+         *
+         * @param algo the hash algo name
+         * @param path_or_uri given path or uri, either a URI denoting a single file, a single file path or directory path for which all files (not symbolic links) are considered
+         * @param bytes_hashed returns overall bytes hashed
+         * @return the calculated hash value or nullptr in case of error
+         * @see #calc(String, String, long[], long)
+         */
+        public static byte[] calc(final String algo, final String path_or_uri, final long bytes_hashed[/*0*/]) {
+            return calcImpl2(algo, path_or_uri, bytes_hashed, 20000);
+        }
+        private static native byte[] calcImpl2(final String algo, final String path_or_uri, final long bytes_hashed[/*0*/], final long timeout);
     }
 }

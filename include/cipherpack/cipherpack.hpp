@@ -634,27 +634,41 @@ namespace cipherpack {
         std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, jau::io::ByteInStream& source) noexcept;
 
         /**
-         * Return the calculated hash value using given algo name and all actual files (not symbolic links) within the given path.
+         * Return the calculated hash value using given algo name and the bytes of a single file or all files if denoting a directory.
          * @param algo the hash algo name
-         * @param path source path, either a single file or directory for which all files (not symbolic links) are considered
+         * @param path_or_uri given path or uri, either a URI denoting a single file, a single file path or directory path for which all files (not symbolic links) are considered
          * @param bytes_hashed returns overall bytes hashed
+         * @param timeout in case `path_or_uri` refers to an URI, timeout is being used as maximum duration to wait for next bytes. Defaults to 20_s.
          * @return the calculated hash value or nullptr in case of error
          */
-        std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, const std::string& path, uint64_t& bytes_hashed) noexcept;
+        std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, const std::string& path_or_uri, uint64_t& bytes_hashed, jau::fraction_i64 timeout=20_s) noexcept;
     }
 
     /**@}*/
 
 } // namespace cipherpack
 
- /** \example commandline.cpp
-  * This is the commandline version to convert a source from and to a cipherpack, i.e. encrypt and decrypt.
-  */
+/** \example commandline.cpp
+ * cipherpack command line tool.
+ *
+ * Examples:
+ * - File based operation
+ *   - `cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -out a.enc plaintext.bin`
+ *   - `cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -out a.dec a.enc`
+ *   - `cipherpack hash -out a.hash jaulib/test_data`
+ * - Pipe based operation
+ *   - `cat plaintext.bin | cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 > a.enc`
+ *   - `cat a.enc | cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 > a.dec`
+ *   - `cat a.dec | cipherpack hash jaulib/test_data`
+ * - Pipe based full streaming
+ *   - `cat plaintext.bin | cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 | cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 > a.dec`
+ *
+ */
 
- /** \example test_01_cipherpack.cpp
-  * Unit test, testing encrypting to and decrypting from a cipherpack stream using different sources.
-  *
-  * Unit test also covers error cases.
-  */
+/** \example test_01_cipherpack.cpp
+ * Unit test, testing encrypting to and decrypting from a cipherpack stream using different sources.
+ *
+ * Unit test also covers error cases.
+ */
 
 #endif /* JAU_CIPHERPACK_HPP_ */

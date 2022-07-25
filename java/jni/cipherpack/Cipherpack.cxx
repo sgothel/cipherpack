@@ -120,17 +120,18 @@ jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl1(JNIEnv *env, j
     return nullptr;
 }
 
-jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, jclass jclazz, jstring jalgo, jstring jpath, jlongArray jbytes_hashed) {
+jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, jclass jclazz, jstring jalgo, jstring jpath_or_uri, jlongArray jbytes_hashed, jlong jtimeoutMS) {
     try {
         std::string algo = jau::jni::from_jstring_to_string(env, jalgo);
-        std::string path = jau::jni::from_jstring_to_string(env, jpath);
+        std::string path_or_uri = jau::jni::from_jstring_to_string(env, jpath_or_uri);
+        const jau::fraction_i64 timeout = (int64_t)jtimeoutMS * 1_ms;
 
         if( nullptr == jbytes_hashed ) {
             throw jau::IllegalArgumentException("bytes_hashed null", E_FILE_LINE);
         }
         const size_t bh_size = env->GetArrayLength(jbytes_hashed);
         if( 1 > bh_size ) {
-            throw jau::IllegalArgumentException("bytes_hashed size "+std::to_string(bh_size)+" < 1", E_FILE_LINE);
+            throw jau::IllegalArgumentException("bytes_hashed array size "+std::to_string(bh_size)+" < 1", E_FILE_LINE);
         }
         jau::jni::JNICriticalArray<uint64_t, jlongArray> criticalArray(env); // RAII - release
         uint64_t * bh_ptr = criticalArray.get(jbytes_hashed, criticalArray.Mode::UPDATE_AND_RELEASE);
@@ -138,7 +139,7 @@ jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, j
             throw jau::InternalError("GetPrimitiveArrayCritical(address byte array) is null", E_FILE_LINE);
         }
 
-        std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(algo, path, *bh_ptr);
+        std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(algo, path_or_uri, *bh_ptr, timeout);
         if( nullptr == hash ) {
             return nullptr;
         }

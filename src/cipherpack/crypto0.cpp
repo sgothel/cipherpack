@@ -392,18 +392,34 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     return res;
 }
 
-std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, const std::string& path, uint64_t& bytes_hashed) noexcept {
+std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, const std::string& path_or_uri, uint64_t& bytes_hashed, jau::fraction_i64 timeout) noexcept {
     bytes_hashed = 0;
-    jau::fs::file_stats source_stats(path);
-    if( source_stats.is_file() ) {
-        jau::io::ByteInStream_File in(path);
+
+    if( !jau::io::uri_tk::is_local_file_protocol(path_or_uri) &&
+         jau::io::uri_tk::protocol_supported(path_or_uri) )
+    {
+        jau::io::ByteInStream_URL in(path_or_uri, timeout);
+        if( !in.error() ) {
+            return calc(algo, in);
+        }
+    }
+    std::unique_ptr<jau::fs::file_stats> stats;
+    if( jau::io::uri_tk::is_local_file_protocol(path_or_uri) ) {
+        // cut of leading `file://`
+        std::string path2 = path_or_uri.substr(7);
+        stats = std::make_unique<jau::fs::file_stats>(path2);
+    } else {
+        stats = std::make_unique<jau::fs::file_stats>(path_or_uri);
+    }
+    if( stats->is_file() || stats->is_fd() ) {
+        jau::io::ByteInStream_File in(stats->path());
         if( in.error() ) {
             return nullptr;
         }
         return calc(algo, in);
     }
-    if( !source_stats.is_dir() ) {
-        ERR_PRINT("path is neither file nor dir: %s", source_stats.to_string());
+    if( !stats->is_dir() ) {
+        ERR_PRINT("path is neither file, fd nor dir: %s", stats->to_string().c_str());
         return nullptr;
     }
 
@@ -456,7 +472,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
                     }
                     return true;
                   } ) );
-    if( jau::fs::visit(source_stats, jau::fs::traverse_options::recursive, pv, &ctx.dirfds) ) {
+    if( jau::fs::visit(*stats, jau::fs::traverse_options::recursive, pv, &ctx.dirfds) ) {
         std::unique_ptr<std::vector<uint8_t>> res = std::make_unique<std::vector<uint8_t>>(ctx.hash_func->output_length());
         ctx.hash_func->final(res->data());
         bytes_hashed = ctx.bytes_hashed;
