@@ -32,6 +32,8 @@
 
 #include <botan_all.h>
 
+#include <cipherpack/version.hpp>
+
 #include <jau/basic_types.hpp>
 #include <jau/file_util.hpp>
 #include <jau/byte_stream.hpp>

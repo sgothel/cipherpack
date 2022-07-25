@@ -18,7 +18,12 @@ extern "C" {
 
 using namespace jau::fractions_i64_literals;
 
+static void print_version() {
+    fprintf(stderr, "Cipherpack Native Version %s (API %s)\n", cipherpack::VERSION, cipherpack::VERSION_API);
+}
+
 static void print_usage(const char* progname) {
+    print_version();
     std::string bname = jau::fs::basename(progname);
     fprintf(stderr, "Usage %s pack [-epk <enc-pub-key>]+ -ssk <sign-sec-key> [-sskp <sign-sec-key-passphrase>]? "
                     "[-target_path <target-path-filename>]? [-subject <string>]? [-version <file-version-str>]? [-version_parent <file-version-parent-str>]? "
@@ -105,6 +110,7 @@ int main(int argc, char *argv[])
                 fname_output = argv[++argi];
             } else if( 0 == strcmp("-verbose", argv[argi]) ) {
                 verbose = true;
+                print_version();
             } else if( argi == argc - 1 ) {
                 fname_input = argv[argi];
             }
@@ -167,6 +173,7 @@ int main(int argc, char *argv[])
                 fname_output = argv[++argi];
             } else if( 0 == strcmp("-verbose", argv[argi]) ) {
                 verbose = true;
+                print_version();
             } else if( argi == argc - 1 ) {
                 fname_input = argv[argi];
             }
@@ -210,6 +217,7 @@ int main(int argc, char *argv[])
                 fname_output = argv[++argi];
             } else if( 0 == strcmp("-verbose", argv[argi]) ) {
                 verbose = true;
+                print_version();
             } else if( argi == argc - 1 ) {
                 fname_input = argv[argi];
             }
@@ -233,6 +241,7 @@ int main(int argc, char *argv[])
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-verbose", argv[argi]) ) {
                 verbose = true;
+                print_version();
             } else if( argi == argc - 1 ) {
                 fname_input = argv[argi];
             }
