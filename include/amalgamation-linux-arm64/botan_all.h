@@ -31,11 +31,11 @@
 * Build configuration for Botan 3.0.0-alpha0
 *
 * Automatically generated from
-* 'configure.py --cpu=armhf --disable-neon --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-armhf-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
+* 'configure.py --cpu=aarch64 --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,sha2_32_armv8,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation'
 *
 * Target
 *  - Compiler: g++ -fstack-protector -pthread -std=c++17 -D_REENTRANT -O3
-*  - Arch: arm32
+*  - Arch: arm64
 *  - OS: linux
 */
 
@@ -54,12 +54,12 @@
 #define BOTAN_DISTRIBUTION_INFO "unspecified"
 
 /* How many bits per limb in a BigInt */
-#define BOTAN_MP_WORD_BITS 32
+#define BOTAN_MP_WORD_BITS 64
 
 
-#define BOTAN_INSTALL_PREFIX R"(/usr/local/projects/zafena/cipherpack/botan/dist-armhf-min)"
+#define BOTAN_INSTALL_PREFIX R"(/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min)"
 #define BOTAN_INSTALL_HEADER_DIR R"(include/botan-3)"
-#define BOTAN_INSTALL_LIB_DIR R"(/usr/local/projects/zafena/cipherpack/botan/dist-armhf-min/lib)"
+#define BOTAN_INSTALL_LIB_DIR R"(/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min/lib)"
 #define BOTAN_LIB_LINK ""
 #define BOTAN_LINK_FLAGS "-fstack-protector -pthread"
 
@@ -92,10 +92,17 @@
 
 
 
-#define BOTAN_TARGET_ARCH_IS_ARM32
+#define BOTAN_TARGET_ARCH_IS_ARM64
 #define BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN
 #define BOTAN_TARGET_CPU_IS_ARM_FAMILY
+#define BOTAN_TARGET_CPU_HAS_NATIVE_64BIT
 
+#define BOTAN_TARGET_SUPPORTS_ARMV8CRYPTO
+#define BOTAN_TARGET_SUPPORTS_ARMV8SHA3
+#define BOTAN_TARGET_SUPPORTS_ARMV8SHA512
+#define BOTAN_TARGET_SUPPORTS_ARMV8SM3
+#define BOTAN_TARGET_SUPPORTS_ARMV8SM4
+#define BOTAN_TARGET_SUPPORTS_NEON
 
 
 
@@ -114,6 +121,7 @@
 #define BOTAN_HAS_BLAKE2BMAC 20201123
 #define BOTAN_HAS_BLOCK_CIPHER 20131128
 #define BOTAN_HAS_CHACHA 20180807
+#define BOTAN_HAS_CHACHA_SIMD32 20181104
 #define BOTAN_HAS_CIPHER_MODES 20180124
 #define BOTAN_HAS_CIPHER_MODE_PADDING 20131128
 #define BOTAN_HAS_CPUID 20170917
@@ -149,7 +157,9 @@
 #define BOTAN_HAS_RSA 20160730
 #define BOTAN_HAS_SHA1 20131128
 #define BOTAN_HAS_SHA2_32 20131128
+#define BOTAN_HAS_SHA2_32_ARMV8 20170117
 #define BOTAN_HAS_SHA2_64 20131128
+#define BOTAN_HAS_SIMD_32 20131128
 #define BOTAN_HAS_STREAM_CIPHER 20131128
 #define BOTAN_HAS_SYSTEM_RNG 20141202
 #define BOTAN_HAS_UTIL_FUNCTIONS 20180903

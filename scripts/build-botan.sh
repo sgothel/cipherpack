@@ -4,9 +4,9 @@ sdir=`dirname $(readlink -f $0)`
 rootdir=`dirname $sdir`
 bname=`basename $0 .sh`
 
-. $sdir/setup-machine-arch.sh
+. $rootdir/jaulib/scripts/setup-machine-arch.sh
 
-logfile=$rootdir/$bname-$archabi.log
+logfile=$rootdir/$bname-$os_name-$archabi.log
 rm -f $logfile
 
 MOD_HW_COMMON=simd,chacha_simd32,chacha_avx2,simd_avx2
@@ -70,9 +70,8 @@ buildit() {
     echo MOD_RNG $MOD_RNG
     echo MOD_HW_THIS $MOD_HW_THIS
 
-    mkdir -p $rootdir/include/amalgamation-$archabi
-    rm -f $rootdir/include/amalgamation-$archabi/botan_all.h
-    rm -f $rootdir/include/amalgamation-$archabi/botan_all.cpp
+    rm -rf $rootdir/include/amalgamation-$os_name-$archabi
+    mkdir -p $rootdir/include/amalgamation-$os_name-$archabi
 
     cd $rootdir/botan
 
@@ -83,14 +82,13 @@ buildit() {
         --cxxflags=$CXX_FLAGS \
         --ldflags=$LD_FLAGS \
         --amalgamation \
-        --with-doxygen \
 
     #    --with-lzma --with-bzip2 \
 
-    mv botan_all.cpp botan_all.h $rootdir/include/amalgamation-$archabi/
+    mv botan_all.cpp botan_all.h $rootdir/include/amalgamation-$os_name-$archabi/
     cd $rootdir
 }
 
 buildit 2>&1 | tee $logfile
-cp -av $logfile $rootdir/include/amalgamation-$archabi/
+cp -av $logfile $rootdir/include/amalgamation-$os_name-$archabi/
 

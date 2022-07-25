@@ -1,5 +1,5 @@
 rootdir /usr/local/projects/zafena/cipherpack
-logfile /usr/local/projects/zafena/cipherpack/build-botan-arm64.log
+logfile /usr/local/projects/zafena/cipherpack/build-botan-linux-arm64.log
 CPU aarch64
 CFG_OPTIONS_THIS
 MOD_BASIC base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1
@@ -7,7 +7,7 @@ MOD_CIPHER chacha,chacha20poly1305,aead,stream
 MOD_HASH sha2_32,sha2_64,blake2,blake2mac
 MOD_RNG system_rng
 MOD_HW_THIS sha2_32_armv8,simd,chacha_simd32,chacha_avx2,simd_avx2
-   INFO: ./configure.py invoked with options "--cpu=aarch64 --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,sha2_32_armv8,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen"
+   INFO: ./configure.py invoked with options "--cpu=aarch64 --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,sha2_32_armv8,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation"
    INFO: Configuring to build Botan 3.0.0-alpha0 (revision git:15228710faef1b85aaad0cad4f207b8b6dfcdf74)
    INFO: Running under 3.9.2 (default, Feb 28 2021, 17:03:44) [GCC 10.2.1 20210110]
    INFO: Autodetected platform information: OS="Linux" machine="aarch64" proc=""

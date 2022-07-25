@@ -23,8 +23,8 @@ endif()
 include(jaulib/JaulibSetup.cmake)
 JaulibSetup()
 
-# Determine amalgamation platform include director, depnding on OS_ARCH
-set(AMALGAMATION_ARCH_INC "${PROJECT_SOURCE_DIR}/include/amalgamation-${OS_ARCH}")
+# Determine amalgamation platform include director, depnding on OS_NAME and OS_ARCH
+set(AMALGAMATION_ARCH_INC "${PROJECT_SOURCE_DIR}/include/amalgamation-${OS_NAME}-${OS_ARCH}")
 
 # this is the library version, derived from git tag and revision
 set (cipherpack_VERSION_MAJOR      ${VERSION_MAJOR})

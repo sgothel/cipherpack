@@ -1,0 +1,30 @@
+rootdir /usr/local/projects/zafena/cipherpack
+logfile /usr/local/projects/zafena/cipherpack/build-botan-freebsd-amd64.log
+CPU x86_64
+CFG_OPTIONS_THIS
+MOD_BASIC base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1
+MOD_CIPHER chacha,chacha20poly1305,aead,stream
+MOD_HASH sha2_32,sha2_64,blake2,blake2mac
+MOD_RNG system_rng
+MOD_HW_THIS sha2_32_x86,simd,chacha_simd32,chacha_avx2,simd_avx2
+   INFO: ./configure.py invoked with options "--cpu=x86_64 --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-amd64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,sha2_32_x86,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation"
+   INFO: Configuring to build Botan 3.0.0-alpha0 (revision git:15228710faef1b85aaad0cad4f207b8b6dfcdf74)
+   INFO: Running under 3.9.13 (main, Jul  3 2022, 01:17:15) [Clang 11.0.1 (git@github.com:llvm/llvm-project.git llvmorg-11.0.1-0-g43ff75f2c
+   INFO: Autodetected platform information: OS="FreeBSD" machine="amd64" proc="amd64"
+   INFO: Guessing target OS is freebsd (use --os to set)
+   INFO: Guessing to use compiler clang (use --cc or CXX to set)
+   INFO: Using /etc/ssl/cert.pem as system certificate store
+   INFO: Auto-detected compiler version 13.0
+   INFO: Auto-detected compiler arch x86_64
+   INFO: Target is clang:13.0-freebsd-x86_64
+   INFO: Assuming target x86_64 is little endian
+   INFO: Skipping (incompatible CPU): aes_armv8 aes_power8 sha1_armv8 sha2_32_armv8 shacal2_armv8 sm4_armv8
+   INFO: Skipping (incompatible OS): certstor_system_macos certstor_system_windows commoncrypto win32_stats
+   INFO: Skipping (not requested): adler32 aes aes_ni aes_vperm argon2 argon2_ssse3 argon2fmt aria asio auto_rng base32 base58 bcrypt bcrypt_pbkdf blowfish camellia cascade cast128 ccm cecpq1 certstor_flatfile certstor_sql certstor_sqlite3 certstor_system cfb chacha_rng checksum cmac comb4p compression crc24 crc32 cryptobox ctr curve25519 des dh dl_algo dl_group dlies dsa dyn_load eax ec_group ec_h2c ecc_key ecdh ecdsa ecgdsa ecies eckcdsa ed25519 elgamal emsa_x931 fd_unix ffi filters fpe_fe1 gcm getentropy ghash ghash_cpu ghash_vperm gmac gost_28147 gost_3410 gost_3411 hkdf hmac_drbg hotp http_util idea idea_sse2 iso9796 kdf1 kdf1_iso18033 kdf2 keccak kyber kyber_90s kyber_common lion locking_allocator mce md4 md5 mem_pool newhope nist_keywrap noekeon noekeon_simd ocb ofb par_hash passhash9 pgp_s2k pkcs11 poly_dbl prf_tls prf_x942 processor_rng psk_db rc4 rdseed rfc3394 rfc6979 rmd160 roughtime salsa20 scrypt seed serpent serpent_avx2 serpent_simd sessions_sql sessions_sqlite3 sha1_sse2 sha1_x86 sha2_32_bmi2 sha2_64_bmi2 sha3 sha3_bmi2 shacal2 shacal2_avx2 shacal2_simd shacal2_x86 shake shake_cipher siphash siv skein sm2 sm3 sm4 socket sodium sp800_108 sp800_56a sp800_56c srp6 stateful_rng streebog thread_utils threefish_512 threefish_512_avx2 tls tls12 tls_cbc tss twofish uuid whirlpool x919_mac xmss xts zfec zfec_sse2 zfec_vperm
+   INFO: Skipping (requires external dependency): boost bzip2 lzma sqlite3 tpm zlib
+   INFO: Loading modules: aead asn1 base base64 bigint blake2 blake2mac block cbc chacha chacha20poly1305 chacha_avx2 chacha_simd32 cpuid eme_oaep eme_pkcs1 eme_raw emsa1 emsa_pkcs1 emsa_pssr emsa_raw entropy hash hash_id hex hmac kdf keypair mac mdx_hash mgf1 mode_pad modes mp numbertheory pbes2 pbkdf pbkdf2 pem pk_pad poly1305 pubkey rng rsa sha1 sha2_32 sha2_32_x86 sha2_64 simd simd_avx2 stream system_rng utils x509
+   INFO: Using symlink to link files into build dir (use --link-method to change)
+   INFO: Writing amalgamation header to botan_all.h
+   INFO: Writing amalgamation source to botan_all.cpp
+WARNING: Unless you are building a DLL or .so from the amalgamation, use --disable-shared as well
+   INFO: Botan 3.0.0-alpha0 (revision git:15228710faef1b85aaad0cad4f207b8b6dfcdf74) (unreleased undated) build setup is complete

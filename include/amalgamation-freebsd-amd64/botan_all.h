@@ -31,12 +31,12 @@
 * Build configuration for Botan 3.0.0-alpha0
 *
 * Automatically generated from
-* 'configure.py --cpu=aarch64 --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,sha2_32_armv8,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation --with-doxygen'
+* 'configure.py --cpu=x86_64 --prefix=/usr/local/projects/zafena/cipherpack/botan/dist-amd64-min --minimized-build --enable-modules=base,pubkey,rsa,x509,eme_oaep,eme_raw,emsa1,emsa_raw,pbes2,eme_pkcs1,emsa_pkcs1,chacha,chacha20poly1305,aead,stream,sha2_32,sha2_64,blake2,blake2mac,system_rng,sha2_32_x86,simd,chacha_simd32,chacha_avx2,simd_avx2 --cxxflags= --ldflags= --amalgamation'
 *
 * Target
-*  - Compiler: g++ -fstack-protector -pthread -std=c++17 -D_REENTRANT -O3
-*  - Arch: arm64
-*  - OS: linux
+*  - Compiler: clang++ -fstack-protector -m64 -pthread -std=c++17 -D_REENTRANT -O3
+*  - Arch: x86_64
+*  - OS: freebsd
 */
 
 #define BOTAN_VERSION_MAJOR 3
@@ -57,13 +57,13 @@
 #define BOTAN_MP_WORD_BITS 64
 
 
-#define BOTAN_INSTALL_PREFIX R"(/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min)"
+#define BOTAN_INSTALL_PREFIX R"(/usr/local/projects/zafena/cipherpack/botan/dist-amd64-min)"
 #define BOTAN_INSTALL_HEADER_DIR R"(include/botan-3)"
-#define BOTAN_INSTALL_LIB_DIR R"(/usr/local/projects/zafena/cipherpack/botan/dist-arm64-min/lib)"
+#define BOTAN_INSTALL_LIB_DIR R"(/usr/local/projects/zafena/cipherpack/botan/dist-amd64-min/lib)"
 #define BOTAN_LIB_LINK ""
-#define BOTAN_LINK_FLAGS "-fstack-protector -pthread"
+#define BOTAN_LINK_FLAGS "-fstack-protector -m64 -pthread"
 
-#define BOTAN_SYSTEM_CERT_BUNDLE "/etc/ssl/certs/ca-certificates.crt"
+#define BOTAN_SYSTEM_CERT_BUNDLE "/etc/ssl/cert.pem"
 
 #ifndef BOTAN_DLL
   #define BOTAN_DLL __attribute__((visibility("default")))
@@ -71,38 +71,44 @@
 
 /* Target identification and feature test macros */
 
-#define BOTAN_TARGET_OS_IS_LINUX
+#define BOTAN_TARGET_OS_IS_FREEBSD
 
+#define BOTAN_TARGET_OS_HAS_ARC4RANDOM
 #define BOTAN_TARGET_OS_HAS_ATOMICS
+#define BOTAN_TARGET_OS_HAS_CAP_ENTER
 #define BOTAN_TARGET_OS_HAS_CLOCK_GETTIME
 #define BOTAN_TARGET_OS_HAS_DEV_RANDOM
+#define BOTAN_TARGET_OS_HAS_ELF_AUX_INFO
+#define BOTAN_TARGET_OS_HAS_EXPLICIT_BZERO
 #define BOTAN_TARGET_OS_HAS_FILESYSTEM
-#define BOTAN_TARGET_OS_HAS_GETAUXVAL
+#define BOTAN_TARGET_OS_HAS_GETENTROPY
 #define BOTAN_TARGET_OS_HAS_POSIX1
 #define BOTAN_TARGET_OS_HAS_POSIX_MLOCK
-#define BOTAN_TARGET_OS_HAS_PRCTL
-#define BOTAN_TARGET_OS_HAS_PROC_FS
 #define BOTAN_TARGET_OS_HAS_SOCKETS
 #define BOTAN_TARGET_OS_HAS_THREAD_LOCAL
 #define BOTAN_TARGET_OS_HAS_THREADS
 
 
-#define BOTAN_BUILD_COMPILER_IS_GCC
+#define BOTAN_BUILD_COMPILER_IS_CLANG
 
 
 
 
-#define BOTAN_TARGET_ARCH_IS_ARM64
+#define BOTAN_TARGET_ARCH_IS_X86_64
 #define BOTAN_TARGET_CPU_IS_LITTLE_ENDIAN
-#define BOTAN_TARGET_CPU_IS_ARM_FAMILY
+#define BOTAN_TARGET_CPU_IS_X86_FAMILY
 #define BOTAN_TARGET_CPU_HAS_NATIVE_64BIT
 
-#define BOTAN_TARGET_SUPPORTS_ARMV8CRYPTO
-#define BOTAN_TARGET_SUPPORTS_ARMV8SHA3
-#define BOTAN_TARGET_SUPPORTS_ARMV8SHA512
-#define BOTAN_TARGET_SUPPORTS_ARMV8SM3
-#define BOTAN_TARGET_SUPPORTS_ARMV8SM4
-#define BOTAN_TARGET_SUPPORTS_NEON
+#define BOTAN_TARGET_SUPPORTS_AESNI
+#define BOTAN_TARGET_SUPPORTS_AVX2
+#define BOTAN_TARGET_SUPPORTS_BMI2
+#define BOTAN_TARGET_SUPPORTS_RDRAND
+#define BOTAN_TARGET_SUPPORTS_RDSEED
+#define BOTAN_TARGET_SUPPORTS_SHA
+#define BOTAN_TARGET_SUPPORTS_SSE2
+#define BOTAN_TARGET_SUPPORTS_SSE41
+#define BOTAN_TARGET_SUPPORTS_SSE42
+#define BOTAN_TARGET_SUPPORTS_SSSE3
 
 
 
@@ -121,6 +127,7 @@
 #define BOTAN_HAS_BLAKE2BMAC 20201123
 #define BOTAN_HAS_BLOCK_CIPHER 20131128
 #define BOTAN_HAS_CHACHA 20180807
+#define BOTAN_HAS_CHACHA_AVX2 20180418
 #define BOTAN_HAS_CHACHA_SIMD32 20181104
 #define BOTAN_HAS_CIPHER_MODES 20180124
 #define BOTAN_HAS_CIPHER_MODE_PADDING 20131128
@@ -157,9 +164,10 @@
 #define BOTAN_HAS_RSA 20160730
 #define BOTAN_HAS_SHA1 20131128
 #define BOTAN_HAS_SHA2_32 20131128
-#define BOTAN_HAS_SHA2_32_ARMV8 20170117
+#define BOTAN_HAS_SHA2_32_X86 20170518
 #define BOTAN_HAS_SHA2_64 20131128
 #define BOTAN_HAS_SIMD_32 20131128
+#define BOTAN_HAS_SIMD_AVX2 20180824
 #define BOTAN_HAS_STREAM_CIPHER 20131128
 #define BOTAN_HAS_SYSTEM_RNG 20141202
 #define BOTAN_HAS_UTIL_FUNCTIONS 20180903
