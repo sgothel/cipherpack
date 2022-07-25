@@ -17,7 +17,6 @@ bname=`basename $0 .sh`
 
 . $rootdir/jaulib/scripts/setup-machine-arch.sh "-quiet"
 
-build_dir=$rootdir/build-$archabi
 dist_dir=$rootdir/"dist-$os_name-$archabi"
 build_dir=$rootdir/"build-$os_name-$archabi"
 echo dist_dir $dist_dir
@@ -35,6 +34,7 @@ else
     logbasename=$bname-$os_name-$archabi
 fi
 
+mkdir -p $rootdir/doc/test
 logfile=$rootdir/doc/test/$logbasename.0.log
 rm -f $logfile
 
