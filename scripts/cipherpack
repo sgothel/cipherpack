@@ -1,0 +1,35 @@
+#!/bin/bash
+
+export jau_debug=true
+export cipherpack_debug=true
+# export cipherpack_verbose=true
+#
+# ../scripts/cipherpack some_plaintext_file.bin 
+#
+# Examples
+#   scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -out a.enc test_data_local/data-10kiB.bin
+#   scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -out a.dec a.enc
+#
+
+sdir=`dirname $(readlink -f $0)`
+rootdir=`dirname $sdir`
+bname=`basename $0 .sh`
+
+. $rootdir/jaulib/scripts/setup-machine-arch.sh "-quiet"
+
+dist_dir=${rootdir}/dist-${os_name}-${archabi}
+
+if [ ! -e ${dist_dir}/bin/cipherpack -o ! -e ${dist_dir}/lib/libcipherpack.so ] ; then
+    echo "Not available: ${dist_dir}/bin/cipherpack or ${dist_dir}/lib/libcipherpack.so"
+    exit 1
+fi
+ulimit -c unlimited
+
+# run as root 'dpkg-reconfigure locales' enable 'en_US.UTF-8'
+# perhaps run as root 'update-locale LC_MEASUREMENT=en_US.UTF-8 LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8'
+export LC_MEASUREMENT=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+
+#LD_LIBRARY_PATH=${dist_dir}/lib strace ${dist_dir}/bin/cipherpack $*
+LD_LIBRARY_PATH=${dist_dir}/lib ${dist_dir}/bin/cipherpack $*

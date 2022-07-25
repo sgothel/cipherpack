@@ -8,7 +8,7 @@ sdir=`dirname $(readlink -f $0)`
 rootdir=`dirname $sdir`
 bname=`basename $0 .sh`
 
-. $sdir/setup-machine-arch.sh
+. $rootdir/jaulib/scripts/setup-machine-arch.sh
 
 logfile=~/${bname}-${archabi}.log
 rm -f $logfile
