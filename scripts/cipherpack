@@ -1,14 +1,21 @@
 #!/bin/bash
 
-export jau_debug=true
-export cipherpack_debug=true
+# export jau_debug=true
+# export cipherpack_debug=true
 # export cipherpack_verbose=true
 #
 # ../scripts/cipherpack some_plaintext_file.bin 
 #
 # Examples
-#   scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -out a.enc test_data_local/data-10kiB.bin
+#   scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -out a.enc plaintext.bin
 #   scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -out a.dec a.enc
+#   scripts/cipherpack hash -out a.hash jaulib/test_data
+#
+#   cat plaintext.bin | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 > a.enc
+#   cat a.enc | scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 > a.dec
+#   cat a.dec | scripts/run_cipherpack.sh hash jaulib/test_data
+#
+#   cat plaintext.bin | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 | scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 > a.dec
 #
 
 sdir=`dirname $(readlink -f $0)`
@@ -31,5 +38,5 @@ export LC_MEASUREMENT=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 
-#LD_LIBRARY_PATH=${dist_dir}/lib strace ${dist_dir}/bin/cipherpack $*
+#LD_LIBRARY_PATH=${dist_dir}/lib strace ${dist_dir}/bin/cipherpack "$@"
 LD_LIBRARY_PATH=${dist_dir}/lib ${dist_dir}/bin/cipherpack $*
