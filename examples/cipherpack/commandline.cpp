@@ -303,8 +303,7 @@ int main(int argc, char *argv[])
                 jau::PLAIN_PRINT(true,"- produced: %s", hash_line3.c_str());
                 return -1;
             } else if( verbose ) {
-                const std::string hash_line3 = hash_algo+" "+hash_value2+" *"+hashed_file;
-                jau::PLAIN_PRINT(true, "HashCheck: OK: %s:%d: %s", fname_input.c_str(), line_no, hash_line3.c_str());
+                jau::PLAIN_PRINT(true, "HashCheck: OK: %s:%d: %s", fname_input.c_str(), line_no, hash_line2.c_str());
             }
         }
         return 0;
