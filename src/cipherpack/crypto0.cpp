@@ -27,7 +27,9 @@
 
 #include <cipherpack/cipherpack.hpp>
 
-#include <curl/curl.h>
+#ifdef USE_LIBCURL
+    #include <curl/curl.h>
+#endif
 
 #include <jau/cpuid.hpp>
 
@@ -77,7 +79,9 @@ static void cp_print_hash_provider(const std::string& algo) noexcept {
 environment::environment() noexcept {
     jau::environment::get("cipherpack");
 
+#ifdef USE_LIBCURL
     curl_global_init(CURL_GLOBAL_ALL);
+#endif
 }
 
 
