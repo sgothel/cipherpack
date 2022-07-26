@@ -252,13 +252,13 @@ int main(int argc, char *argv[])
             return -1;
         }
         int line_no = 0;
-        std::string hash_line;
-        while( std::getline(in, hash_line) ) {
+        std::string hash_line0;
+        while( std::getline(in, hash_line0) ) {
             ++line_no;
             std::string hash_algo;
-            std::string hash_value;
+            std::string hash_value1;
             std::string hashed_file;
-            char* haystack = const_cast<char*>( hash_line.data() );
+            char* haystack = const_cast<char*>( hash_line0.data() );
             {
                 char* p = std::strstr(haystack, " ");
                 if( nullptr == p ) {
@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
                     return -1;
                 }
                 *p = 0; // EOS
-                hash_value = std::string(haystack);
+                hash_value1 = std::string(haystack);
                 haystack = p + 2;
             }
             hashed_file = std::string(haystack);
@@ -288,22 +288,22 @@ int main(int argc, char *argv[])
                     continue;
                 }
             }
-            const std::string hash_line2 = hash_algo+" "+hash_value+" *"+hashed_file;
+            const std::string hash_line1 = hash_algo+" "+hash_value1+" *"+hashed_file;
             uint64_t bytes_hashed = 0;
             std::unique_ptr<std::vector<uint8_t>> hash2 = cipherpack::hash_util::calc(hash_algo, hashed_file, bytes_hashed); // 20_s default timeout if uri
             if( nullptr == hash2 ) {
-                jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Bad format: %s", fname_input.c_str(), line_no, hash_line2.c_str());
+                jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Bad format: %s", fname_input.c_str(), line_no, hash_line1.c_str());
                 return -1;
             }
             const std::string hash_value2 = jau::bytesHexString(hash2->data(), 0, hash2->size(), true /* lsbFirst */, true /* lowerCase */);
-            if( hash_value2 != hash_value ) {
-                const std::string hash_line3 = hash_algo+" "+hash_value2+" *"+hashed_file;
+            if( hash_value2 != hash_value1 ) {
+                const std::string hash_line2 = hash_algo+" "+hash_value2+" *"+hashed_file;
                 jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Hash value mismatch", fname_input.c_str(), line_no);
-                jau::PLAIN_PRINT(true,"- expected: %s", hash_line2.c_str());
-                jau::PLAIN_PRINT(true,"- produced: %s", hash_line3.c_str());
+                jau::PLAIN_PRINT(true,"- expected: %s", hash_line1.c_str());
+                jau::PLAIN_PRINT(true,"- produced: %s", hash_line2.c_str());
                 return -1;
             } else if( verbose ) {
-                jau::PLAIN_PRINT(true, "HashCheck: OK: %s:%d: %s", fname_input.c_str(), line_no, hash_line2.c_str());
+                jau::PLAIN_PRINT(true, "HashCheck: OK: %s:%d: %s", fname_input.c_str(), line_no, hash_line1.c_str());
             }
         }
         return 0;
