@@ -321,7 +321,7 @@ public final class Cipherpack {
          * @return the calculated hash value or nullptr in case of error
          * @see #calc(String, String, long[])
          */
-        public static byte[] calc(final String algo, final String path_or_uri, final long bytes_hashed[/*0*/], final long timeoutMS) {
+        public static byte[] calc(final String algo, final String path_or_uri, final long bytes_hashed[/*1*/], final long timeoutMS) {
             return calcImpl2(algo, path_or_uri, bytes_hashed, timeoutMS);
         }
         /**
@@ -335,9 +335,9 @@ public final class Cipherpack {
          * @return the calculated hash value or nullptr in case of error
          * @see #calc(String, String, long[], long)
          */
-        public static byte[] calc(final String algo, final String path_or_uri, final long bytes_hashed[/*0*/]) {
+        public static byte[] calc(final String algo, final String path_or_uri, final long bytes_hashed[/*1*/]) {
             return calcImpl2(algo, path_or_uri, bytes_hashed, 20000);
         }
-        private static native byte[] calcImpl2(final String algo, final String path_or_uri, final long bytes_hashed[/*0*/], final long timeout);
+        private static native byte[] calcImpl2(final String algo, final String path_or_uri, final long bytes_hashed[/*1*/], final long timeout);
     }
 }
