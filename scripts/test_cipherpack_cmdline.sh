@@ -2,6 +2,9 @@
 
 data_dir_in=../cipherpack_test_data_local
 
+infile=${data_dir_in}/deploy.sqfs
+#infile=${data_dir_in}/data-382MB.bin
+
 sdir=`dirname $(readlink -f $0)`
 rootdir=`dirname $sdir`
 bname=`basename $0 .sh`
@@ -41,11 +44,11 @@ run_test_file01() {
     #scripts/cipherpack hash -out ${data_dir_out}/test_data_local.phash ${data_dir_in}
     #if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
 
-    scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t1.orig.phash -out ${data_dir_out}/t1.enc ${data_dir_in}/data-10kiB.bin
+    scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t1.orig.phash -out ${data_dir_out}/t1.enc ${infile}
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
     scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -hashout ${data_dir_out}/t1.dec.phash -out ${data_dir_out}/t1.dec ${data_dir_out}/t1.enc
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
-    cmp ${data_dir_out}/t1.dec ${data_dir_in}/data-10kiB.bin
+    cmp ${data_dir_out}/t1.dec ${infile}
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
     cmp_hash_value ${data_dir_out}/t1.orig.phash ${data_dir_out}/t1.dec.phash
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
@@ -57,11 +60,11 @@ run_test_file01() {
 }
 
 run_test_pipe01() {
-    cat ${data_dir_in}/data-10kiB.bin | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t2.orig.phash > ${data_dir_out}/t2.enc
+    cat ${infile} | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t2.orig.phash > ${data_dir_out}/t2.enc
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
     cat ${data_dir_out}/t2.enc | scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -hashout ${data_dir_out}/t2.dec.phash > ${data_dir_out}/t2.dec
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
-    cmp ${data_dir_out}/t2.dec ${data_dir_in}/data-10kiB.bin
+    cmp ${data_dir_out}/t2.dec ${infile}
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
     cmp_hash_value ${data_dir_out}/t2.orig.phash ${data_dir_out}/t2.dec.phash
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
@@ -72,9 +75,9 @@ run_test_pipe01() {
 }
 
 run_test_pipe02() {
-    cat ${data_dir_in}/data-10kiB.bin | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t3.orig.phash | scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -hashout ${data_dir_out}/t3.dec.phash > ${data_dir_out}/t3.dec
+    cat ${infile} | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t3.orig.phash | scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -hashout ${data_dir_out}/t3.dec.phash > ${data_dir_out}/t3.dec
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
-    cmp ${data_dir_out}/t3.dec ${data_dir_in}/data-10kiB.bin
+    cmp ${data_dir_out}/t3.dec ${infile}
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
     cmp_hash_value ${data_dir_out}/t3.orig.phash ${data_dir_out}/t3.dec.phash
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
