@@ -225,8 +225,8 @@ namespace cipherpack {
 
     class Constants {
         public:
-            /** Intermediate copy buffer size of {@code 4096 bytes}, usually the page-size. */
-            constexpr static const size_t buffer_size = 4096;
+            /** Intermediate copy buffer size of {@code 16384 bytes}, usually the 4 x 4096 bytes page-size. */
+            constexpr static const size_t buffer_size = 16384;
 
             /**
              * Package magic {@code CIPHERPACK_0003}.
