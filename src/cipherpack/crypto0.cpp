@@ -478,7 +478,8 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
                     }
                     return true;
                   } ) );
-    if( jau::fs::visit(*stats, jau::fs::traverse_options::recursive, pv, &ctx.dirfds) ) {
+    const jau::fs::traverse_options topts = jau::fs::traverse_options::recursive | jau::fs::traverse_options::lexicographical_order;
+    if( jau::fs::visit(*stats, topts, pv, &ctx.dirfds) ) {
         std::unique_ptr<std::vector<uint8_t>> res = std::make_unique<std::vector<uint8_t>>(ctx.hash_func->output_length());
         ctx.hash_func->final(res->data());
         bytes_hashed = ctx.bytes_hashed;
