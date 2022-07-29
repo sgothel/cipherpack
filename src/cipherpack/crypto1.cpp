@@ -300,6 +300,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         uint64_t out_bytes_plaintext = 0;
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
+            // A simple !is_final suffices, since a final call w/ zero bytes shall add a TAG or padding depending on AEAD.
             if( !is_final ) {
                 if( nullptr != hash_func ) {
                     hash_func->update(data);
@@ -873,8 +874,26 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         uint64_t out_bytes_plaintext = 0;
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
-            if( !is_final && ( !has_plaintext_size || out_bytes_plaintext + data.size() < plaintext_size ) ) {
-                aead->update(data);
+            const uint64_t next_total = out_bytes_plaintext + data.size();
+            const size_t minimum_final_size = aead->minimum_final_size();
+#if 0
+            const size_t update_granularity = aead->update_granularity();
+            DBG_PRINT("Decrypt: update_gran %zu, min_fin_sz %zu, is_final %d, has_plaintext_size %d,  %" PRIu64 " + %zu = %" PRIu64 " <=  %" PRIu64 " = %d",
+                    update_granularity, minimum_final_size,
+                    is_final, has_plaintext_size,
+                    out_bytes_plaintext, data.size(), next_total, plaintext_size, next_total <= plaintext_size);
+            // Note: If !has_plaintext_size, and a pending 'eof' or 'eos' signal could lead to not detect is_final
+            // hence a decryption error may occure.
+            // This renders manual-feeding w/o content-size (!has_plaintext_size) too fragile for production use.
+#endif
+            // 'next_total <= plaintext_size' included plaintext_size limit since at least one AEAD TAG will be added afterwards (or padding)
+            if( !is_final && ( !has_plaintext_size || ( 0 < minimum_final_size && next_total <= plaintext_size ) || next_total < plaintext_size ) ) {
+                try {
+                    aead->update(data);
+                } catch (std::exception &e) {
+                    ERR_PRINT("Caught exception: %s", e.what());
+                    return false;
+                }
                 if( nullptr != hash_func ) {
                     hash_func->update(data);
                 }
@@ -887,7 +906,12 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 listener->notifyProgress(decrypt_mode, plaintext_size, out_bytes_plaintext);
                 return res; // continue if user so desires
             } else {
-                aead->finish(data);
+                try {
+                    aead->finish(data);
+                } catch (std::exception &e) {
+                    ERR_PRINT("Caught exception: %s", e.what());
+                    return false;
+                }
                 if( nullptr != hash_func ) {
                     hash_func->update(data);
                 }
