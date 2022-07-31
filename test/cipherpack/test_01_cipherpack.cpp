@@ -144,7 +144,7 @@ class Test01Cipherpack : public TestData {
                 jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true).c_str());
                 REQUIRE( ph1.isValid() == true );
 
-                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
                                                                               silentListener, cipherpack::default_hash_algo(), fname_decrypted_lst[file_idx]);
@@ -164,7 +164,7 @@ class Test01Cipherpack : public TestData {
                 jau::PLAIN_PRINT(true, "test01_enc_dec_file_ok: %s\n", ph1.toString(true, true).c_str());
                 REQUIRE( ph1.isValid() == true );
 
-                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key2_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
                                                                               silentListener, cipherpack::default_hash_algo(), fname_decrypted_lst[file_idx]);
@@ -185,7 +185,7 @@ class Test01Cipherpack : public TestData {
                 REQUIRE( ph1.isValid() == true );
 
                 {
-                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                     cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                                    enc_stream,
                                                                                    silentListener, "", fname_decrypted_lst[file_idx]);
@@ -195,7 +195,7 @@ class Test01Cipherpack : public TestData {
                     jau::PLAIN_PRINT(true, "");
                 }
                 {
-                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                     cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                                    enc_stream,
                                                                                    silentListener, "SHA-256", fname_decrypted_lst[file_idx]);
@@ -206,7 +206,7 @@ class Test01Cipherpack : public TestData {
                                 ph2.getPlaintextHashAlgo(), ph2.getPlaintextHash());
                 }
                 {
-                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                     cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                                    enc_stream,
                                                                                    silentListener, "SHA-512", fname_decrypted_lst[file_idx]);
@@ -217,7 +217,7 @@ class Test01Cipherpack : public TestData {
                                 ph2.getPlaintextHashAlgo(), ph2.getPlaintextHash());
                 }
                 {
-                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                    jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                     cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                                    enc_stream,
                                                                                    silentListener, "BLAKE2b(512)", fname_decrypted_lst[file_idx]);
@@ -265,7 +265,7 @@ class Test01Cipherpack : public TestData {
             {
                 // Error: Not encrypted for terminal key 4
                 const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
-                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key4_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
                                                                               silentListener, cipherpack::default_hash_algo(), fname_decrypted_lst[file_idx]);
@@ -276,7 +276,7 @@ class Test01Cipherpack : public TestData {
             {
                 // Error: Not signed from host key 4
                 const std::vector<std::string> sign_pub_keys_nope { sign_pub_key4_fname };
-                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx], true /* use_binary */);
+                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
                 cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys_nope, dec_sec_key3_fname, dec_sec_key_passphrase,
                                                                               enc_stream,
                                                                               silentListener, cipherpack::default_hash_algo(), fname_decrypted_lst[file_idx]);
@@ -432,7 +432,7 @@ class Test01Cipherpack : public TestData {
         // throttled, no content size, interruptReader() via set_eof() will avoid timeout
         static void feed_source_00(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
-            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
+            jau::io::ByteInStream_File enc_stream(enc_feed->id());
             while( !enc_stream.end_of_data() ) {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
@@ -454,7 +454,7 @@ class Test01Cipherpack : public TestData {
             enc_feed->set_content_size( file_size );
 
             uint64_t xfer_total = 0;
-            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
+            jau::io::ByteInStream_File enc_stream(enc_feed->id());
             while( !enc_stream.end_of_data() && xfer_total < file_size ) {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
@@ -475,7 +475,7 @@ class Test01Cipherpack : public TestData {
             enc_feed->set_content_size( file_size );
 
             uint64_t xfer_total = 0;
-            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
+            jau::io::ByteInStream_File enc_stream(enc_feed->id());
             while( !enc_stream.end_of_data() && xfer_total < file_size ) {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
@@ -490,7 +490,7 @@ class Test01Cipherpack : public TestData {
         // full speed, no content size, interrupting @ 1024 bytes within our header
         static void feed_source_20(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
-            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
+            jau::io::ByteInStream_File enc_stream(enc_feed->id());
             while( !enc_stream.end_of_data() ) {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
@@ -512,7 +512,7 @@ class Test01Cipherpack : public TestData {
             enc_feed->set_content_size( file_size );
 
             uint64_t xfer_total = 0;
-            jau::io::ByteInStream_File enc_stream(enc_feed->id(), true /* use_binary */);
+            jau::io::ByteInStream_File enc_stream(enc_feed->id());
             while( !enc_stream.end_of_data() ) {
                 uint8_t buffer[1024]; // 1k
                 size_t count = enc_stream.read(buffer, sizeof(buffer));

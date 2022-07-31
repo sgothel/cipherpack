@@ -180,7 +180,7 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
 }
 
 std::shared_ptr<Botan::Public_Key> cipherpack::load_public_key(const std::string& pubkey_fname) {
-    jau::io::ByteInStream_File key_data(pubkey_fname, false /* use_binary */);
+    jau::io::ByteInStream_File key_data(pubkey_fname);
     std::shared_ptr<Botan::Public_Key> key(Botan::X509::load_key(key_data));
     if( !key ) {
         ERR_PRINT("Couldn't load Key %s", pubkey_fname.c_str());
@@ -308,7 +308,7 @@ static jau::io::secure_vector<uint8_t> jau_PKCS8_decode(Botan::DataSource& sourc
 }
 
 std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::string& privatekey_fname, const jau::io::secure_string& passphrase) {
-    jau::io::ByteInStream_File key_data(privatekey_fname, false /* use_binary */);
+    jau::io::ByteInStream_File key_data(privatekey_fname);
     std::shared_ptr<Botan::Private_Key> key;
     if( passphrase.empty() ) {
         key = Botan::PKCS8::load_key(key_data);
