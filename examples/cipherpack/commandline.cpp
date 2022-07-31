@@ -4,6 +4,7 @@
  */
 
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <cinttypes>
 #include <cstring>
@@ -282,7 +283,7 @@ int main(int argc, char *argv[])
             hashed_file = std::string(haystack);
             {
                 jau::fs::file_stats hashed_file_stats(hashed_file);
-                if( hashed_file_stats.is_fd() ) {
+                if( hashed_file_stats.has_fd() ) {
                     jau::PLAIN_PRINT(true, "HashCheck: Ignored: %s:%d: Named file descriptor: %s",
                             fname_input.c_str(), line_no, hashed_file_stats.to_string().c_str());
                     continue;

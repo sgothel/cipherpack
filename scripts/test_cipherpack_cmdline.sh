@@ -1,9 +1,9 @@
 #!/bin/bash
 
-data_dir_in=../cipherpack_test_data_local
+# export cipherpack_debug=true
+# export cipherpack_verbose=true
 
-infile=${data_dir_in}/deploy.sqfs
-#infile=${data_dir_in}/data-382MB.bin
+data_dir_in=../cipherpack_test_data_local
 
 sdir=`dirname $(readlink -f $0)`
 rootdir=`dirname $sdir`
@@ -41,6 +41,7 @@ cmp_hash_value() {
 }
 
 run_test_file01() {
+    infile=$1
     #scripts/cipherpack hash -out ${data_dir_out}/test_data_local.phash ${data_dir_in}
     #if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
 
@@ -60,6 +61,7 @@ run_test_file01() {
 }
 
 run_test_pipe01() {
+    infile=$1
     cat ${infile} | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t2.orig.phash > ${data_dir_out}/t2.enc
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
     cat ${data_dir_out}/t2.enc | scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -hashout ${data_dir_out}/t2.dec.phash > ${data_dir_out}/t2.dec
@@ -75,6 +77,7 @@ run_test_pipe01() {
 }
 
 run_test_pipe02() {
+    infile=$1
     cat ${infile} | scripts/cipherpack pack -epk test_keys/terminal_rsa1.pub.pem -ssk test_keys/host_rsa1 -hashout ${data_dir_out}/t3.orig.phash | scripts/cipherpack unpack -spk test_keys/host_rsa1.pub.pem -dsk test_keys/terminal_rsa1 -hashout ${data_dir_out}/t3.dec.phash > ${data_dir_out}/t3.dec
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
     cmp ${data_dir_out}/t3.dec ${infile}
@@ -83,6 +86,15 @@ run_test_pipe02() {
     if [ $? -ne 0 ] ; then echo "ERROR test $LINENO"; return 1; fi
 }
 
-run_test_file01 2>&1 | tee $logfile
-run_test_pipe01 2>&1 | tee $logfile
-run_test_pipe02 2>&1 | tee $logfile
+#${data_dir_in}/data-10kiB.bin
+#${data_dir_in}/data-32752B.bin
+#=${data_dir_in}/data-32768B.bin
+#infile=${data_dir_in}/deploy.sqfs
+#infile=${data_dir_in}/data-382MB.bin
+
+for i in ${data_dir_in}/data-10kiB.bin ${data_dir_in}/data-32752B.bin ${data_dir_in}/data-32768B.bin ${data_dir_in}/deploy.sqfs ; do
+    run_test_file01 $i 2>&1 | tee $logfile
+    run_test_pipe01 $i 2>&1 | tee $logfile
+    run_test_pipe02 $i 2>&1 | tee $logfile
+done
+

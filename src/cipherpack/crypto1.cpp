@@ -469,14 +469,14 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
     std::shared_ptr<MyListener> my_listener = std::make_shared<MyListener>(listener, out_bytes_header, out_bytes_plaintext);
     {
         const jau::fs::file_stats output_stats(dest_fname2);
-        if( output_stats.exists() ) {
+        if( output_stats.exists() && !output_stats.has_fd() ) {
             if( output_stats.is_file() ) {
                 if( !jau::fs::remove(dest_fname2) ) {
                     ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string().c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
                 }
-            } else if( !output_stats.is_fd() ) {
+            } else if( output_stats.is_dir() || output_stats.is_block() ) {
                 ERR_PRINT2("Encrypt failed: Not overwriting existing %s", output_stats.to_string().c_str());
                 my_listener->notifyEnd(decrypt_mode, header, false);
                 return header;
@@ -504,7 +504,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         const jau::fs::file_stats output_stats(dest_fname2);
         if ( outfile.fail() ) {
             ERR_PRINT2("Encrypt failed: Output file write failed %s", dest_fname2.c_str());
-            if( output_stats.is_file() ) {
+            if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
             ph.setValid(false);
@@ -514,7 +514,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         outfile.close();
 
         if( !ph.isValid() ) {
-            if( output_stats.is_file() ) {
+            if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
             my_listener->notifyEnd(decrypt_mode, ph, false);
@@ -532,7 +532,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                     jau::to_decstring(out_bytes_header).c_str(),
                     jau::to_decstring(out_bytes_plaintext).c_str(),
                     jau::to_decstring(output_stats.size()).c_str());
-            if( output_stats.is_file() ) {
+            if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
             ph.setValid(false);
@@ -882,9 +882,6 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     update_granularity, minimum_final_size,
                     is_final, has_plaintext_size,
                     out_bytes_plaintext, data.size(), next_total, plaintext_size, next_total <= plaintext_size);
-            // Note: If !has_plaintext_size, and a pending 'eof' or 'eos' signal could lead to not detect is_final
-            // hence a decryption error may occure.
-            // This renders manual-feeding w/o content-size (!has_plaintext_size) too fragile for production use.
 #endif
             // 'next_total <= plaintext_size' included plaintext_size limit since at least one AEAD TAG will be added afterwards (or padding)
             if( !is_final && ( !has_plaintext_size || ( 0 < minimum_final_size && next_total <= plaintext_size ) || next_total < plaintext_size ) ) {
@@ -929,9 +926,17 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 return false; // EOS
             }
         };
-        jau::io::secure_vector<uint8_t> io_buffer;
-        io_buffer.reserve(Constants::buffer_size);
-        const uint64_t in_bytes_total = jau::io::read_stream(input, io_buffer, consume_data);
+        // Note: Utilizing the double-buffered read-ahead read_stream() ensures `is_final` (i.e. eof)
+        // is delivered with the last concume_data() call and data.size() > 0.
+        //
+        // This avoids decryption errors using manual-feeding or a file pipe w/o content-size known.
+        //
+        jau::io::secure_vector<uint8_t> io_buffer1;
+        jau::io::secure_vector<uint8_t> io_buffer2;
+        io_buffer1.reserve(Constants::buffer_size);
+        io_buffer2.reserve(Constants::buffer_size);
+        const uint64_t in_bytes_total = jau::io::read_stream(input, io_buffer1, io_buffer2, consume_data);
+
         input.close();
 
         if( nullptr != hash_func ) {
@@ -1036,14 +1041,14 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     std::shared_ptr<MyListener> my_listener = std::make_shared<MyListener>(listener, out_bytes_plaintext);
     {
         const jau::fs::file_stats output_stats(dest_fname2);
-        if( output_stats.exists() ) {
+        if( output_stats.exists() && !output_stats.has_fd() ) {
             if( output_stats.is_file() ) {
                 if( !jau::fs::remove(dest_fname2) ) {
                     ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_stats.to_string().c_str());
                     my_listener->notifyEnd(decrypt_mode, header, false);
                     return header;
                 }
-            } else if( !output_stats.is_fd() ) {
+            } else if( output_stats.is_dir() || output_stats.is_block() ) {
                 ERR_PRINT2("Decrypt failed: Not overwriting existing %s", output_stats.to_string().c_str());
                 my_listener->notifyEnd(decrypt_mode, header, false);
                 return header;
@@ -1066,7 +1071,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         const jau::fs::file_stats output_stats(dest_fname2);
         if ( outfile.fail() ) {
             ERR_PRINT2("Decrypt failed: Output file write failed %s", dest_fname2.c_str());
-            if( output_stats.is_file() ) {
+            if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
             ph.setValid(false);
@@ -1076,7 +1081,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         outfile.close();
 
         if( !ph.isValid() ) {
-            if( output_stats.is_file() ) {
+            if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
             my_listener->notifyEnd(decrypt_mode, ph, false);
@@ -1089,7 +1094,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         ERR_PRINT2("Decrypt: Writing done, %s plaintext_size != %s total bytes",
                 jau::to_decstring(ph.getPlaintextSize()).c_str(),
                 jau::to_decstring(output_stats.size()).c_str());
-        if( output_stats.is_file() ) {
+        if( output_stats.is_file() && !output_stats.has_fd() ) {
             jau::fs::remove(dest_fname2);
         }
         ph.setValid(false);

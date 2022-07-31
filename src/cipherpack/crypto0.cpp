@@ -417,18 +417,21 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     } else {
         stats = std::make_unique<jau::fs::file_stats>(path_or_uri);
     }
-    if( stats->is_file() || stats->is_fd() ) {
-        jau::io::ByteInStream_File in(stats->path());
-        if( in.error() ) {
-            return nullptr;
-        }
-        return calc(algo, in);
-    }
     if( !stats->is_dir() ) {
-        ERR_PRINT("path is neither file, fd nor dir: %s", stats->to_string().c_str());
-        return nullptr;
+        if( stats->has_fd() ) {
+            jau::io::ByteInStream_File in(stats->fd());
+            if( in.error() ) {
+                return nullptr;
+            }
+            return calc(algo, in);
+        } else {
+            jau::io::ByteInStream_File in(stats->path());
+            if( in.error() ) {
+                return nullptr;
+            }
+            return calc(algo, in);
+        }
     }
-
     //
     // directory handling
     //
@@ -459,12 +462,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
             ( bool(*)(context_t*, jau::fs::traverse_event, const jau::fs::file_stats&) ) /* help template type deduction of function-ptr */
                 ( [](context_t* ctx_ptr, jau::fs::traverse_event tevt, const jau::fs::file_stats& element_stats) -> bool {
                     if( is_set(tevt, jau::fs::traverse_event::file) && !is_set(tevt, jau::fs::traverse_event::symlink) ) {
-                        // FIXME: It would be desirable to have ByteInStream_File handle dirfd,
-                        // i.e. implementation based on OS level I/O.
-                        //
-                        // const int dirfd = ctx_ptr->dirfds.back();
-                        // const std::string& basename_ = element_stats.item().basename();
-                        jau::io::ByteInStream_File in(element_stats.path());
+                        jau::io::ByteInStream_File in(ctx_ptr->dirfds.back(), element_stats.item().basename());
                         if( in.error() ) {
                             return false;
                         }
