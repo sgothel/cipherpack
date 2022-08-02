@@ -126,8 +126,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         return header;
     }
 
-    if( source.end_of_data() || source.error() ) {
-        ERR_PRINT2("Encrypt failed: Source is EOS or has an error %s", source.to_string().c_str());
+    if( source.error() ) {
+        ERR_PRINT2("Encrypt failed: Source has an error %s", source.to_string().c_str());
         return header;
     }
     const bool has_plaintext_size = source.has_content_size();
@@ -297,7 +297,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         aead->start(nonce);
 
         const bool sent_content_to_user = listener->getSendContent( decrypt_mode );
-        uint64_t out_bytes_plaintext = 0;
+        uint64_t out_bytes_ciphertext = 0;
         jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
             // A simple !is_final suffices, since a final call w/ zero bytes shall add a TAG or padding depending on AEAD.
@@ -309,9 +309,9 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 if( sent_content_to_user ) {
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, false /* is_final */);
                 }
-                out_bytes_plaintext += data.size();
+                out_bytes_ciphertext += data.size();
                 DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
-                        data.size(), out_bytes_plaintext, plaintext_size, sent_content_to_user, res);
+                        data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
                 listener->notifyProgress(decrypt_mode, plaintext_size, source.bytes_read());
             } else {
                 if( nullptr != hash_func ) {
@@ -321,17 +321,20 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 if( sent_content_to_user ) {
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, true /* is_final */);
                 }
-                out_bytes_plaintext += data.size();
+                out_bytes_ciphertext += data.size();
                 if( !has_plaintext_size ) {
-                    plaintext_size = out_bytes_plaintext;
+                    plaintext_size = out_bytes_ciphertext;
                     header.setPlaintextSize(plaintext_size);
                 }
                 DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
-                        data.size(), out_bytes_plaintext, plaintext_size, sent_content_to_user, res);
+                        data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
                 listener->notifyProgress(decrypt_mode, plaintext_size, source.bytes_read());
             }
             return res;
         };
+        // No need for double-buffering here
+        // as long at least one (last) consume_data is_final=true is being made (even w/ zero file size).
+        // Note: The double-buffer variant works as well, manually tested.
         jau::io::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(Constants::buffer_size);
         const uint64_t in_bytes_total = jau::io::read_stream(source, io_buffer, consume_data);
@@ -343,7 +346,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             header.setPayloadHash(hash_func->name(), hash_value);
         }
 
-        if ( 0==in_bytes_total || source.error() ) {
+        if ( source.error() ) {
             ERR_PRINT2("Encrypt failed: Source read failed %s", source.to_string().c_str());
             return header;
         }
@@ -355,16 +358,16 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             return header;
         } else if( jau::environment::get().verbose ) {
             WORDY_PRINT("Encrypt: Reading done from %s", source.to_string().c_str());
-            WORDY_PRINT("Encrypt: Writing done, %s header + %s plaintext for %s bytes written, ratio %lf out/in",
+            WORDY_PRINT("Encrypt: Writing done, %s header + %s ciphertext for %s plaintext bytes written, ratio %lf out/in",
                     jau::to_decstring(out_bytes_header).c_str(),
-                    jau::to_decstring(out_bytes_plaintext).c_str(),
-                    jau::to_decstring(in_bytes_total).c_str(), (double)(out_bytes_header+out_bytes_plaintext)/(double)in_bytes_total);
+                    jau::to_decstring(out_bytes_ciphertext).c_str(),
+                    jau::to_decstring(in_bytes_total).c_str(), in_bytes_total > 0 ? (double)(out_bytes_header+out_bytes_ciphertext)/(double)in_bytes_total : 0.0);
             WORDY_PRINT("Encrypt: Writing done: source: %s", source.to_string().c_str());
         }
 
         if( jau::environment::get().verbose ) {
             const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
-            jau::io::print_stats("Encrypt", (out_bytes_header+out_bytes_plaintext), _td);
+            jau::io::print_stats("Encrypt", (out_bytes_header+out_bytes_ciphertext), _td);
         }
         header.setValid(true);
         return header;
@@ -936,7 +939,6 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         io_buffer1.reserve(Constants::buffer_size);
         io_buffer2.reserve(Constants::buffer_size);
         const uint64_t in_bytes_total = jau::io::read_stream(input, io_buffer1, io_buffer2, consume_data);
-
         input.close();
 
         if( nullptr != hash_func ) {
@@ -956,10 +958,10 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             return header;
         } else {
             WORDY_PRINT("Decrypt: Reading done from %s", source.to_string().c_str());
-            WORDY_PRINT("Decrypt: Writing done, %s total bytes from %s bytes input, ratio %lf in/out",
+            WORDY_PRINT("Decrypt: Writing done, %s plaintext bytes from %s ciphertext bytes input, ratio %lf in/out",
                     jau::to_decstring(out_bytes_plaintext).c_str(),
                     jau::to_decstring(in_bytes_total).c_str(),
-                    (double)out_bytes_plaintext/(double)in_bytes_total);
+                    in_bytes_total > 0 ? (double)out_bytes_plaintext/(double)in_bytes_total : 0.0);
         }
 
         const jau::fraction_i64 _td = ( jau::getMonotonicTime() - _t0 ).to_fraction_i64();
