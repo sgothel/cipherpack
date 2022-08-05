@@ -62,6 +62,12 @@ fi
 rm -f $logfile
 logbasename=`basename ${logfile} .log`
 
+valgrindlogfile=$rootdir/doc/test/$logbasename.valgrind.0.log
+rm -f $valgrindlogfile
+
+callgrindoutfile=$rootdir/doc/test/$logbasename.callgrind.0.out
+rm -f $callgrindoutfile
+
 ulimit -c unlimited
 
 # run as root 'dpkg-reconfigure locales' enable 'en_US.UTF-8'
@@ -73,6 +79,15 @@ export LANG=en_US.UTF-8
 # export JAVA_PROPS="-Xint"
 # export EXE_WRAPPER="nice -20"
 # export JAVA_PROPS="-Djau.debug=true -Djau.verbose=true"
+
+# export JAVA_PROPS="-Xint -Xcheck:jni"
+# export JAVA_PROPS="-Xcheck:jni"
+#export EXE_WRAPPER="LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/10/libasan.so"
+# export EXE_WRAPPER="valgrind --tool=memcheck --leak-check=full --show-reachable=no  --track-origins=yes --num-callers=24 --malloc-fill=0xff --free-fill=0xfe --error-limit=no --default-suppressions=yes --suppressions=$sdir/valgrind.supp --suppressions=$sdir/valgrind-jvm.supp --gen-suppressions=all -s --log-file=$valgrindlogfile"
+# export EXE_WRAPPER="valgrind --tool=helgrind --track-lockorders=yes --num-callers=24 --ignore-thread-creation=yes --default-suppressions=yes --suppressions=$sdir/valgrind.supp --suppressions=$sdir/valgrind-jvm.supp --gen-suppressions=all -s --log-file=$valgrindlogfile"
+# export EXE_WRAPPER="valgrind --tool=drd --segment-merging=no --ignore-thread-creation=yes --trace-barrier=no --trace-cond=no --trace-fork-join=no --trace-mutex=no --trace-rwlock=no --trace-semaphore=no --default-suppressions=yes --suppressions=$sdir/valgrind.supp --suppressions=$sdir/valgrind-jvm.supp --gen-suppressions=all -s --log-file=$valgrindlogfile"
+# export EXE_WRAPPER="valgrind --tool=callgrind --instr-atstart=yes --collect-atstart=yes --collect-systime=yes --combine-dumps=yes --separate-threads=no --callgrind-out-file=$callgrindoutfile --log-file=$valgrindlogfile"
+
 
 test_classpath=$JUNIT_CP:${dist_dir}/lib/java/cipherpack.jar:${build_dir}/jaulib/java_base/jaulib_base.jar:${build_dir}/jaulib/test/java/jaulib-test.jar:${build_dir}/test/java/cipherpack-test.jar
 #test_classpath=$JUNIT_CP:${dist_dir}/lib/java/cipherpack-fat.jar:${build_dir}/jaulib/java_base/jaulib_base.jar:${build_dir}/jaulib/test/java/jaulib-test.jar:${build_dir}/test/java/cipherpack-test.jar
@@ -94,6 +109,8 @@ do_test() {
     echo "$EXE_WRAPPER ${JAVA_CMD} ${JAVA_PROPS} -cp ${test_classpath} -Djava.library.path=${dist_dir}/lib org.junit.runner.JUnitCore ${test_class} ${*@Q}"
 
     ulimit -c unlimited
+    # export ASAN_OPTIONS="debug=true:strict_string_checks=true:detect_odr_violation=2:halt_on_error=false:verbosity=2"
+    # LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/10/libasan.so \
     $EXE_WRAPPER ${JAVA_CMD} ${JAVA_PROPS} -cp ${test_classpath} -Djava.library.path=${dist_dir}/lib org.junit.runner.JUnitCore ${test_class} ${*@Q}
     # $EXE_WRAPPER ${JAVA_CMD} ${JAVA_PROPS} -cp ${test_classpath} org.junit.runner.JUnitCore ${test_class} ${*@Q}
     exit $?
