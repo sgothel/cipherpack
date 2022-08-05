@@ -61,6 +61,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         cipherpack::PackHeader ph = encryptThenSign(ccfg, enc_pub_keys, sign_sec_key_fname, passphrase, *refSource,
                                                     target_path, subject, plaintext_version, plaintext_version_parent,
                                                     refListener.shared_ptr(), plaintext_hash_algo, destination_fname);
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);
 
@@ -91,6 +92,7 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
 
         cipherpack::PackHeader ph = checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, passphrase, *refSource,
                                                          refListener.shared_ptr(), plaintext_hash_algo, destination_fname);
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
 
         jobject jph = jcipherpack::to_jPackHeader(env, ph);
 
