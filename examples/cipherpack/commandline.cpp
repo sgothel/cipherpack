@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
         std::string plaintext_hash_algo(cipherpack::default_hash_algo());
         std::string plaintext_fname_output; // none
         bool verbose = false;
-        std::string fname_output = "/dev/stdout"; // stdout default
-        std::string fname_input = "/dev/stdin"; // stdin default
+        std::string fname_output = jau::fs::to_named_fd(1); // stdout default
+        std::string fname_input = jau::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-epk", argv[argi]) && argi + 1 < argc ) {
                 enc_pub_keys.push_back( argv[++argi] );
@@ -154,8 +154,8 @@ int main(int argc, char *argv[])
         std::string plaintext_hash_algo(cipherpack::default_hash_algo());
         std::string plaintext_fname_output; // none
         bool verbose = false;
-        std::string fname_output = "/dev/stdout"; // stdout default
-        std::string fname_input = "/dev/stdin"; // stdin default
+        std::string fname_output = jau::fs::to_named_fd(1); // stdout default
+        std::string fname_input = jau::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-spk", argv[argi]) && argi + 1 < argc ) {
                 sign_pub_keys.push_back( argv[++argi] );
@@ -209,8 +209,8 @@ int main(int argc, char *argv[])
     if( command == "hash") {
         std::string hash_algo(cipherpack::default_hash_algo());
         bool verbose = false;
-        std::string fname_output = "/dev/stdout"; // stdout default
-        std::string fname_input = "/dev/stdin"; // stdin default
+        std::string fname_output = jau::fs::to_named_fd(1); // stdout default
+        std::string fname_input = jau::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-hash", argv[argi]) && argi + 1 < argc ) {
                 hash_algo = argv[++argi];
