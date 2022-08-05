@@ -132,6 +132,7 @@ public class Test01Cipherpack extends data_test {
     }
 
     static {
+        CPFactory.checkInitialized();
         final int buffer_size = 16384;
         int i=0;
 
@@ -253,6 +254,34 @@ public class Test01Cipherpack extends data_test {
     }
 
     CipherpackListener silentListener = new CipherpackListener();
+
+    @Test(timeout = 120000)
+    public final void test00_enc_dec_file_single() {
+        CPFactory.checkInitialized();
+        final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname);
+        final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
+        {
+            final int file_idx = IDX_11kiB;
+            final ByteInStream_File source = new ByteInStream_File(fname_plaintext_lst.get(file_idx));
+            final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
+                                                              enc_pub_keys,
+                                                              sign_sec_key1_fname, sign_sec_key_passphrase,
+                                                              source,
+                                                              fname_plaintext_lst.get(file_idx), "test00_enc_dec_file_single(", plaintext_version, plaintext_version_parent,
+                                                              silentListener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: %s\n", ph1.toString(true, true));
+            Assert.assertTrue( ph1.isValid() );
+
+            final ByteInStream_File enc_stream = new ByteInStream_File(fname_encrypted_lst.get(file_idx));
+            final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
+                                                                   enc_stream,
+                                                                   silentListener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: %s\n", ph2.toString(true, true));
+            Assert.assertTrue( ph2.isValid() );
+        }
+    }
 
     @Test(timeout = 120000)
     public final void test01_enc_dec_all_files() {

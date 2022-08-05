@@ -23,8 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <fstream>
-
 #include <cipherpack/cipherpack.hpp>
 
 #ifdef USE_LIBCURL
@@ -180,7 +178,8 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
 }
 
 std::shared_ptr<Botan::Public_Key> cipherpack::load_public_key(const std::string& pubkey_fname) {
-    jau::io::ByteInStream_File key_data(pubkey_fname);
+    jau::io::ByteInStream_File key_data_(pubkey_fname);
+    WrappingDataSource key_data(key_data_);
     std::shared_ptr<Botan::Public_Key> key(Botan::X509::load_key(key_data));
     if( !key ) {
         ERR_PRINT("Couldn't load Key %s", pubkey_fname.c_str());
@@ -199,10 +198,10 @@ std::shared_ptr<Botan::Public_Key> cipherpack::load_public_key(const std::string
  * Copied from Botan, allowing to only pass passphrase by const reference
  * for later secure erasure not leaving a copy in memory.
  */
-static jau::io::secure_vector<uint8_t> jau_PKCS8_extract(Botan::DataSource& source,
-                                                         Botan::AlgorithmIdentifier& pbe_alg_id)
+static cipherpack::secure_vector<uint8_t> jau_PKCS8_extract(Botan::DataSource& source,
+                                                            Botan::AlgorithmIdentifier& pbe_alg_id)
 {
-    jau::io::secure_vector<uint8_t> key_data;
+    cipherpack::secure_vector<uint8_t> key_data;
 
     Botan::BER_Decoder(source)
         .start_sequence()
@@ -234,13 +233,13 @@ namespace Botan {
  * Copied from Botan, allowing to only pass passphrase by const reference
  * for later secure erasure not leaving a copy in memory.
  */
-static jau::io::secure_vector<uint8_t> jau_PKCS8_decode(Botan::DataSource& source,
-                                                        const std::string& passphrase,
-                                                        Botan::AlgorithmIdentifier& pk_alg_id,
-                                                        bool is_encrypted)
+static cipherpack::secure_vector<uint8_t> jau_PKCS8_decode(Botan::DataSource& source,
+                                                           const std::string& passphrase,
+                                                           Botan::AlgorithmIdentifier& pk_alg_id,
+                                                           bool is_encrypted)
 {
     Botan::AlgorithmIdentifier pbe_alg_id;
-    jau::io::secure_vector<uint8_t> key_data, key;
+    cipherpack::secure_vector<uint8_t> key_data, key;;
 
     try {
         if(Botan::ASN1::maybe_BER(source) && !Botan::PEM_Code::matches(source)) {
@@ -308,7 +307,8 @@ static jau::io::secure_vector<uint8_t> jau_PKCS8_decode(Botan::DataSource& sourc
 }
 
 std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::string& privatekey_fname, const jau::io::secure_string& passphrase) {
-    jau::io::ByteInStream_File key_data(privatekey_fname);
+    jau::io::ByteInStream_File key_data_(privatekey_fname);
+    WrappingDataSource key_data(key_data_);
     std::shared_ptr<Botan::Private_Key> key;
     if( passphrase.empty() ) {
         key = Botan::PKCS8::load_key(key_data);
@@ -324,13 +324,13 @@ std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::stri
          */
         std::string insec_passphrase_copy(passphrase);
         Botan::AlgorithmIdentifier alg_id;
-        jau::io::secure_vector<uint8_t> pkcs8_key = jau_PKCS8_decode(key_data, insec_passphrase_copy, alg_id, true /* is_encrypted */);
+        cipherpack::secure_vector<uint8_t> pkcs8_key = jau_PKCS8_decode(key_data, insec_passphrase_copy, alg_id, true /* is_encrypted */);
 
         const std::string alg_name = Botan::OIDS::oid2str_or_empty(alg_id.get_oid());
         if( alg_name.empty() ) {
             throw Botan::PKCS8_Exception("Unknown algorithm OID: " + alg_id.get_oid().to_string());
         }
-        key = load_private_key(alg_id, pkcs8_key);
+        key = Botan::load_private_key(alg_id, pkcs8_key);
         ::explicit_bzero(insec_passphrase_copy.data(), insec_passphrase_copy.size());
     }
     if( !key ) {
@@ -357,8 +357,8 @@ std::string cipherpack::hash_util::file_suffix(const std::string& algo) noexcept
 bool cipherpack::hash_util::append_to_file(const std::string& out_file, const std::string& hashed_file, const std::string_view& hash_algo, const std::vector<uint8_t>& hash_value) noexcept {
     const std::string hash_str = jau::bytesHexString(hash_value.data(), 0, hash_value.size(), true /* lsbFirst */, true /* lowerCase */);
 
-    std::ofstream out(out_file, std::ios::out | std::ios::binary | std::ios::app);
-    if( !out.good() || !out.is_open() ) {
+    jau::io::ByteOutStream_File out(out_file);
+    if( !out.good() ) {
         return false;
     }
     out.write(hash_algo.data(), hash_algo.size());
@@ -367,7 +367,7 @@ bool cipherpack::hash_util::append_to_file(const std::string& out_file, const st
     out.write(" *", 2);
     out.write(hashed_file.data(), hashed_file.size());
     out.write("\n", 1);
-    if( !out.good() || !out.is_open() ) {
+    if( !out.good() ) {
         return false;
     }
     return true;
@@ -382,7 +382,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     }
     jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
         (void) is_final;
-        hash_func->update(data);
+        hash_func->update(data.data(), data.size());
         return true;
     };
     jau::io::secure_vector<uint8_t> io_buffer;
@@ -405,7 +405,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
          jau::io::uri_tk::protocol_supported(path_or_uri) )
     {
         jau::io::ByteInStream_URL in(path_or_uri, timeout);
-        if( !in.error() ) {
+        if( !in.fail() ) {
             return calc(algo, in);
         }
     }
@@ -420,13 +420,13 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     if( !stats->is_dir() ) {
         if( stats->has_fd() ) {
             jau::io::ByteInStream_File in(stats->fd());
-            if( in.error() ) {
+            if( in.fail() ) {
                 return nullptr;
             }
             return calc(algo, in);
         } else {
             jau::io::ByteInStream_File in(stats->path());
-            if( in.error() ) {
+            if( in.fail() ) {
                 return nullptr;
             }
             return calc(algo, in);
@@ -453,7 +453,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     }
     ctx.consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
         (void) is_final;
-        ctx.hash_func->update(data);
+        ctx.hash_func->update(data.data(), data.size());
         return true;
     };
     ctx.io_buffer.reserve(Constants::buffer_size);
@@ -463,7 +463,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
                 ( [](context_t* ctx_ptr, jau::fs::traverse_event tevt, const jau::fs::file_stats& element_stats) -> bool {
                     if( is_set(tevt, jau::fs::traverse_event::file) && !is_set(tevt, jau::fs::traverse_event::symlink) ) {
                         jau::io::ByteInStream_File in(ctx_ptr->dirfds.back(), element_stats.item().basename());
-                        if( in.error() ) {
+                        if( in.fail() ) {
                             return false;
                         }
                         const uint64_t in_bytes_total = jau::io::read_stream(in, ctx_ptr->io_buffer, ctx_ptr->consume_data);

@@ -150,7 +150,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         return JNI_TRUE == res;
     }
 
-    bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+    bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);

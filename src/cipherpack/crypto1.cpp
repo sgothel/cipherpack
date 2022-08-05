@@ -23,9 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <fstream>
-#include <iostream>
-
 #include <cipherpack/cipherpack.hpp>
 
 #include <jau/debug.hpp>
@@ -88,7 +85,7 @@ class WrappingCipherpackListener : public CipherpackListener{
             return parent->getSendContent(decrypt_mode);
         }
 
-        bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+        bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
             return parent->contentProcessed(decrypt_mode, ctype, data, is_final);
         }
 
@@ -96,6 +93,108 @@ class WrappingCipherpackListener : public CipherpackListener{
 
         std::string toString() const noexcept override { return "WrappingCipherpackListener["+jau::to_hexstring(this)+"]"; }
 };
+
+typedef std::function<bool (secure_vector<uint8_t>& /* data */, bool /* is_final */)> _StreamConsumerFunc;
+
+static uint64_t _read_stream(jau::io::ByteInStream& in,
+                             cipherpack::secure_vector<uint8_t>& buffer,
+                             _StreamConsumerFunc consumer_fn) noexcept {
+    uint64_t total = 0;
+    bool has_more;
+    do {
+        if( in.available(1) ) { // at least one byte to stream ..
+            buffer.resize(buffer.capacity());
+            const uint64_t got = in.read(buffer.data(), buffer.capacity());
+
+            buffer.resize(got);
+            total += got;
+            has_more = 1 <= got && !in.end_of_data() && ( !in.has_content_size() || total < in.content_size() );
+            try {
+                if( !consumer_fn(buffer, !has_more) ) {
+                    break; // end streaming
+                }
+            } catch (std::exception &e) {
+                ERR_PRINT("read_stream: Caught exception: %s", e.what());
+                break; // end streaming
+            }
+        } else {
+            has_more = false;
+            buffer.resize(0);
+            consumer_fn(buffer, true); // forced final, zero size
+        }
+    } while( has_more );
+    return total;
+}
+
+static uint64_t _read_buffer(jau::io::ByteInStream& in,
+                             secure_vector<uint8_t>& buffer) noexcept {
+    if( in.available(1) ) { // at least one byte to stream ..
+        buffer.resize(buffer.capacity());
+        const uint64_t got = in.read(buffer.data(), buffer.capacity());
+        buffer.resize(got);
+        return got;
+    }
+    return 0;
+}
+
+static uint64_t _read_stream(jau::io::ByteInStream& in,
+                             cipherpack::secure_vector<uint8_t>& buffer1, secure_vector<uint8_t>& buffer2,
+                             _StreamConsumerFunc consumer_fn) noexcept {
+    secure_vector<uint8_t>* buffers[] = { &buffer1, &buffer2 };
+    bool eof[] = { false, false };
+
+    bool eof_read = false;
+    uint64_t total_send = 0;
+    uint64_t total_read = 0;
+    int idx = 0;
+    // fill 1st buffer upfront
+    {
+        uint64_t got = _read_buffer(in, *buffers[idx]);
+        total_read += got;
+        eof_read = 0 == got || in.end_of_data() || ( in.has_content_size() && total_read >= in.content_size() );
+        eof[idx] = eof_read;
+        ++idx;
+    }
+
+    // - buffer_idx was filled
+    // - buffer_idx++
+    //
+    // - while !eof_send do
+    //   - read buffer_idx if not eof_read,
+    //     - set eof[buffer_idx+1]=true if zero bytes
+    //   - buffer_idx++
+    //   - sent buffer_idx
+    //
+    bool eof_send = false;
+    while( !eof_send ) {
+        int bidx_next = ( idx + 1 ) % 2;
+        if( !eof_read ) {
+            uint64_t got = _read_buffer(in, *buffers[idx]);
+            total_read += got;
+            eof_read = 0 == got || in.end_of_data() || ( in.has_content_size() && total_read >= in.content_size() );
+            eof[idx] = eof_read;
+            if( 0 == got ) {
+                // read-ahead eof propagation if read zero bytes,
+                // hence next consumer_fn() will send last bytes with is_final=true
+                eof[bidx_next] = true;
+            }
+        }
+        idx = bidx_next;
+
+        secure_vector<uint8_t>* buffer = buffers[idx];
+        eof_send = eof[idx];
+        total_send += buffer->size();
+        try {
+            if( !consumer_fn(*buffer, eof_send) ) {
+                return total_send; // end streaming
+            }
+        } catch (std::exception &e) {
+            ERR_PRINT("read_stream: Caught exception: %s", e.what());
+            return total_send; // end streaming
+        }
+    }
+    return total_send;
+}
 
 static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                                        const std::vector<std::string>& enc_pub_keys,
@@ -126,7 +225,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         return header;
     }
 
-    if( source.error() ) {
+    if( source.fail() ) {
         ERR_PRINT2("Encrypt failed: Source has an error %s", source.to_string().c_str());
         return header;
     }
@@ -169,8 +268,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
            ERR_PRINT2("Encrypt failed: AEAD algo %s not available", crypto_cfg.sym_enc_algo.c_str());
            return header;
         }
-        jau::io::secure_vector<uint8_t> plain_sym_key = rng.random_vec(aead->key_spec().maximum_keylength());
-        jau::io::secure_vector<uint8_t> nonce = rng.random_vec(crypto_cfg.sym_enc_nonce_bytes);
+        cipherpack::secure_vector<uint8_t> plain_sym_key = rng.random_vec(aead->key_spec().maximum_keylength());
+        cipherpack::secure_vector<uint8_t> nonce = rng.random_vec(crypto_cfg.sym_enc_nonce_bytes);
         const std::string sender_fingerprint = sign_sec_key->fingerprint_public(crypto_cfg.pk_fingerprt_hash_algo);
 
         struct recevr_data_t {
@@ -197,7 +296,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
 
         std::vector<uint8_t> sender_signature;
         {
-            jau::io::secure_vector<uint8_t> header_buffer;
+            cipherpack::secure_vector<uint8_t> header_buffer;
             header_buffer.reserve(Constants::buffer_size);
 
             // DER-Header-1
@@ -298,7 +397,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
 
         const bool sent_content_to_user = listener->getSendContent( decrypt_mode );
         uint64_t out_bytes_ciphertext = 0;
-        jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        _StreamConsumerFunc consume_data = [&](cipherpack::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
             // A simple !is_final suffices, since a final call w/ zero bytes shall add a TAG or padding depending on AEAD.
             if( !is_final ) {
@@ -312,7 +411,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 out_bytes_ciphertext += data.size();
                 DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, plaintext_size, source.bytes_read());
+                listener->notifyProgress(decrypt_mode, plaintext_size, source.tellg());
             } else {
                 if( nullptr != hash_func ) {
                     hash_func->update(data);
@@ -328,16 +427,16 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 }
                 DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, plaintext_size, source.bytes_read());
+                listener->notifyProgress(decrypt_mode, plaintext_size, source.tellg());
             }
             return res;
         };
         // No need for double-buffering here
         // as long at least one (last) consume_data is_final=true is being made (even w/ zero file size).
         // Note: The double-buffer variant works as well, manually tested.
-        jau::io::secure_vector<uint8_t> io_buffer;
+        cipherpack::secure_vector<uint8_t> io_buffer;
         io_buffer.reserve(Constants::buffer_size);
-        const uint64_t in_bytes_total = jau::io::read_stream(source, io_buffer, consume_data);
+        const uint64_t in_bytes_total = _read_stream(source, io_buffer, consume_data);
         source.close();
 
         if( nullptr != hash_func ) {
@@ -346,12 +445,12 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             header.setPayloadHash(hash_func->name(), hash_value);
         }
 
-        if ( source.error() ) {
+        if ( source.fail() ) {
             ERR_PRINT2("Encrypt failed: Source read failed %s", source.to_string().c_str());
             return header;
         }
 
-        if( source.bytes_read() != in_bytes_total ) {
+        if( source.tellg() != in_bytes_total ) {
             ERR_PRINT2("Encrypt: Writing done, %s bytes read != %s",
                     jau::to_decstring(in_bytes_total).c_str(),
                     source.to_string().c_str());
@@ -429,7 +528,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
 
     class MyListener : public WrappingCipherpackListener {
         private:
-            std::ofstream* outfile_;
+            jau::io::ByteOutStream_File* outfile_;
             uint64_t& out_bytes_header_;
             uint64_t& out_bytes_plaintext_;
         public:
@@ -438,15 +537,15 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
               out_bytes_header_(bytes_header), out_bytes_plaintext_(bytes_plaintext)
             {}
 
-            void set_outfile(std::ofstream* of) noexcept { outfile_ = of; }
+            void set_outfile(jau::io::ByteOutStream_File* of) noexcept { outfile_ = of; }
 
             bool getSendContent(const bool decrypt_mode) const noexcept override {
                 return true;
             }
 
-            bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+            bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
                 if( nullptr != outfile_ ) {
-                    outfile_->write(reinterpret_cast<char*>(data.data()), data.size());
+                    outfile_->write(data.data(), data.size());
                     if( outfile_->fail() ) {
                         return false;
                     }
@@ -486,8 +585,8 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
             }
         }
     }
-    std::ofstream outfile(dest_fname2, std::ios::out | std::ios::binary);
-    if ( !outfile.good() || !outfile.is_open() ) {
+    jau::io::ByteOutStream_File outfile(dest_fname2);
+    if ( !outfile.good() ) {
         ERR_PRINT2("Encrypt failed: Output file not open %s", dest_fname2.c_str());
         my_listener->notifyEnd(decrypt_mode, header, false);
         return header;
@@ -567,7 +666,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
     const jau::fraction_timespec _t0 = jau::getMonotonicTime();
 
-    if( source.end_of_data() || source.error() ) {
+    if( source.end_of_data() ) {
         ERR_PRINT2("Decrypt failed: Source is EOS or has an error %s", source.to_string().c_str());
         return header;
     }
@@ -626,6 +725,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
         jau::io::secure_vector<uint8_t> input_buffer;
         jau::io::ByteInStream_Recorder input(source, input_buffer);
+        WrappingDataSource winput(input);
         uint64_t in_bytes_header = 0;
 
         try {
@@ -634,7 +734,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             {
                 std::vector<uint8_t> package_magic_charvec;
 
-                Botan::BER_Decoder ber0(input);
+                Botan::BER_Decoder ber0(winput);
 
                 Botan::BER_Decoder ber = ber0.start_sequence();
                 ber.decode(package_magic_charvec, Botan::ASN1_Type::OctetString);
@@ -744,7 +844,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
             // DER-Header per receiver
             for(size_t idx=0; idx < recevr_count; idx++) {
-                Botan::BER_Decoder ber(input);
+                Botan::BER_Decoder ber(winput);
                 ber.start_sequence()
                    .decode(fingerprint_charvec, Botan::ASN1_Type::OctetString)
                    .decode(encrypted_sym_key_temp, Botan::ASN1_Type::OctetString)
@@ -796,7 +896,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
             const uint64_t in_bytes_signature = in_bytes_header;
             {
-                Botan::BER_Decoder ber(input);
+                Botan::BER_Decoder ber(winput);
                 ber.start_sequence()
                    .decode(sender_signature, Botan::ASN1_Type::OctetString)
                    .end_cons() // encrypted data follows ..
@@ -847,9 +947,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
         Botan::PK_Decryptor_EME dec(*dec_sec_key, rng, crypto_cfg.pk_enc_padding_algo+"(" + crypto_cfg.pk_enc_hash_algo + ")");
 
-        const jau::io::secure_vector<uint8_t> plain_file_key =
+        const cipherpack::secure_vector<uint8_t> plain_file_key =
                 dec.decrypt_or_random(encrypted_sym_key.data(), encrypted_sym_key.size(), expected_keylen, rng);
-        const jau::io::secure_vector<uint8_t> nonce = dec.decrypt(encrypted_nonce);
+        const cipherpack::secure_vector<uint8_t> nonce = dec.decrypt(encrypted_nonce);
         crypto_cfg.sym_enc_nonce_bytes = nonce.size();
         header = PackHeader(target_path,
                             plaintext_size,
@@ -875,7 +975,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
         const bool sent_content_to_user = listener->getSendContent( decrypt_mode );
         uint64_t out_bytes_plaintext = 0;
-        jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
+        _StreamConsumerFunc consume_data = [&](cipherpack::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
             const uint64_t next_total = out_bytes_plaintext + data.size();
             const size_t minimum_final_size = aead->minimum_final_size();
@@ -934,11 +1034,11 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         //
         // This avoids decryption errors using manual-feeding or a file pipe w/o content-size known.
         //
-        jau::io::secure_vector<uint8_t> io_buffer1;
-        jau::io::secure_vector<uint8_t> io_buffer2;
+        cipherpack::secure_vector<uint8_t> io_buffer1;
+        cipherpack::secure_vector<uint8_t> io_buffer2;
         io_buffer1.reserve(Constants::buffer_size);
         io_buffer2.reserve(Constants::buffer_size);
-        const uint64_t in_bytes_total = jau::io::read_stream(input, io_buffer1, io_buffer2, consume_data);
+        const uint64_t in_bytes_total = _read_stream(input, io_buffer1, io_buffer2, consume_data);
         input.close();
 
         if( nullptr != hash_func ) {
@@ -947,7 +1047,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             header.setPayloadHash(hash_func->name(), hash_value);
         }
 
-        if ( 0==in_bytes_total || source.error() ) {
+        if ( 0==in_bytes_total || source.fail() ) {
             ERR_PRINT2("Decrypt failed: Input file read failed %s", source.to_string().c_str());
             return header;
         }
@@ -1010,7 +1110,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
 
     class MyListener : public WrappingCipherpackListener {
         private:
-            std::ofstream* outfile_;
+            jau::io::ByteOutStream_File* outfile_;
             uint64_t& out_bytes_plaintext_;
         public:
             MyListener(CipherpackListenerRef parent_, uint64_t& bytes_plaintext)
@@ -1018,15 +1118,15 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
               out_bytes_plaintext_(bytes_plaintext)
             {}
 
-            void set_outfile(std::ofstream* of) noexcept { outfile_ = of; }
+            void set_outfile(jau::io::ByteOutStream_File* of) noexcept { outfile_ = of; }
 
             bool getSendContent(const bool decrypt_mode) const noexcept override {
                 return true;
             }
 
-            bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+            bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
                 if( nullptr != outfile_ && content_type::message == ctype ) {
-                    outfile_->write(reinterpret_cast<char*>(data.data()), data.size());
+                    outfile_->write(data.data(), data.size());
                     if( outfile_->fail() ) {
                         return false;
                     }
@@ -1057,9 +1157,9 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
             }
         }
     }
-    std::ofstream outfile(dest_fname2, std::ios::out | std::ios::binary);
-    if ( !outfile.good() || !outfile.is_open() ) {
-        ERR_PRINT2("Decrypt failed: Output file not open %s", dest_fname2.c_str());
+    jau::io::ByteOutStream_File outfile(dest_fname2);
+    if ( !outfile.good() ) {
+        ERR_PRINT2("Decrypt failed: Output file not open %s", outfile.to_string().c_str());
         my_listener->notifyEnd(decrypt_mode, header, false);
         return header;
     }

@@ -222,6 +222,47 @@ class Test01Cipherpack : public TestData {
             (void)_t0;
         }
 
+        void test00_enc_dec_file_single() {
+            {
+                const size_t file_idx = IDX_11kiB;
+                const std::string _path = fname_plaintext_lst[file_idx];
+                fprintf(stderr, "XXX: 0.0: '%s', len %zu\n", _path.c_str(), _path.length());
+                jau::io::ByteInStream_File* ref0 = new jau::io::ByteInStream_File(AT_FDCWD, _path);
+                if( nullptr == ref0 ) {
+                    fprintf(stderr, "XXX: 1.0: null\n");
+                } else {
+                    fprintf(stderr, "XXX: 1.1: %s\n", ref0->to_string().c_str());
+                    delete ref0;
+                }
+            }
+            const std::vector<std::string> enc_pub_keys { enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname };
+            const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
+            {
+                const size_t file_idx = IDX_11kiB;
+                jau::io::ByteInStream_File source(fname_plaintext_lst[file_idx]);
+                cipherpack::PackHeader ph1 = cipherpack::encryptThenSign(cipherpack::CryptoConfig::getDefault(),
+                                                                         enc_pub_keys,
+                                                                         sign_sec_key1_fname, sign_sec_key_passphrase,
+                                                                         source, fname_plaintext_lst[file_idx], "test00_enc_dec_file_single(", plaintext_version, plaintext_version_parent,
+                                                                         silentListener, cipherpack::default_hash_algo(), fname_encrypted_lst[file_idx]);
+                jau::PLAIN_PRINT(true, "test00_enc_dec_file_single(: Encrypted %s to %s\n", fname_plaintext_lst[file_idx].c_str(), fname_encrypted_lst[file_idx].c_str());
+                jau::PLAIN_PRINT(true, "test00_enc_dec_file_single(: %s\n", ph1.toString(true, true).c_str());
+                REQUIRE( ph1.isValid() == true );
+
+                jau::io::ByteInStream_File enc_stream(fname_encrypted_lst[file_idx]);
+                cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
+                                                                              enc_stream,
+                                                                              silentListener, ph1.getPlaintextHashAlgo(), fname_decrypted_lst[file_idx]);
+                jau::PLAIN_PRINT(true, "test00_enc_dec_file_single(: Decypted %s to %s\n", fname_encrypted_lst[file_idx].c_str(), fname_decrypted_lst[file_idx].c_str());
+                jau::PLAIN_PRINT(true, "test00_enc_dec_file_single(: %s\n", ph2.toString(true, true).c_str());
+                REQUIRE( ph2.isValid() == true );
+
+                hash_retest(ph1.getPlaintextHashAlgo(),
+                            fname_plaintext_lst[file_idx], ph1.getPlaintextHash(),
+                            fname_decrypted_lst[file_idx], ph2.getPlaintextHash());
+            }
+        }
+
         void test01_enc_dec_all_files() {
             const std::vector<std::string> enc_pub_keys { enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname };
             const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
@@ -660,7 +701,7 @@ class Test01Cipherpack : public TestData {
                     jau::fprintf_td(stderr, "Child: Error: outfile failed after write/closure\n");
                     ::_exit(EXIT_FAILURE);
                 }
-                if( infile.error() ) {
+                if( infile.fail() ) {
                     jau::fprintf_td(stderr, "Child: Error: infile failed after write/closure: %s\n", infile.to_string().c_str());
                     ::_exit(EXIT_FAILURE);
                 }
@@ -690,7 +731,7 @@ class Test01Cipherpack : public TestData {
                 // capture stdin
                 jau::io::ByteInStream_File infile(fd_stdin);
                 jau::fprintf_td(stderr, "Parent: infile %s\n", infile.to_string().c_str());
-                REQUIRE( !infile.error() );
+                REQUIRE( !infile.fail() );
 
                 {
                     const std::vector<std::string> enc_pub_keys { enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname };
@@ -799,7 +840,7 @@ class Test01Cipherpack : public TestData {
             }
             (void)xfer_total;
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed->set_eof( enc_stream.error() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
+            enc_feed->set_eof( enc_stream.fail() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
         }
 
         // throttled, with content size
@@ -836,7 +877,7 @@ class Test01Cipherpack : public TestData {
                 }
             }
             (void)xfer_total;
-            enc_feed->set_eof( enc_stream.error() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
+            enc_feed->set_eof( enc_stream.fail() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
         }
 
         // full speed, with content size
@@ -1049,6 +1090,7 @@ std::vector<std::string> Test01Cipherpack::fname_plaintext_lst;
 std::vector<std::string> Test01Cipherpack::fname_encrypted_lst;
 std::vector<std::string> Test01Cipherpack::fname_decrypted_lst;
 
+METHOD_AS_TEST_CASE( Test01Cipherpack::test00_enc_dec_file_single,"test00_enc_dec_file_single",   "[file][file_ok][ok]");
 METHOD_AS_TEST_CASE( Test01Cipherpack::test01_enc_dec_all_files,  "test01_enc_dec_all_files",   "[file][file_ok][ok]");
 METHOD_AS_TEST_CASE( Test01Cipherpack::test02_enc_dec_file_misc,  "test02_enc_dec_file_misc",   "[file][file_ok][ok]");
 METHOD_AS_TEST_CASE( Test01Cipherpack::test03_enc_dec_file_perf,  "test03_enc_dec_file_perf",   "[file][file_ok][file_fast][fast][ok]");

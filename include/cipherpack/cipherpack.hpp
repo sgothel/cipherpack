@@ -163,6 +163,38 @@ namespace cipherpack {
             }
     };
 
+    template<typename T> using secure_vector = std::vector<T, Botan::secure_allocator<T>>;
+
+    /**
+    * This class represents an abstract data source object.
+    */
+    class WrappingDataSource : public Botan::DataSource
+    {
+       public:
+          jau::io::ByteInStream& in;
+
+          WrappingDataSource(jau::io::ByteInStream& in_)
+          : in(in_) {}
+
+          [[nodiscard]] size_t read(uint8_t out[], size_t length) override
+          { return in.read(out, length); }
+
+          bool check_available(size_t n) override
+          { return in.available(n); }
+
+          [[nodiscard]] size_t peek(uint8_t out[], size_t length, size_t peek_offset) const override
+          { return in.peek(out, length, peek_offset); }
+
+          bool end_of_data() const override
+          { return in.end_of_data(); }
+
+          std::string id() const override
+          { return in.id(); }
+
+          size_t get_bytes_read() const override
+          { return static_cast<size_t>( in.tellg() ); }
+    };
+
     /**
      * CryptoConfig, contains crypto algorithms settings given at encryption wired via the @ref cipherpack_stream "Cipherpack Data Stream",
      * hence received and used at decryption if matching keys are available.
@@ -491,7 +523,7 @@ namespace cipherpack {
              * @return true to signal continuation, false to end streaming.
              * @see getSendContent()
              */
-            virtual bool contentProcessed(const bool decrypt_mode, const content_type ctype, jau::io::secure_vector<uint8_t>& data, const bool is_final) noexcept {
+            virtual bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept {
                 (void)decrypt_mode;
                 (void)ctype;
                 (void)data;
