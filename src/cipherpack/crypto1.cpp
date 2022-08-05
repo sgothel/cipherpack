@@ -545,7 +545,9 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
 
             bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
                 if( nullptr != outfile_ ) {
-                    outfile_->write(data.data(), data.size());
+                    if( data.size() != outfile_->write(data.data(), data.size()) ) {
+                        return false;
+                    }
                     if( outfile_->fail() ) {
                         return false;
                     }
@@ -1126,7 +1128,9 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
 
             bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
                 if( nullptr != outfile_ && content_type::message == ctype ) {
-                    outfile_->write(data.data(), data.size());
+                    if( data.size() != outfile_->write(data.data(), data.size()) ) {
+                        return false;
+                    }
                     if( outfile_->fail() ) {
                         return false;
                     }

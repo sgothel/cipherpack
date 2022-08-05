@@ -361,16 +361,25 @@ bool cipherpack::hash_util::append_to_file(const std::string& out_file, const st
     if( !out.good() ) {
         return false;
     }
-    out.write(hash_algo.data(), hash_algo.size());
-    out.write(" ", 1);
-    out.write(hash_str.data(), hash_str.size());
-    out.write(" *", 2);
-    out.write(hashed_file.data(), hashed_file.size());
-    out.write("\n", 1);
-    if( !out.good() ) {
+    if( hash_algo.size() != out.write(hash_algo.data(), hash_algo.size()) ) {
         return false;
     }
-    return true;
+    if( 1 != out.write(" ", 1) ) {
+        return false;
+    }
+    if( hash_str.size() != out.write(hash_str.data(), hash_str.size()) ) {
+        return false;
+    }
+    if( 2 != out.write(" *", 2) ) {
+        return false;
+    }
+    if( hashed_file.size() != out.write(hashed_file.data(), hashed_file.size()) ) {
+        return false;
+    }
+    if( 1 != out.write("\n", 1) ) {
+        return false;
+    }
+    return out.good();
 }
 
 std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, jau::io::ByteInStream& source) noexcept {
