@@ -17,6 +17,7 @@ add_jar(cipherpack_jar
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_URL.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_Feed.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStreamUtil.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteOutStream_File.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/UriTk.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/CopyOptions.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/DirItem.java

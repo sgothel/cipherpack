@@ -179,3 +179,39 @@
 #
 
 
+{
+   cipherpack_curl01
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.30.29.1
+   ...
+   fun:_dl_init
+   ...
+}
+{
+   cipherpack_curl02
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.30.29.1
+   ...
+   fun:_dl_init
+   ...
+}
+{
+   cipherpack_curl03
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/libgcrypt.so.20.2.8
+   ...
+   fun:libssh2_init
+   ...
+   fun:_ZN10cipherpack11environmentC1Ev
+   ...
+}
+

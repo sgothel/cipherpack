@@ -29,6 +29,7 @@ set (cipherpack_JNI_SRCS
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/ByteInStream_File.cxx
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/ByteInStream_URL.cxx
   ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/ByteInStream_Feed.cxx
+  ${PROJECT_SOURCE_DIR}/jaulib/java_jni/jni/jau/ByteOutStream_File.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/helper_base.cxx
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/Cipherpack.cxx        
   ${PROJECT_SOURCE_DIR}/java/jni/cipherpack/CipherpackListener.cxx
