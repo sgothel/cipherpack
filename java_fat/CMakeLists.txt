@@ -53,11 +53,14 @@ add_custom_command (OUTPUT ${cipherpack_fat_jar_file} ${cipherpack_java_src_file
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/sys/Clock.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/PrintUtil.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/MemUtil.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/IOStateFunc.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream_File.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream_URL.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStream_Feed.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteInStreamUtil.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteOutStream.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/ByteOutStream_File.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/UriTk.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/CopyOptions.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/DirItem.java
