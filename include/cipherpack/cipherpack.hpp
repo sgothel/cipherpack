@@ -107,12 +107,12 @@ namespace cipherpack {
       *     ASN1_Type::OctetString               subject                   // optional subject of message, user application specific.
       *     ASN1_Type::OctetString               plaintext_version         // version of this plaintext message, user application specific.
       *     ASN1_Type::OctetString               plaintext_version_parent  // version of this plaintext message's preceding message, user application specific.
-      *     ASN1_Type::OctetString               pk_type                   // public-key type. Default "RSA".
-      *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash. Default "SHA-256".
-      *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding. Default "OAEP".
-      *     ASN1_Type::OctetString               pk_enc_hash_algo          // public-key encryption hash. Default "SHA-256".
-      *     ASN1_Type::OctetString               pk_sign_algo              // public-key signature algorithm. Default "EMSA1(SHA-256)".
-      *     ASN1_Type::ObjectId                  sym_enc_mac_oid           // symmetric-key encryption+MAC algorithm. Default "ChaCha20Poly1305".
+      *     ASN1_Type::OctetString               pk_type                   // public-key type. Default `RSA`.
+      *     ASN1_Type::OctetString               pk_fingerprt_hash_algo    // public-key fingerprint hash. Default `SHA-256`.
+      *     ASN1_Type::OctetString               pk_enc_padding_algo       // public-key encryption padding. Default `OAEP`.
+      *     ASN1_Type::OctetString               pk_enc_hash_algo          // public-key encryption hash. Default `SHA-256`.
+      *     ASN1_Type::OctetString               pk_sign_algo              // public-key signature algorithm. Default `EMSA1(SHA-256)`.
+      *     ASN1_Type::ObjectId                  sym_enc_mac_oid           // symmetric-key encryption+MAC algorithm. Default `ChaCha20Poly1305`.
       *     ASN1_Type::OctetString               fingerprt_sender          // fingerprint of public sender key used for header signature
       *     ASN1_Type::Integer                   receiver_count,           // number of receiver triples { fingerprint, encrypted-symmetric-keys, encrypted-nonce }
       * }
@@ -129,7 +129,7 @@ namespace cipherpack {
       * DER Header 2 {
       *     ASN1_Type::OctetString               sign_sender               // sender's signature over whole header, matching fingerprt_sender
       * },
-      * uint8_t encrypted_data[content_size]                               // the encrypted message, content_size bytes
+      * uint8_t encrypted_data[ciphertext_size]                            // the encrypted message, `ciphertext_size` bytes resulting to `plaintext_size` plaintext message
       * ```
       *
       * @see encryptThenSign()
