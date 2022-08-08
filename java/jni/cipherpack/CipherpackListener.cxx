@@ -162,10 +162,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
 
         // TODO: Consider using a cached buffer of some sort, avoiding: (1) memory allocation, (2) copy the data
         // Avoiding copy the data will be hard though ..
-        const size_t data_size = data.size();
-        jbyteArray jdata = env->NewByteArray((jsize)data_size);
-        env->SetByteArrayRegion(jdata, 0, (jsize)data_size, (const jbyte *)data.data());
-        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+        jbyteArray jdata = jau::jni::convert_bytes_to_jbytearray(env, data);
 
         jboolean res = env->CallBooleanMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mContentProcessedImpl,
                             decrypt_mode ? JNI_TRUE : JNI_FALSE,

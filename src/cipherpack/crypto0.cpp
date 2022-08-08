@@ -94,7 +94,7 @@ void environment::print_info() noexcept {
     cp_print_hash_provider("BLAKE2b(512)");
 }
 
-const std::string Constants::package_magic              = "CIPHERPACK_0003";
+const std::string Constants::package_magic              = "CIPHERPACK_0004";
 
 static const std::string default_pk_type                = "RSA";
 static const std::string default_pk_fingerprt_hash_algo = "SHA-256";
@@ -143,22 +143,22 @@ std::string CryptoConfig::to_string() const noexcept {
             "'], sym['"+sym_enc_algo+"', nonce "+std::to_string(sym_enc_nonce_bytes)+" bytes]]";
 }
 
-std::string PackHeader::toString(const bool show_crypto_algos, const bool force_all_fingerprints) const noexcept {
-    const std::string crypto_str = show_crypto_algos ? ", "+crypto_cfg.to_string() : "";
+std::string PackHeader::to_string(const bool show_crypto_algos, const bool force_all_fingerprints) const noexcept {
+    const std::string crypto_str = show_crypto_algos ? ", "+crypto_cfg_.to_string() : "";
 
     std::string recevr_fingerprint_str;
     {
-        if( 0 <= used_recevr_key_idx ) {
-            recevr_fingerprint_str += "dec '"+recevr_fingerprints.at(used_recevr_key_idx)+"', ";
+        if( 0 <= used_recevr_key_idx_ ) {
+            recevr_fingerprint_str += "dec '"+jau::bytesHexString(recevr_fingerprints_.at(used_recevr_key_idx_), true /* lsbFirst */)+"', ";
         }
-        if( force_all_fingerprints || 0 > used_recevr_key_idx ) {
+        if( force_all_fingerprints || 0 > used_recevr_key_idx_ ) {
             recevr_fingerprint_str += "enc[";
             int i = 0;
-            for(const std::string& tkf : recevr_fingerprints) {
+            for(const std::vector<uint8_t>& tkf : recevr_fingerprints_) {
                 if( 0 < i ) {
                     recevr_fingerprint_str += ", ";
                 }
-                recevr_fingerprint_str += "'"+tkf+"'";
+                recevr_fingerprint_str += "'"+jau::bytesHexString(tkf, true /* lsbFirst */)+"'";
                 ++i;
             }
             recevr_fingerprint_str += "]";
@@ -167,13 +167,13 @@ std::string PackHeader::toString(const bool show_crypto_algos, const bool force_
 
     std::string res = "Header[";
     res += "valid "+std::to_string( isValid() )+
-           ", file[target_path '"+target_path+"', plaintext_size "+jau::to_decstring(plaintext_size).c_str()+
-           "], creation "+ts_creation.to_iso8601_string()+" UTC, subject '"+subject+"', "+
-           " version['"+plaintext_version+
-           "', parent '"+plaintext_version_parent+"']"+crypto_str+
-           ", fingerprints[sender '"+sender_fingerprint+
+           ", file[target_path '"+target_path_+"', plaintext_size "+jau::to_decstring(plaintext_size_).c_str()+
+           "], creation "+ts_creation_.to_iso8601_string()+" UTC, subject '"+subject_+"', "+
+           " version['"+plaintext_version_+
+           "', parent '"+plaintext_version_parent_+"']"+crypto_str+
+           ", fingerprints[sender '"+jau::bytesHexString(sender_fingerprint_, true /* lsbFirst */)+
            "', recevr["+recevr_fingerprint_str+
-           "]], phash['"+plaintext_hash_algo+"', sz "+std::to_string(plaintext_hash.size())+"]]";
+           "]], phash['"+plaintext_hash_algo_+"', sz "+std::to_string(plaintext_hash_.size())+"]]";
     return res;
 }
 

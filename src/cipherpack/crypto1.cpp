@@ -196,6 +196,14 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
     return total_send;
 }
 
+static std::vector<uint8_t> _fingerprint_public(const Botan::Public_Key& key, Botan::HashFunction& hash_func) {
+    std::vector<uint8_t> fp( hash_func.output_length() );
+    hash_func.clear();
+    hash_func.update( key.subject_public_key() );
+    hash_func.final( fp.data() );
+    return fp;
+}
+
 static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                                        const std::vector<std::string>& enc_pub_keys,
                                        const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
@@ -215,8 +223,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                       subject,
                       plaintext_version, plaintext_version_parent,
                       crypto_cfg,
-                      std::string(),
-                      std::vector<std::string>(),
+                      std::vector<uint8_t>(),
+                      std::vector<std::vector<uint8_t>>(),
                       -1 /* term_key_fingerprint_used_idx */,
                       false /* valid */);
 
@@ -242,15 +250,21 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
     uint64_t out_bytes_header = 0;
 
     try {
-        std::unique_ptr<Botan::HashFunction> hash_func = nullptr;
+        std::unique_ptr<Botan::HashFunction> plaintext_hash_func = nullptr;
         if( !plaintext_hash_algo.empty() ) {
             const std::string plaintext_hash_algo_s(plaintext_hash_algo);
-            hash_func = Botan::HashFunction::create(plaintext_hash_algo_s);
-            if( nullptr == hash_func ) {
+            plaintext_hash_func = Botan::HashFunction::create(plaintext_hash_algo_s);
+            if( nullptr == plaintext_hash_func ) {
                 ERR_PRINT2("Encrypt failed: Plaintext hash algo %s not available", plaintext_hash_algo_s.c_str());
                 return header;
             }
         }
+        std::unique_ptr<Botan::HashFunction> fingerprint_hash_func = Botan::HashFunction::create(crypto_cfg.pk_fingerprt_hash_algo);
+        if( nullptr == fingerprint_hash_func ) {
+            ERR_PRINT2("Encrypt failed: Fingerprint hash algo '%s' not available", crypto_cfg.pk_fingerprt_hash_algo.c_str());
+            return header;
+        }
+
         Botan::RandomNumberGenerator& rng = Botan::system_rng();
 
         std::shared_ptr<Botan::Private_Key> sign_sec_key = load_private_key(sign_sec_key_fname, passphrase);
@@ -270,15 +284,16 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         }
         cipherpack::secure_vector<uint8_t> plain_sym_key = rng.random_vec(aead->key_spec().maximum_keylength());
         cipherpack::secure_vector<uint8_t> nonce = rng.random_vec(crypto_cfg.sym_enc_nonce_bytes);
-        const std::string sender_fingerprint = sign_sec_key->fingerprint_public(crypto_cfg.pk_fingerprt_hash_algo);
+        std::vector<uint8_t> sender_fingerprint = _fingerprint_public(*sign_sec_key, *fingerprint_hash_func);
 
         struct recevr_data_t {
             std::shared_ptr<Botan::Public_Key> pub_key;
+            std::vector<uint8_t> fingerprint;
             std::vector<uint8_t> encrypted_sym_key;
             std::vector<uint8_t> encrypted_nonce;
         };
         std::vector<recevr_data_t> recevr_data_list;
-        std::vector<std::string> recevr_fingerprints;
+        std::vector<std::vector<uint8_t>> recevr_fingerprints;
 
         for( const std::string& pub_key_fname : enc_pub_keys ) {
             recevr_data_t recevr_data;
@@ -288,7 +303,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 return header;
             }
             Botan::PK_Encryptor_EME enc(*recevr_data.pub_key, rng, crypto_cfg.pk_enc_padding_algo+"(" + crypto_cfg.pk_enc_hash_algo + ")");
-
+            recevr_data.fingerprint = _fingerprint_public(*recevr_data.pub_key, *fingerprint_hash_func);
+            recevr_fingerprints.push_back(recevr_data.fingerprint);
             recevr_data.encrypted_sym_key = enc.encrypt(plain_sym_key, rng);
             recevr_data.encrypted_nonce = enc.encrypt(nonce, rng);
             recevr_data_list.push_back(recevr_data);
@@ -318,7 +334,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                    .encode( to_OctetString( crypto_cfg.pk_enc_hash_algo ), Botan::ASN1_Type::OctetString )
                    .encode( to_OctetString( crypto_cfg.pk_sign_algo ), Botan::ASN1_Type::OctetString )
                    .encode( sym_enc_algo_oid )
-                   .encode( to_OctetString( sender_fingerprint ), Botan::ASN1_Type::OctetString )
+                   .encode( sender_fingerprint, Botan::ASN1_Type::OctetString )
                    .encode( recevr_data_list.size(), Botan::ASN1_Type::Integer )
                    .end_cons(); // data push
             }
@@ -332,15 +348,12 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             DBG_PRINT("Encrypt: DER Header1 written + %zu bytes / %" PRIu64 " bytes", header_buffer.size(), out_bytes_header);
 
             for(const recevr_data_t& recevr_data : recevr_data_list) {
-                const std::string recevr_fingerprt = recevr_data.pub_key->fingerprint_public(crypto_cfg.pk_fingerprt_hash_algo);
-                recevr_fingerprints.push_back(recevr_fingerprt);
-
                 // DER Header recevr_n
                 header_buffer.clear();
                 {
                     Botan::DER_Encoder der(header_buffer);
                     der.start_sequence()
-                       .encode( to_OctetString( recevr_fingerprt ), Botan::ASN1_Type::OctetString )
+                       .encode( recevr_data.fingerprint, Botan::ASN1_Type::OctetString )
                        .encode( recevr_data.encrypted_sym_key, Botan::ASN1_Type::OctetString )
                        .encode( recevr_data.encrypted_nonce, Botan::ASN1_Type::OctetString )
                        .end_cons();
@@ -356,7 +369,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             // DER-Header-2 (signature)
             sender_signature = signer.signature(rng);
             DBG_PRINT("Encrypt: Signature for %" PRIu64 " bytes: %s", out_bytes_header,
-                    jau::bytesHexString(sender_signature.data(), 0, sender_signature.size(), true /* lsbFirst */).c_str());
+                    jau::bytesHexString(sender_signature, true /* lsbFirst */).c_str());
             header_buffer.clear();
             {
                 Botan::DER_Encoder der(header_buffer);
@@ -383,7 +396,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                             false /* valid */);
 
         DBG_PRINT("Encrypt: DER Header done, %" PRIu64 " header: %s",
-                out_bytes_header, header.toString(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
+                out_bytes_header, header.to_string(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
 
         listener->notifyHeader(decrypt_mode, header, true /* verified */);
 
@@ -401,8 +414,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             bool res = true;
             // A simple !is_final suffices, since a final call w/ zero bytes shall add a TAG or padding depending on AEAD.
             if( !is_final ) {
-                if( nullptr != hash_func ) {
-                    hash_func->update(data);
+                if( nullptr != plaintext_hash_func ) {
+                    plaintext_hash_func->update(data);
                 }
                 aead->update(data);
                 if( sent_content_to_user ) {
@@ -413,8 +426,8 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                         data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
                 listener->notifyProgress(decrypt_mode, plaintext_size, source.tellg());
             } else {
-                if( nullptr != hash_func ) {
-                    hash_func->update(data);
+                if( nullptr != plaintext_hash_func ) {
+                    plaintext_hash_func->update(data);
                 }
                 aead->finish(data);
                 if( sent_content_to_user ) {
@@ -423,7 +436,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                 out_bytes_ciphertext += data.size();
                 if( !has_plaintext_size ) {
                     plaintext_size = out_bytes_ciphertext;
-                    header.setPlaintextSize(plaintext_size);
+                    header.set_plaintext_size(plaintext_size);
                 }
                 DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
@@ -439,10 +452,10 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         const uint64_t in_bytes_total = _read_stream(source, io_buffer, consume_data);
         source.close();
 
-        if( nullptr != hash_func ) {
-            std::vector<uint8_t> hash_value( hash_func->output_length() );
-            hash_func->final(hash_value.data());
-            header.setPayloadHash(hash_func->name(), hash_value);
+        if( nullptr != plaintext_hash_func ) {
+            std::vector<uint8_t> hash_value( plaintext_hash_func->output_length() );
+            plaintext_hash_func->final(hash_value.data());
+            header.set_plaintext_hash(plaintext_hash_func->name(), hash_value);
         }
 
         if ( source.fail() ) {
@@ -516,8 +529,8 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                       subject,
                       plaintext_version, plaintext_version_parent,
                       crypto_cfg,
-                      std::string(),
-                      std::vector<std::string>(),
+                      std::vector<uint8_t>(),
+                      std::vector<std::vector<uint8_t>>(),
                       -1 /* term_key_fingerprint_used_idx */,
                       false /* valid */);
 
@@ -675,9 +688,10 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
     try {
         Botan::RandomNumberGenerator& rng = Botan::system_rng();
 
+        std::unique_ptr<Botan::HashFunction> fingerprint_hash_func;
         struct sender_data_t {
             std::shared_ptr<Botan::Public_Key> pub_key;
-            std::string fingerprint;
+            std::vector<uint8_t> fingerprint;
         };
         std::vector<sender_data_t> sender_data_list;
         for( const std::string& pub_key_fname : sign_pub_keys ) {
@@ -690,7 +704,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         }
         std::shared_ptr<Botan::Public_Key> sender_pub_key = nullptr; // not found
 
-        std::vector<std::string> recevr_fingerprints;
+        std::vector<std::vector<uint8_t>> recevr_fingerprints;
         std::shared_ptr<Botan::Private_Key> dec_sec_key = load_private_key(dec_sec_key_fname, passphrase);
         if( !dec_sec_key ) {
             return header;
@@ -707,7 +721,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         CryptoConfig crypto_cfg;
         Botan::OID sym_enc_algo_oid;
 
-        std::string fingerprt_sender;
+        std::vector<uint8_t> fingerprt_sender;
         size_t recevr_count;
         ssize_t used_recevr_key_idx = -1;
         std::vector<uint8_t> encrypted_sym_key;
@@ -761,8 +775,6 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 std::vector<uint8_t> pk_enc_padding_algo_cv;
                 std::vector<uint8_t> pk_enc_hash_algo_cv;
                 std::vector<uint8_t> pk_sign_algo_cv;
-
-                std::vector<uint8_t> fingerprt_sender_charvec;
                 Botan::BigInt bi_recevr_count;
 
                 ber.decode( target_path_charvec, Botan::ASN1_Type::OctetString )
@@ -778,7 +790,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                    .decode( pk_enc_hash_algo_cv, Botan::ASN1_Type::OctetString )
                    .decode( pk_sign_algo_cv, Botan::ASN1_Type::OctetString )
                    .decode( sym_enc_algo_oid )
-                   .decode( fingerprt_sender_charvec, Botan::ASN1_Type::OctetString )
+                   .decode( fingerprt_sender, Botan::ASN1_Type::OctetString )
                    .decode( bi_recevr_count, Botan::ASN1_Type::Integer )
                    .end_cons()
                    ;
@@ -797,7 +809,6 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 crypto_cfg.pk_enc_hash_algo = to_string( pk_enc_hash_algo_cv );
                 crypto_cfg.pk_sign_algo = to_string( pk_sign_algo_cv );
                 crypto_cfg.sym_enc_algo = Botan::OIDS::oid2str_or_empty( sym_enc_algo_oid );
-                fingerprt_sender = to_string(fingerprt_sender_charvec);
                 recevr_count = to_uint64_t(bi_recevr_count);
             }
 
@@ -812,16 +823,20 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                 used_recevr_key_idx,
                                 false /* valid */);
 
-            for( sender_data_t& sign_key_data : sender_data_list ) {
-                if( sign_key_data.pub_key->algo_name() == crypto_cfg.pk_type ) {
-                    sign_key_data.fingerprint = sign_key_data.pub_key->fingerprint_public( crypto_cfg.pk_fingerprt_hash_algo );
-                }
+            if( fingerprt_sender.empty() ) {
+                ERR_PRINT2("Decrypt failed: Fingerprint sender is empty");
+                return header;
             }
-            if( !fingerprt_sender.empty() ) {
-                for( const sender_data_t& sender_data : sender_data_list ) {
-                    if( sender_data.pub_key->algo_name() == crypto_cfg.pk_type &&
-                        fingerprt_sender == sender_data.fingerprint )
-                    {
+            fingerprint_hash_func = Botan::HashFunction::create(crypto_cfg.pk_fingerprt_hash_algo);
+            if( nullptr == fingerprint_hash_func ) {
+                ERR_PRINT2("Decrypt failed: Fingerprint hash algo '%s' not available", crypto_cfg.pk_fingerprt_hash_algo.c_str());
+                return header;
+            }
+
+            for( sender_data_t& sender_data : sender_data_list ) {
+                if( sender_data.pub_key->algo_name() == crypto_cfg.pk_type ) {
+                    sender_data.fingerprint = _fingerprint_public( *sender_data.pub_key, *fingerprint_hash_func );
+                    if( fingerprt_sender == sender_data.fingerprint ) {
                             sender_pub_key = sender_data.pub_key;
                             break;
                     }
@@ -829,7 +844,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             }
             if( nullptr == sender_pub_key ) {
                 jau::INFO_PRINT("Decrypt failed: No matching sender fingerprint, received `%s` in %s",
-                        fingerprt_sender.c_str(), source.to_string().c_str());
+                        jau::bytesHexString(fingerprt_sender, true /* lsbFirst */).c_str(), source.to_string().c_str());
                 listener->notifyHeader(decrypt_mode, header, false);
                 return header;
             }
@@ -839,8 +854,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             in_bytes_header += input.get_recording().size();
             input.start_recording(); // start over ..
 
-            const std::string dec_key_fingerprint = dec_sec_key->fingerprint_public(crypto_cfg.pk_fingerprt_hash_algo);
-            std::vector<uint8_t> fingerprint_charvec;
+            const std::vector<uint8_t> dec_key_fingerprint = _fingerprint_public( *dec_sec_key, *fingerprint_hash_func );
+            std::vector<uint8_t> receiver_fingerprint_temp;
             std::vector<uint8_t> encrypted_sym_key_temp;
             std::vector<uint8_t> encrypted_nonce_temp;
 
@@ -848,7 +863,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             for(size_t idx=0; idx < recevr_count; idx++) {
                 Botan::BER_Decoder ber(winput);
                 ber.start_sequence()
-                   .decode(fingerprint_charvec, Botan::ASN1_Type::OctetString)
+                   .decode(receiver_fingerprint_temp, Botan::ASN1_Type::OctetString)
                    .decode(encrypted_sym_key_temp, Botan::ASN1_Type::OctetString)
                    .decode(encrypted_nonce_temp, Botan::ASN1_Type::OctetString)
                    .end_cons()
@@ -857,11 +872,10 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 in_bytes_header += input.get_recording().size();
                 input.start_recording(); // start over ..
 
-                const std::string fingerprint = to_string(fingerprint_charvec);
-                recevr_fingerprints.push_back(fingerprint);
+                recevr_fingerprints.push_back(receiver_fingerprint_temp);
 
                 if( 0 > used_recevr_key_idx  ) {
-                    if( !fingerprint.empty() && fingerprint == dec_key_fingerprint ) {
+                    if( !receiver_fingerprint_temp.empty() && receiver_fingerprint_temp == dec_key_fingerprint ) {
                         // match, we found our entry
                         used_recevr_key_idx = idx;
                         encrypted_sym_key = encrypted_sym_key_temp; // pick the encrypted key
@@ -909,7 +923,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             if( !verifier.check_signature(sender_signature) ) {
                 ERR_PRINT2("Decrypt failed: Signature mismatch on %" PRIu64 " header bytes / % " PRIu64 " bytes, received signature %s in %s",
                         in_bytes_signature, in_bytes_header,
-                        jau::bytesHexString(sender_signature.data(), 0, sender_signature.size(), true /* lsbFirst */).c_str(),
+                        jau::bytesHexString(sender_signature, true /* lsbFirst */).c_str(),
                         source.to_string().c_str());
                 listener->notifyHeader(decrypt_mode, header, false);
                 return header;
@@ -917,12 +931,12 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
             DBG_PRINT("Decrypt: Signature OK for %" PRIu64 " header bytes / %" PRIu64 ": %s from %s",
                     in_bytes_signature, in_bytes_header,
-                    jau::bytesHexString(sender_signature.data(), 0, sender_signature.size(), true /* lsbFirst */).c_str(),
+                    jau::bytesHexString(sender_signature, true /* lsbFirst */).c_str(),
                     source.to_string().c_str());
 
             DBG_PRINT("Decrypt: DER Header*: enc_key %zu/%zu (size %zd): %s",
                     used_recevr_key_idx, recevr_count, encrypted_sym_key.size(),
-                    header.toString(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
+                    header.to_string(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
         } catch (Botan::Decoding_Error &e) {
             ERR_PRINT("Decrypt failed: Caught exception: %s on %s", e.what(), source.to_string().c_str());
             return header;
@@ -1023,7 +1037,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 out_bytes_plaintext += data.size();
                 if( !has_plaintext_size ) {
                     plaintext_size = out_bytes_plaintext;
-                    header.setPlaintextSize(plaintext_size);
+                    header.set_plaintext_size(plaintext_size);
                 }
                 DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_plaintext, plaintext_size, sent_content_to_user, res);
@@ -1046,7 +1060,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         if( nullptr != hash_func ) {
             std::vector<uint8_t> hash_value( hash_func->output_length() );
             hash_func->final(hash_value.data());
-            header.setPayloadHash(hash_func->name(), hash_value);
+            header.set_plaintext_hash(hash_func->name(), hash_value);
         }
 
         if ( 0==in_bytes_total || source.fail() ) {
@@ -1196,9 +1210,9 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     }
     // outfile closed
     const jau::fs::file_stats output_stats(dest_fname2);
-    if( output_stats.is_file() && ph.getPlaintextSize() != output_stats.size() ) {
+    if( output_stats.is_file() && ph.plaintext_size() != output_stats.size() ) {
         ERR_PRINT2("Decrypt: Writing done, %s plaintext_size != %s total bytes",
-                jau::to_decstring(ph.getPlaintextSize()).c_str(),
+                jau::to_decstring(ph.plaintext_size()).c_str(),
                 jau::to_decstring(output_stats.size()).c_str());
         if( output_stats.is_file() && !output_stats.has_fd() ) {
             jau::fs::remove(dest_fname2);

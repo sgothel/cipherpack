@@ -112,9 +112,7 @@ jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl1(JNIEnv *env, j
         if( nullptr == hash ) {
             return nullptr;
         }
-        jbyteArray jhash = env->NewByteArray((jsize)hash->size());
-        env->SetByteArrayRegion(jhash, 0, (jsize)hash->size(), (const jbyte *)hash->data());
-        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+        jbyteArray jhash = jau::jni::convert_bytes_to_jbytearray(env, *hash);
         return jhash;
     } catch(...) {
         rethrow_and_raise_java_exception(env);
@@ -145,9 +143,7 @@ jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, j
         if( nullptr == hash ) {
             return nullptr;
         }
-        jbyteArray jhash = env->NewByteArray((jsize)hash->size());
-        env->SetByteArrayRegion(jhash, 0, (jsize)hash->size(), (const jbyte *)hash->data());
-        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+        jbyteArray jhash = jau::jni::convert_bytes_to_jbytearray(env, *hash);
         return jhash;
     } catch(...) {
         rethrow_and_raise_java_exception(env);

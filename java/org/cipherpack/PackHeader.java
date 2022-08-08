@@ -29,6 +29,8 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jau.util.BasicTypes;
+
 /**
  * Cipherpack header less encrypted keys or signatures as described in @ref cipherpack_stream "Cipherpack Data Stream"
  *
@@ -60,10 +62,10 @@ public class PackHeader {
     public final CryptoConfig crypto_cfg;
 
     /** Sender's public-key fingerprint used to sign, see @ref cipherpack_stream "Cipherpack Data Stream".. */
-    public final String sender_fingerprint;
+    public final byte[] sender_fingerprint;
 
     /** List of receiver's public-keys fingerprints used to encrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream". */
-    public final List<String> recevr_fingerprints;
+    public final List<byte[]> recevr_fingerprints;
 
     /** Index of the matching receiver's public-key fingerprint used to decrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream", -1 if not found or not decrypting. */
     public final int used_recevr_key_idx;
@@ -94,8 +96,8 @@ public class PackHeader {
         this.plaintext_version = "0";
         this.plaintext_version_parent = "0";
         this.crypto_cfg = new CryptoConfig();
-        this.sender_fingerprint = "";
-        this.recevr_fingerprints = new ArrayList<String>();
+        this.sender_fingerprint = new byte[0];
+        this.recevr_fingerprints = new ArrayList<byte[]>();
         this.used_recevr_key_idx = -1;
         this.plaintext_hash_algo = "";
         this.plaintext_hash = new byte[0];
@@ -109,8 +111,8 @@ public class PackHeader {
                final String subject_,
                final String pversion, final String pversion_parent,
                final CryptoConfig crypto_cfg_,
-               final String sender_key_fingerprint_,
-               final List<String> recevr_fingerprint_,
+               final byte[] sender_key_fingerprint_,
+               final List<byte[]> recevr_fingerprint_,
                final int used_recevr_key_idx_,
                final String plaintext_hash_algo_,
                final byte[] plaintext_hash_,
@@ -143,16 +145,17 @@ public class PackHeader {
         final StringBuilder recevr_fingerprint = new StringBuilder();
         {
             if( 0 <= used_recevr_key_idx ) {
-                recevr_fingerprint.append( "dec '").append(recevr_fingerprints.get(used_recevr_key_idx)).append("', ");
+                final byte[] fp = recevr_fingerprints.get(used_recevr_key_idx);
+                recevr_fingerprint.append( "dec '").append(BasicTypes.bytesHexString(fp, 0, fp.length, true /* lsb */)).append("', ");
             }
             if( force_all_fingerprints || 0 > used_recevr_key_idx ) {
                 recevr_fingerprint.append("enc[");
                 int i = 0;
-                for(final String tkf : recevr_fingerprints) {
+                for(final byte[] tkf : recevr_fingerprints) {
                     if( 0 < i ) {
                         recevr_fingerprint.append(", ");
                     }
-                    recevr_fingerprint.append("'").append(tkf).append("'");
+                    recevr_fingerprint.append("'").append(BasicTypes.bytesHexString(tkf, 0, tkf.length, true /* lsb */)).append("'");
                     ++i;
                 }
                 recevr_fingerprint.append("]");
@@ -164,7 +167,7 @@ public class PackHeader {
                "], creation "+utc_creation.toString()+" , subject '"+subject+"', "+
                " version['"+plaintext_version+
                "', parent '"+plaintext_version_parent+"']"+crypto_str+
-               ", fingerprints[sender '"+sender_fingerprint+
+               ", fingerprints[sender '"+BasicTypes.bytesHexString(sender_fingerprint, 0, sender_fingerprint.length, true /* lsb */)+
                "', recevr["+recevr_fingerprint+
                "]], phash['"+plaintext_hash_algo+"', sz "+plaintext_hash.length+"]]";
         return res;

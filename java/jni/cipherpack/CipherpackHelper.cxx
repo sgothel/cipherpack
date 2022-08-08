@@ -32,7 +32,7 @@ static const std::string _cryptoConfigClassName("org/cipherpack/CryptoConfig");
 static const std::string _cryptoConfigClazzCtorArgs("(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V");
 
 static const std::string _packHeaderClassName("org/cipherpack/PackHeader");
-static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lorg/cipherpack/CryptoConfig;Ljava/lang/String;Ljava/util/List;ILjava/lang/String;[BZ)V");
+static const std::string _packHeaderClazzCtorArgs("(Ljava/lang/String;JJJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lorg/cipherpack/CryptoConfig;[BLjava/util/List;ILjava/lang/String;[BZ)V");
 
 cipherpack::CryptoConfig jcipherpack::to_CryptoConfig(JNIEnv *env, jobject jccfg) {
     std::string pk_type_ = jau::jni::getStringFieldValue(env, jccfg, "pk_type");
@@ -82,37 +82,34 @@ jobject jcipherpack::to_jCryptoConfig(JNIEnv *env, const cipherpack::CryptoConfi
 }
 
 jobject jcipherpack::to_jPackHeader(JNIEnv *env, const cipherpack::PackHeader& ph) {
-    jstring jtarget_path = jau::jni::from_string_to_jstring(env, ph.getTargetPath());
-    jstring jsubject = jau::jni::from_string_to_jstring(env, ph.getSubject());
-    jstring jpversion = jau::jni::from_string_to_jstring(env, ph.getPlaintextVersion());
-    jstring jpversion_parent = jau::jni::from_string_to_jstring(env, ph.getPlaintextVersionParent());
+    jstring jtarget_path = jau::jni::from_string_to_jstring(env, ph.target_path());
+    jstring jsubject = jau::jni::from_string_to_jstring(env, ph.subject());
+    jstring jpversion = jau::jni::from_string_to_jstring(env, ph.plaintext_version());
+    jstring jpversion_parent = jau::jni::from_string_to_jstring(env, ph.plaintext_version_parent());
 
-    const cipherpack::CryptoConfig& ccfg = ph.getCryptoConfig();
+    const cipherpack::CryptoConfig& ccfg = ph.crypto_config();
     jobject jccfg = to_jCryptoConfig(env, ccfg);
 
-    jstring jsender_fprint = jau::jni::from_string_to_jstring(env, ph.getSenderFingerprint());
-    const std::vector<std::string>& recevr_fprints = ph.getReceiverFingerprints();
-    jobject jrecevr_fprints = jau::jni::convert_vector_string_to_jarraylist(env, recevr_fprints);
-    jstring jplaintext_hash_algo = jau::jni::from_string_to_jstring(env, ph.getPlaintextHashAlgo());
-    const size_t plaintext_hash_size = ph.getPlaintextHash().size();
-    jbyteArray jplaintext_hash = env->NewByteArray((jsize)plaintext_hash_size);
-    env->SetByteArrayRegion(jplaintext_hash, 0, (jsize)plaintext_hash_size, (const jbyte *)ph.getPlaintextHash().data());
-    jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+    jbyteArray jsender_fprint = jau::jni::convert_bytes_to_jbytearray(env, ph.sender_fingerprint());
+    const std::vector<std::vector<uint8_t>>& recevr_fprints = ph.receiver_fingerprints();
+    jobject jrecevr_fprints = jau::jni::convert_vector_bytes_to_jarraylist(env, recevr_fprints);
+    jstring jplaintext_hash_algo = jau::jni::from_string_to_jstring(env, ph.plaintext_hash_algo());
+    jbyteArray jplaintext_hash = jau::jni::convert_bytes_to_jbytearray(env, ph.plaintext_hash());
 
     jclass packHeaderClazz = jau::jni::search_class(env, _packHeaderClassName.c_str());
     jmethodID packHeaderClazzCtor = jau::jni::search_method(env, packHeaderClazz, "<init>", _packHeaderClazzCtorArgs.c_str(), false);
 
     jobject jph = env->NewObject(packHeaderClazz, packHeaderClazzCtor,
             jtarget_path,
-            static_cast<jlong>(ph.getPlaintextSize()),
-            static_cast<jlong>(ph.getCreationTime().tv_sec),
-            static_cast<jlong>(ph.getCreationTime().tv_nsec),
+            static_cast<jlong>(ph.plaintext_size()),
+            static_cast<jlong>(ph.creation_time().tv_sec),
+            static_cast<jlong>(ph.creation_time().tv_nsec),
             jsubject,
             jpversion, jpversion_parent,
             jccfg,
             jsender_fprint,
             jrecevr_fprints,
-            ph.getUsedReceiverKeyIndex(),
+            ph.receiver_key_index(),
             jplaintext_hash_algo,
             jplaintext_hash,
             ph.isValid());

@@ -139,11 +139,11 @@ int main(int argc, char *argv[])
                                                                 std::make_shared<cipherpack::CipherpackListener>(),
                                                                 plaintext_hash_algo, fname_output);
         if( !plaintext_fname_output.empty() ) {
-            cipherpack::hash_util::append_to_file(plaintext_fname_output, fname_input, ph.getPlaintextHashAlgo(), ph.getPlaintextHash());
+            cipherpack::hash_util::append_to_file(plaintext_fname_output, fname_input, ph.plaintext_hash_algo(), ph.plaintext_hash());
         }
         if( verbose ) {
             jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s", fname_input.c_str(), fname_output.c_str());
-            jau::PLAIN_PRINT(true, "Pack: %s", ph.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "Pack: %s", ph.to_string(true, true).c_str());
         }
         return ph.isValid() ? 0 : -1;
     }
@@ -197,12 +197,12 @@ int main(int argc, char *argv[])
                                                                      std::make_shared<cipherpack::CipherpackListener>(),
                                                                      plaintext_hash_algo, fname_output);
         if( !plaintext_fname_output.empty() ) {
-            cipherpack::hash_util::append_to_file(plaintext_fname_output, ph.getTargetPath(), ph.getPlaintextHashAlgo(), ph.getPlaintextHash());
+            cipherpack::hash_util::append_to_file(plaintext_fname_output, ph.target_path(), ph.plaintext_hash_algo(), ph.plaintext_hash());
         }
         // dec_sec_key_passphrase.resize(0);
         if( verbose ) {
             jau::PLAIN_PRINT(true, "Unpack: Decypted %s to %s", fname_input.c_str(), fname_output.c_str());
-            jau::PLAIN_PRINT(true, "Unpack: %s", ph.toString(true, true).c_str());
+            jau::PLAIN_PRINT(true, "Unpack: %s", ph.to_string(true, true).c_str());
         }
         return ph.isValid() ? 0 : -1;
     }

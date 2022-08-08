@@ -218,7 +218,7 @@ namespace cipherpack {
          * - Public key fingerprint hash algorithm is {@code SHA-256}.
          * - Public-Key padding algorithm is {@code OAEP}.
          * - Public-Key hash algorithm is {@code SHA-256}.
-         * - Public-Key hash algorithm is {@code EMSA1(SHA-256)}.
+         * - Public-Key signature algorithm is {@code EMSA1(SHA-256)}.
          * - Symmetric Authenticated Encryption with Additional Data (AEAD) encryption+MAC cipher algo is {@code ChaCha20Poly1305}.
          * - Symmetric AEAD ChaCha Nonce size 96 bit for one message per symmetric-key. Sizes are usually: 64-bit classic, 96-bit IETF, 192-bit big.
          */
@@ -261,7 +261,7 @@ namespace cipherpack {
             constexpr static const size_t buffer_size = 16384;
 
             /**
-             * Package magic {@code CIPHERPACK_0003}.
+             * Package magic {@code CIPHERPACK_0004}.
              */
             static const std::string package_magic;
     };
@@ -274,118 +274,118 @@ namespace cipherpack {
      */
     class PackHeader {
         private:
-            std::string target_path;
-            uint64_t plaintext_size;
-            jau::fraction_timespec ts_creation;
-            std::string subject;
-            std::string plaintext_version;
-            std::string plaintext_version_parent;
-            CryptoConfig crypto_cfg;
-            std::string sender_fingerprint;
-            std::vector<std::string> recevr_fingerprints;
-            ssize_t used_recevr_key_idx;
-            std::string plaintext_hash_algo;
-            std::vector<uint8_t> plaintext_hash;
-            bool valid;
+            std::string target_path_;
+            uint64_t plaintext_size_;
+            jau::fraction_timespec ts_creation_;
+            std::string subject_;
+            std::string plaintext_version_;
+            std::string plaintext_version_parent_;
+            CryptoConfig crypto_cfg_;
+            std::vector<uint8_t> sender_fingerprint_;
+            std::vector<std::vector<uint8_t>> recevr_fingerprints_;
+            ssize_t used_recevr_key_idx_;
+            std::string plaintext_hash_algo_;
+            std::vector<uint8_t> plaintext_hash_;
+            bool valid_;
 
         public:
             /** default ctor, denoting an invalid package header. */
             PackHeader()
-            : target_path("none"),
-              plaintext_size(0),
-              ts_creation( jau::getWallClockTime() ),
-              subject("none"),
-              plaintext_version(),
-              plaintext_version_parent(),
-              crypto_cfg(),
-              sender_fingerprint(),
-              recevr_fingerprints(),
-              used_recevr_key_idx(-1),
-              plaintext_hash_algo(),
-              plaintext_hash(),
-              valid(false)
+            : target_path_("none"),
+              plaintext_size_(0),
+              ts_creation_( jau::getWallClockTime() ),
+              subject_("none"),
+              plaintext_version_(),
+              plaintext_version_parent_(),
+              crypto_cfg_(),
+              sender_fingerprint_(),
+              recevr_fingerprints_(),
+              used_recevr_key_idx_(-1),
+              plaintext_hash_algo_(),
+              plaintext_hash_(),
+              valid_(false)
             { }
 
             /** ctor, denoting an invalid package header. */
-            PackHeader(const jau::fraction_timespec& ts_creation_)
-            : target_path("none"),
-              plaintext_size(0),
-              ts_creation( ts_creation_ ),
-              subject("none"),
-              plaintext_version(),
-              plaintext_version_parent(),
-              crypto_cfg(),
-              sender_fingerprint(),
-              recevr_fingerprints(),
-              used_recevr_key_idx(-1),
-              plaintext_hash_algo(),
-              plaintext_hash(),
-              valid(false)
+            PackHeader(const jau::fraction_timespec& ts_creation)
+            : target_path_("none"),
+              plaintext_size_(0),
+              ts_creation_( ts_creation ),
+              subject_("none"),
+              plaintext_version_(),
+              plaintext_version_parent_(),
+              crypto_cfg_(),
+              sender_fingerprint_(),
+              recevr_fingerprints_(),
+              used_recevr_key_idx_(-1),
+              plaintext_hash_algo_(),
+              plaintext_hash_(),
+              valid_(false)
             { }
 
             /** Complete ctor, denoting a complete package header, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            PackHeader(const std::string& target_path_,
-                       const uint64_t& plaintext_size_,
-                       const jau::fraction_timespec& ts_creation_,
-                       const std::string& subject_,
-                       const std::string& pversion, const std::string& pversion_parent,
-                       const CryptoConfig& crypto_cfg_,
-                       const std::string& sender_fingerprint_,
-                       const std::vector<std::string>& recevr_fingerprints_,
-                       const size_t used_recevr_key_idx_,
-                       const bool valid_)
-            : target_path(target_path_),
-              plaintext_size(plaintext_size_),
-              ts_creation(ts_creation_),
-              subject(subject_),
-              plaintext_version(pversion), plaintext_version_parent(pversion_parent),
-              crypto_cfg(crypto_cfg_),
-              sender_fingerprint(sender_fingerprint_),
-              recevr_fingerprints(recevr_fingerprints_),
-              used_recevr_key_idx(used_recevr_key_idx_),
-              plaintext_hash_algo(),
-              plaintext_hash(),
-              valid(valid_)
+            PackHeader(const std::string& _target_path,
+                       const uint64_t& _plaintext_size,
+                       const jau::fraction_timespec& _ts_creation,
+                       const std::string& _subject,
+                       const std::string& _pversion, const std::string& _pversion_parent,
+                       const CryptoConfig& _crypto_cfg,
+                       const std::vector<uint8_t>& _sender_fingerprint,
+                       const std::vector<std::vector<uint8_t>>& _recevr_fingerprints,
+                       const size_t _used_recevr_key_idx,
+                       const bool _valid)
+            : target_path_(_target_path),
+              plaintext_size_(_plaintext_size),
+              ts_creation_(_ts_creation),
+              subject_(_subject),
+              plaintext_version_(_pversion), plaintext_version_parent_(_pversion_parent),
+              crypto_cfg_(_crypto_cfg),
+              sender_fingerprint_(_sender_fingerprint),
+              recevr_fingerprints_(_recevr_fingerprints),
+              used_recevr_key_idx_(_used_recevr_key_idx),
+              plaintext_hash_algo_(),
+              plaintext_hash_(),
+              valid_(_valid)
             { }
 
             /** Returns the designated target path for this plaintext message, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            const std::string& getTargetPath() const noexcept { return target_path; }
+            const std::string& target_path() const noexcept { return target_path_; }
 
             /** Returns the plaintext message size in bytes, zero if not determined yet. See @ref cipherpack_stream "Cipherpack Data Stream". */
-            uint64_t getPlaintextSize() const noexcept { return plaintext_size; }
+            uint64_t plaintext_size() const noexcept { return plaintext_size_; }
 
-            void setPlaintextSize(const uint64_t v) noexcept { plaintext_size=v; }
+            void set_plaintext_size(const uint64_t v) noexcept { plaintext_size_=v; }
 
             /** Returns the creation time since Unix epoch, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr const jau::fraction_timespec& getCreationTime() const noexcept { return ts_creation; }
+            constexpr const jau::fraction_timespec& creation_time() const noexcept { return ts_creation_; }
 
             /** Returns the designated subject of message, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr const std::string& getSubject() const noexcept { return subject; }
+            constexpr const std::string& subject() const noexcept { return subject_; }
 
             /** Returns version of this plaintext message, user semantic, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr const std::string& getPlaintextVersion() const noexcept { return plaintext_version;}
+            constexpr const std::string& plaintext_version() const noexcept { return plaintext_version_;}
 
             /** Returns version of this plaintext message's preceding message, user semantic, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            constexpr const std::string& getPlaintextVersionParent() const noexcept { return plaintext_version_parent;}
+            constexpr const std::string& plaintext_version_parent() const noexcept { return plaintext_version_parent_;}
 
-            constexpr const CryptoConfig& getCryptoConfig() const noexcept { return crypto_cfg; }
+            constexpr const CryptoConfig& crypto_config() const noexcept { return crypto_cfg_; }
 
             /**
              * Return the sender's public-key fingerprint used to sign, see @ref cipherpack_stream "Cipherpack Data Stream".
              */
-            const std::string& getSenderFingerprint() const noexcept { return sender_fingerprint; }
+            const std::vector<uint8_t>& sender_fingerprint() const noexcept { return sender_fingerprint_; }
 
             /**
              * Return the list of receiver's public-keys fingerprints used to encrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream".
              */
-            const std::vector<std::string>& getReceiverFingerprints() const noexcept { return recevr_fingerprints; }
+            const std::vector<std::vector<uint8_t>>& receiver_fingerprints() const noexcept { return recevr_fingerprints_; }
 
             /**
              * Return the index of the matching receiver's public-key fingerprint used to decrypt the symmetric-key, see @ref cipherpack_stream "Cipherpack Data Stream".
              *
              * @return the receiver's key index of getReceiverFingerprints(), or -1 if not found or not decrypting.
              */
-            ssize_t getUsedReceiverKeyIndex() const noexcept { return used_recevr_key_idx; }
+            ssize_t receiver_key_index() const noexcept { return used_recevr_key_idx_; }
 
             /**
              * Return optional hash algorithm for the plaintext message, produced for convenience and not wired.
@@ -395,7 +395,7 @@ namespace cipherpack {
              * @see getPlaintextHash()
              * @see setPlaintextHash()
              */
-            const std::string& getPlaintextHashAlgo() const noexcept { return plaintext_hash_algo; }
+            const std::string& plaintext_hash_algo() const noexcept { return plaintext_hash_algo_; }
 
             /**
              * Return optional hash value of the plaintext message, produced for convenience and not wired.
@@ -405,16 +405,16 @@ namespace cipherpack {
              * @see getPlaintextHashAlgo()
              * @see setPlaintextHash()
              */
-            const std::vector<uint8_t>& getPlaintextHash() const noexcept { return plaintext_hash; }
+            const std::vector<uint8_t>& plaintext_hash() const noexcept { return plaintext_hash_; }
 
             /**
              * Set optional hash-algo and -value of the plaintext messages, produced for convenience and not wired.
              * @see getPlaintextHash()
              * @see getPlaintextHashAlgo()
              */
-            void setPayloadHash(const std::string& algo, const std::vector<uint8_t>& hash) noexcept {
-                plaintext_hash_algo = algo;
-                plaintext_hash = hash;
+            void set_plaintext_hash(const std::string& algo, const std::vector<uint8_t>& hash) noexcept {
+                plaintext_hash_algo_ = algo;
+                plaintext_hash_ = hash;
             }
 
             /**
@@ -423,12 +423,12 @@ namespace cipherpack {
              * @param force_all_fingerprints if true always show all getTermKeysFingerprint(), otherwise show only the getTermKeysFingerprint() if >= 0 (default).
              * @return string representation
              */
-            std::string toString(const bool show_crypto_algos=false, const bool force_all_fingerprints=false) const noexcept;
+            std::string to_string(const bool show_crypto_algos=false, const bool force_all_fingerprints=false) const noexcept;
 
-            void setValid(const bool v) { valid = v; }
-            bool isValid() const noexcept { return valid; }
+            void setValid(const bool v) { valid_ = v; }
+            bool isValid() const noexcept { return valid_; }
     };
-    inline std::string to_string(const PackHeader& ph) noexcept { return ph.toString(true, true); }
+    inline std::string to_string(const PackHeader& ph) noexcept { return ph.to_string(true, true); }
 
     std::shared_ptr<Botan::Public_Key> load_public_key(const std::string& pubkey_fname);
     std::shared_ptr<Botan::Private_Key> load_private_key(const std::string& privatekey_fname, const jau::io::secure_string& passphrase);
