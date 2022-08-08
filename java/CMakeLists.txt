@@ -12,6 +12,7 @@ add_jar(cipherpack_jar
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/sys/Clock.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/PrintUtil.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/MemUtil.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/IOStateFunc.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_File.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/ByteInStream_URL.java
