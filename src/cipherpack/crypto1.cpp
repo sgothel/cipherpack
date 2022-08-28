@@ -922,7 +922,6 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 input.clear_recording(); // implies stop
             }
             if( !verifier.check_signature(sender_signature) ) {
-                const std::string msg();
                 listener->notifyError(decrypt_mode, header,
                         "Signature mismatch on "+std::to_string(in_bytes_signature)+" header bytes / "+std::to_string(in_bytes_header)+
                         " bytes, received signature '"+jau::bytesHexString(sender_signature, true /* lsbFirst */)+
