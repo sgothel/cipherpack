@@ -72,21 +72,22 @@ public class CipherpackListener extends CPNativeDownlink {
     public final boolean isValid() { return isNativeValid(); }
 
     /**
-     * Informal user notification about an error via text message.
+     * User notification about an error via text message and preliminary PackHeader
      *
-     * This message will be send before a subsequent notifyHeader() and notifyEnd() with an error indication.
+     * This message will be send without a subsequent notifyHeader() or notifyEnd() to indicate an error and hence aborts processing.
      * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+     * @param header the preliminary PackHeader
      * @param msg the error message
      */
-    public void notifyError(final boolean decrypt_mode, final String msg) { }
+    public void notifyError(final boolean decrypt_mode, final PackHeader header, final String msg) { }
 
     /**
-     * User notification of PackHeader
+     * User notification of preliminary PackHeader w/o optional hash of the plaintext message
      * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
-     * @param header the PackHeader
-     * @param verified true if header signature is verified and deemed valid, otherwise false regardless of true == PackHeader::isValid().
+     * @param header the preliminary PackHeader
+     * @return true to continue processing (default), false to abort.
      */
-    public void notifyHeader(final boolean decrypt_mode, final PackHeader header, final boolean verified) { }
+    public boolean notifyHeader(final boolean decrypt_mode, final PackHeader header) { return true; }
 
     /**
      * User notification about content streaming progress.
@@ -96,17 +97,17 @@ public class CipherpackListener extends CPNativeDownlink {
      * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
      * @param plaintext_size the plaintext message size, zero if not determined yet
      * @param bytes_processed the number of unencrypted bytes processed
+     * @return true to continue processing (default), false to abort.
      * @see contentProcessed()
      */
-    public void notifyProgress(final boolean decrypt_mode, final long plaintext_size, final long bytes_processed) { }
+    public boolean notifyProgress(final boolean decrypt_mode, final long plaintext_size, final long bytes_processed) { return true; }
 
     /**
-     * User notification of process completion.
+     * User notification of successful completion.
      * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
      * @param header the PackHeader
-     * @param success true if process has successfully completed and result is deemed valid, otherwise result is invalid regardless of true == PackHeader::isValid().
      */
-    public void notifyEnd(final boolean decrypt_mode, final PackHeader header, final boolean success) { }
+    public void notifyEnd(final boolean decrypt_mode, final PackHeader header) { }
 
     /**
      * User provided information whether process shall send the processed content via contentProcessed() or not
@@ -127,7 +128,7 @@ public class CipherpackListener extends CPNativeDownlink {
      * @param ctype content_type of passed data. Always {@link ContentType#MESSAGE} if decrypt_mode is true.
      * @param data the processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
      * @param is_final true if this is the last content call, otherwise false
-     * @return true to signal continuation, false to end streaming.
+     * @return true to continue processing (default), false to abort.
      * @see getSendContent()
      */
     public boolean contentProcessed(final boolean decrypt_mode, final ContentType ctype, final byte[] data, final boolean is_final) { return true; }

@@ -33,10 +33,10 @@
 
 // static const std::string _contentTypeClassName("org/cipherpack/CipherpackListener/ContentType");
 // static const std::string _contentTypeClazzGetArgs("(B)Lorg/cipherpack/CipherpackListener/ContentType;");
-static const std::string _notifyErrorMethodArgs("(ZLjava/lang/String;)V");
-static const std::string _notifyHeaderMethodArgs("(ZLorg/cipherpack/PackHeader;Z)V");
-static const std::string _notifyProgressMethodArgs("(ZJJ)V");
-static const std::string _notifyEndMethodArgs("(ZLorg/cipherpack/PackHeader;Z)V");
+static const std::string _notifyErrorMethodArgs("(ZLorg/cipherpack/PackHeader;Ljava/lang/String;)V");
+static const std::string _notifyHeaderMethodArgs("(ZLorg/cipherpack/PackHeader;)Z");
+static const std::string _notifyProgressMethodArgs("(ZJJ)Z");
+static const std::string _notifyEndMethodArgs("(ZLorg/cipherpack/PackHeader;)V");
 static const std::string _getSendContentMethodArgs("(Z)Z");
 static const std::string _contentProcessedImplMethodArgs("(ZZ[BZ)Z");
 
@@ -87,54 +87,53 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         mContentProcessedImpl = jau::jni::search_method(env, cpListenerClazz, "contentProcessedImpl", _contentProcessedImplMethodArgs.c_str(), false);
     }
 
-    void notifyError(const bool decrypt_mode, const std::string& msg) noexcept override {
-        JNIEnv *env = *jau::jni::jni_env;
-        jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
-        jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
-        jstring jmsg = jau::jni::from_string_to_jstring(env, msg);
-        env->CallVoidMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyError, decrypt_mode ? JNI_TRUE : JNI_FALSE, jmsg);
-        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
-        env->DeleteLocalRef(jmsg);
-    }
-
-  private:
-
-
-  public:
-
-    void notifyHeader(const bool decrypt_mode, const cipherpack::PackHeader& header, const bool verified) noexcept override {
+    void notifyError(const bool decrypt_mode, const cipherpack::PackHeader& header, const std::string& msg) noexcept override {
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
         jobject jph = jcipherpack::to_jPackHeader(env, header);
-        env->CallVoidMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyHeader,
+        jstring jmsg = jau::jni::from_string_to_jstring(env, msg);
+        env->CallVoidMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyError,
                             decrypt_mode ? JNI_TRUE : JNI_FALSE,
                             jph,
-                            verified ? JNI_TRUE : JNI_FALSE);
+                            jmsg);
         jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
-        env->DeleteLocalRef(jph);
+        env->DeleteLocalRef(jmsg);
     }
 
-    void notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override {
+    bool notifyHeader(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override {
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
-        env->CallVoidMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyProgress,
+        jobject jph = jcipherpack::to_jPackHeader(env, header);
+        jboolean res = env->CallBooleanMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyHeader,
+                            decrypt_mode ? JNI_TRUE : JNI_FALSE,
+                            jph);
+        jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+        env->DeleteLocalRef(jph);
+        return JNI_TRUE == res;
+    }
+
+    bool notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override {
+        JNIEnv *env = *jau::jni::jni_env;
+        jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
+        jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
+        jboolean res = env->CallBooleanMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyProgress,
                             decrypt_mode ? JNI_TRUE : JNI_FALSE,
                             static_cast<jlong>(plaintext_size),
                             static_cast<jlong>(bytes_processed));
         jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
+        return JNI_TRUE == res;
     }
 
-    void notifyEnd(const bool decrypt_mode, const cipherpack::PackHeader& header, const bool success) noexcept override {
+    void notifyEnd(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override {
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
         jobject jph = jcipherpack::to_jPackHeader(env, header);
         env->CallVoidMethod(jau::jni::JavaGlobalObj::GetObject(asl_java), mNotifyEnd,
                             decrypt_mode ? JNI_TRUE : JNI_FALSE,
-                            jph,
-                            success ? JNI_TRUE : JNI_FALSE);
+                            jph);
         jau::jni::java_exception_check_and_throw(env, E_FILE_LINE);
         env->DeleteLocalRef(jph);
     }

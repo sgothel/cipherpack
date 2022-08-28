@@ -1,4 +1,3 @@
-package test.org.cipherpack;
 /**
  * Author: Sven Gothel <sgothel@jausoft.com>
  * Copyright (c) 2022 Gothel Software e.K.
@@ -23,6 +22,7 @@ package test.org.cipherpack;
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+package test.org.cipherpack;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -262,6 +262,8 @@ public class Test01CipherpackSingle extends data_test {
         final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
         {
             final int file_idx = IDX_11kiB;
+            final LoggingCipherpackListener enc_listener = new LoggingCipherpackListener("test00.enc");
+            final LoggingCipherpackListener dec_listener = new LoggingCipherpackListener("test00.dec");
             final String _path = fname_plaintext_lst.get(file_idx); // 'test_cipher_02_11kiB.bin'
             PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: path '%s', len %d\n", _path, _path.length());
             final ByteInStream_File source = new ByteInStream_File(_path);
@@ -269,19 +271,21 @@ public class Test01CipherpackSingle extends data_test {
                                                               enc_pub_keys,
                                                               sign_sec_key1_fname, sign_sec_key_passphrase,
                                                               source,
-                                                              fname_plaintext_lst.get(file_idx), "test00_enc_dec_file_single(", plaintext_version, plaintext_version_parent,
-                                                              silentListener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
-            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
-            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: %s\n", ph1.toString(true, true));
+                                                              fname_plaintext_lst.get(file_idx), "test00_enc_dec_file_single", plaintext_version, plaintext_version_parent,
+                                                              enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: %s\n", ph1.toString(true, true));
             Assert.assertTrue( ph1.isValid() );
+            enc_listener.check_counter_end();
 
             final ByteInStream_File enc_stream = new ByteInStream_File(fname_encrypted_lst.get(file_idx));
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
                                                                    enc_stream,
-                                                                   silentListener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
-            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
-            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single(: %s\n", ph2.toString(true, true));
+                                                                   dec_listener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
+            PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: %s\n", ph2.toString(true, true));
             Assert.assertTrue( ph2.isValid() );
+            dec_listener.check_counter_end();
         }
     }
 

@@ -447,13 +447,14 @@ namespace cipherpack {
             };
 
             /**
-             * Informal user notification about an error via text message.
+             * User notification about an error via text message and preliminary PackHeader
              *
-             * This message will be send before a subsequent notifyHeader() and notifyEnd() with an error indication.
+             * This message will be send without a subsequent notifyHeader() or notifyEnd() to indicate an error and hence aborts processing.
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
+             * @param header the preliminary PackHeader
              * @param msg the error message
              */
-            virtual void notifyError(const bool decrypt_mode, const std::string& msg) noexcept {
+            virtual void notifyError(const bool decrypt_mode, const PackHeader& header, const std::string& msg) noexcept {
                 (void)decrypt_mode;
                 (void)msg;
             }
@@ -462,12 +463,12 @@ namespace cipherpack {
              * User notification of preliminary PackHeader w/o optional hash of the plaintext message
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
              * @param header the preliminary PackHeader
-             * @param verified true if header signature is verified and deemed valid, otherwise false regardless of true == PackHeader::isValid().
+             * @return true to continue processing (default), false to abort.
              */
-            virtual void notifyHeader(const bool decrypt_mode, const PackHeader& header, const bool verified) noexcept {
+            virtual bool notifyHeader(const bool decrypt_mode, const PackHeader& header) noexcept {
                 (void)decrypt_mode;
                 (void)header;
-                (void)verified;
+                return true;
             }
 
             /**
@@ -478,24 +479,24 @@ namespace cipherpack {
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
              * @param plaintext_size the plaintext message size, zero if not determined yet
              * @param bytes_processed the number of unencrypted bytes processed
+             * @return true to continue processing (default), false to abort.
              * @see contentProcessed()
              */
-            virtual void notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept {
+            virtual bool notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept {
                 (void)decrypt_mode;
                 (void)plaintext_size;
                 (void)bytes_processed;
+                return true;
             }
 
             /**
-             * User notification of process completion.
+             * User notification of successful completion.
              * @param decrypt_mode true if sender is decrypting, otherwise sender is encrypting
              * @param header the final PackHeader
-             * @param success true if process has successfully completed and result is deemed valid, otherwise result is invalid regardless of true == PackHeader::isValid().
              */
-            virtual void notifyEnd(const bool decrypt_mode, const PackHeader& header, const bool success) noexcept {
+            virtual void notifyEnd(const bool decrypt_mode, const PackHeader& header) noexcept {
                 (void)decrypt_mode;
                 (void)header;
-                (void)success;
             }
 
             /**
@@ -520,7 +521,7 @@ namespace cipherpack {
              * @param ctype content_type of passed data. Always content_type::message if decrypt_mode is true.
              * @param data the processed content, either the generated cipherpack or plaintext content depending on decrypt_mode.
              * @param is_final true if this is the last content call, otherwise false
-             * @return true to signal continuation, false to end streaming.
+             * @return true to continue processing (default), false to abort.
              * @see getSendContent()
              */
             virtual bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept {

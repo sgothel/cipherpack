@@ -58,27 +58,27 @@ static std::string to_string(const std::vector<uint8_t>& v) {
     return std::string(reinterpret_cast<const char*>(v.data()), v.size());
 }
 
-class WrappingCipherpackListener : public CipherpackListener{
+class WrappingCipherpackListener : public CipherpackListener {
     public:
         CipherpackListenerRef parent;
 
         WrappingCipherpackListener(CipherpackListenerRef parent_)
         : parent(parent_) {}
 
-        void notifyError(const bool decrypt_mode, const std::string& msg) noexcept override {
-            parent->notifyError(decrypt_mode, msg);
+        void notifyError(const bool decrypt_mode, const PackHeader& header, const std::string& msg) noexcept override {
+            parent->notifyError(decrypt_mode, header, msg);
         }
 
-        void notifyHeader(const bool decrypt_mode, const PackHeader& header, const bool verified) noexcept override {
-            parent->notifyHeader(decrypt_mode, header, verified);
+        bool notifyHeader(const bool decrypt_mode, const PackHeader& header) noexcept override {
+            return parent->notifyHeader(decrypt_mode, header);
         }
 
-        void notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override {
-            parent->notifyProgress(decrypt_mode, plaintext_size, bytes_processed);
+        bool notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override {
+            return parent->notifyProgress(decrypt_mode, plaintext_size, bytes_processed);
         }
 
-        void notifyEnd(const bool decrypt_mode, const PackHeader& header, const bool success) noexcept override {
-            parent->notifyEnd(decrypt_mode, header, success);
+        void notifyEnd(const bool decrypt_mode, const PackHeader& header) noexcept override {
+            parent->notifyEnd(decrypt_mode, header);
         }
 
         bool getSendContent(const bool decrypt_mode) const noexcept override {
@@ -234,14 +234,14 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
     }
 
     if( source.fail() ) {
-        ERR_PRINT2("Encrypt failed: Source has an error %s", source.to_string().c_str());
+        listener->notifyError(decrypt_mode, header, "Source has an error "+source.to_string());
         return header;
     }
     const bool has_plaintext_size = source.has_content_size();
     uint64_t plaintext_size = has_plaintext_size ? source.content_size() : 0;
 
     if( !crypto_cfg.valid() ) {
-        ERR_PRINT2("Encrypt failed: CryptoConfig incomplete %s", crypto_cfg.to_string().c_str());
+        listener->notifyError(decrypt_mode, header, "CryptoConfig incomplete "+crypto_cfg.to_string());
         return header;
     }
 
@@ -255,13 +255,13 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             const std::string plaintext_hash_algo_s(plaintext_hash_algo);
             plaintext_hash_func = Botan::HashFunction::create(plaintext_hash_algo_s);
             if( nullptr == plaintext_hash_func ) {
-                ERR_PRINT2("Encrypt failed: Plaintext hash algo %s not available", plaintext_hash_algo_s.c_str());
+                listener->notifyError(decrypt_mode, header, "Plaintext hash algo '"+plaintext_hash_algo_s+"' not available");
                 return header;
             }
         }
         std::unique_ptr<Botan::HashFunction> fingerprint_hash_func = Botan::HashFunction::create(crypto_cfg.pk_fingerprt_hash_algo);
         if( nullptr == fingerprint_hash_func ) {
-            ERR_PRINT2("Encrypt failed: Fingerprint hash algo '%s' not available", crypto_cfg.pk_fingerprt_hash_algo.c_str());
+            listener->notifyError(decrypt_mode, header, "Fingerprint hash algo '"+crypto_cfg.pk_fingerprt_hash_algo+"' not available");
             return header;
         }
 
@@ -274,12 +274,12 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
 
         const Botan::OID sym_enc_algo_oid = Botan::OID::from_string(crypto_cfg.sym_enc_algo);
         if( sym_enc_algo_oid.empty() ) {
-            ERR_PRINT2("Encrypt failed: No OID defined for cypher algo %s", crypto_cfg.sym_enc_algo.c_str());
+            listener->notifyError(decrypt_mode, header, "No OID defined for cypher algo '"+crypto_cfg.sym_enc_algo+"'");
             return header;
         }
         std::shared_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create(crypto_cfg.sym_enc_algo, Botan::ENCRYPTION);
         if(!aead) {
-           ERR_PRINT2("Encrypt failed: AEAD algo %s not available", crypto_cfg.sym_enc_algo.c_str());
+           listener->notifyError(decrypt_mode, header, "AEAD algo '"+crypto_cfg.sym_enc_algo+"' not available");
            return header;
         }
         cipherpack::secure_vector<uint8_t> plain_sym_key = rng.random_vec(aead->key_spec().maximum_keylength());
@@ -300,6 +300,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
 
             recevr_data.pub_key = load_public_key(pub_key_fname);
             if( !recevr_data.pub_key ) {
+                listener->notifyError(decrypt_mode, header, "Loading pub-key file '"+pub_key_fname+"' failed");
                 return header;
             }
             Botan::PK_Encryptor_EME enc(*recevr_data.pub_key, rng, crypto_cfg.pk_enc_padding_algo+"(" + crypto_cfg.pk_enc_hash_algo + ")");
@@ -398,7 +399,10 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
         DBG_PRINT("Encrypt: DER Header done, %" PRIu64 " header: %s",
                 out_bytes_header, header.to_string(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
 
-        listener->notifyHeader(decrypt_mode, header, true /* verified */);
+        if( !listener->notifyHeader(decrypt_mode, header) ) {
+            DBG_PRINT("Encrypt: notifyHeader() user abort from %s", source.to_string().c_str());
+            return header;
+        }
 
         //
         // Symmetric Encryption incl. hash
@@ -410,6 +414,7 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
 
         const bool sent_content_to_user = listener->getSendContent( decrypt_mode );
         uint64_t out_bytes_ciphertext = 0;
+        bool consume_abort = false;
         _StreamConsumerFunc consume_data = [&](cipherpack::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
             // A simple !is_final suffices, since a final call w/ zero bytes shall add a TAG or padding depending on AEAD.
@@ -422,9 +427,11 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, false /* is_final */);
                 }
                 out_bytes_ciphertext += data.size();
+                if( res ) {
+                    res = listener->notifyProgress(decrypt_mode, plaintext_size, source.tellg());
+                }
                 DBG_PRINT("Encrypt: EncPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, plaintext_size, source.tellg());
             } else {
                 if( nullptr != plaintext_hash_func ) {
                     plaintext_hash_func->update(data);
@@ -438,10 +445,13 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
                     plaintext_size = out_bytes_ciphertext;
                     header.set_plaintext_size(plaintext_size);
                 }
+                if( res ) {
+                    res = listener->notifyProgress(decrypt_mode, plaintext_size, source.tellg());
+                }
                 DBG_PRINT("Encrypt: EncPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_ciphertext, plaintext_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, plaintext_size, source.tellg());
             }
+            consume_abort = !res;
             return res;
         };
         // No need for double-buffering here
@@ -458,15 +468,16 @@ static PackHeader encryptThenSign_Impl(const CryptoConfig& crypto_cfg,
             header.set_plaintext_hash(plaintext_hash_func->name(), hash_value);
         }
 
-        if ( source.fail() ) {
-            ERR_PRINT2("Encrypt failed: Source read failed %s", source.to_string().c_str());
+        if( consume_abort ) {
+            DBG_PRINT("Encrypt: Processing aborted %s", source.to_string().c_str());
             return header;
         }
-
+        if ( source.fail() ) {
+            listener->notifyError(decrypt_mode, header, "Source read failed "+source.to_string());
+            return header;
+        }
         if( source.tellg() != in_bytes_total ) {
-            ERR_PRINT2("Encrypt: Writing done, %s bytes read != %s",
-                    jau::to_decstring(in_bytes_total).c_str(),
-                    source.to_string().c_str());
+            listener->notifyError(decrypt_mode, header, "Writing done, "+jau::to_decstring(in_bytes_total)+" bytes read != "+source.to_string());
             return header;
         } else if( jau::environment::get().verbose ) {
             WORDY_PRINT("Encrypt: Reading done from %s", source.to_string().c_str());
@@ -503,7 +514,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
     const bool decrypt_mode = false;
 
     if( dest_fname.empty() ) {
-        PackHeader ph = encryptThenSign_Impl(crypto_cfg,
+        PackHeader header = encryptThenSign_Impl(crypto_cfg,
                                              enc_pub_keys,
                                              sign_sec_key_fname, passphrase,
                                              source,
@@ -511,8 +522,10 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                              plaintext_version,
                                              plaintext_version_parent,
                                              listener, plaintext_hash_algo);
-        listener->notifyEnd(decrypt_mode, ph, ph.isValid());
-        return ph;
+        if( header.isValid() ) {
+            listener->notifyEnd(decrypt_mode, header);
+        }
+        return header;
     }
     std::string dest_fname2;
     if( dest_fname == "/dev/stdout" || dest_fname == "-" ) {
@@ -589,52 +602,46 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
         if( output_stats.exists() && !output_stats.has_fd() ) {
             if( output_stats.is_file() ) {
                 if( !jau::fs::remove(dest_fname2) ) {
-                    ERR_PRINT2("Encrypt failed: Failed deletion of existing output file %s", output_stats.to_string().c_str());
-                    my_listener->notifyEnd(decrypt_mode, header, false);
+                    listener->notifyError(decrypt_mode, header, "Failed deletion of existing output file "+output_stats.to_string());
                     return header;
                 }
             } else if( output_stats.is_dir() || output_stats.is_block() ) {
-                ERR_PRINT2("Encrypt failed: Not overwriting existing %s", output_stats.to_string().c_str());
-                my_listener->notifyEnd(decrypt_mode, header, false);
+                listener->notifyError(decrypt_mode, header, "Not overwriting existing "+output_stats.to_string());
                 return header;
             }
         }
     }
     jau::io::ByteOutStream_File outfile(dest_fname2);
     if ( !outfile.good() ) {
-        ERR_PRINT2("Encrypt failed: Output file not open %s", dest_fname2.c_str());
-        my_listener->notifyEnd(decrypt_mode, header, false);
+        listener->notifyError(decrypt_mode, header, "Output file not open "+dest_fname2);
         return header;
     }
     my_listener->set_outfile(&outfile);
 
-    PackHeader ph = encryptThenSign_Impl(crypto_cfg,
-                                         enc_pub_keys,
-                                         sign_sec_key_fname, passphrase,
-                                         source,
-                                         target_path, subject,
-                                         plaintext_version,
-                                         plaintext_version_parent,
-                                         my_listener, plaintext_hash_algo);
-
+    header = encryptThenSign_Impl(crypto_cfg,
+                                  enc_pub_keys,
+                                  sign_sec_key_fname, passphrase,
+                                  source,
+                                  target_path, subject,
+                                  plaintext_version,
+                                  plaintext_version_parent,
+                                  my_listener, plaintext_hash_algo);
     {
         const jau::fs::file_stats output_stats(dest_fname2);
         if ( outfile.fail() ) {
-            ERR_PRINT2("Encrypt failed: Output file write failed %s", dest_fname2.c_str());
             if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
-            ph.setValid(false);
-            my_listener->notifyEnd(decrypt_mode, ph, false);
+            header.setValid(false);
+            listener->notifyError(decrypt_mode, header, "Output file write failed "+dest_fname2);
             return header;
         }
         outfile.close();
 
-        if( !ph.isValid() ) {
+        if( !header.isValid() ) {
             if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
-            my_listener->notifyEnd(decrypt_mode, ph, false);
             return header;
         }
     }
@@ -645,22 +652,20 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
     if constexpr ( ciphertext_size_same ) {
         // Test is only valid, IFF out_bytes_plaintext == out_bytes_ciphertext
         if( output_stats.is_file() && out_bytes_header + out_bytes_plaintext != output_stats.size() ) {
-            ERR_PRINT2("Encrypt: Writing done, %s header + %s plaintext != %s total bytes",
-                    jau::to_decstring(out_bytes_header).c_str(),
-                    jau::to_decstring(out_bytes_plaintext).c_str(),
-                    jau::to_decstring(output_stats.size()).c_str());
             if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
-            ph.setValid(false);
-            my_listener->notifyEnd(decrypt_mode, ph, false);
+            header.setValid(false);
+            listener->notifyError(decrypt_mode, header,
+                    "Writing done, "+jau::to_decstring(out_bytes_header)+" header + "+jau::to_decstring(out_bytes_plaintext)+
+                    " plaintext != "+jau::to_decstring(output_stats.size())+" total bytes");
             return header;
         }
     }
     WORDY_PRINT("Encrypt: Writing done: output: %s", output_stats.to_string().c_str());
 
-    my_listener->notifyEnd(decrypt_mode, ph, true);
-    return ph;
+    my_listener->notifyEnd(decrypt_mode, header);
+    return header;
 }
 
 
@@ -682,7 +687,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
     const jau::fraction_timespec _t0 = jau::getMonotonicTime();
 
     if( source.end_of_data() ) {
-        ERR_PRINT2("Decrypt failed: Source is EOS or has an error %s", source.to_string().c_str());
+        listener->notifyError(decrypt_mode, header, "Source is EOS or has an error "+source.to_string());
         return header;
     }
     try {
@@ -698,6 +703,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             sender_data_t sender_data;
             sender_data.pub_key = load_public_key(pub_key_fname);
             if( !sender_data.pub_key ) {
+                listener->notifyError(decrypt_mode, header, "Loading pub-key file '"+pub_key_fname+"' failed");
                 return header;
             }
             sender_data_list.push_back(sender_data);
@@ -707,6 +713,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         std::vector<std::vector<uint8_t>> recevr_fingerprints;
         std::shared_ptr<Botan::Private_Key> dec_sec_key = load_private_key(dec_sec_key_fname, passphrase);
         if( !dec_sec_key ) {
+            listener->notifyError(decrypt_mode, header, "Loading priv-key file '"+dec_sec_key_fname+"' failed");
             return header;
         }
 
@@ -734,7 +741,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             const std::string plaintext_hash_algo_s(plaintext_hash_algo);
             hash_func = Botan::HashFunction::create(plaintext_hash_algo_s);
             if( nullptr == hash_func ) {
-                ERR_PRINT2("Decrypt failed: Payload hash algo %s not available", plaintext_hash_algo_s.c_str());
+                listener->notifyError(decrypt_mode, header, "Payload hash algo '"+plaintext_hash_algo_s+"' not available");
                 return header;
             }
         }
@@ -757,7 +764,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 package_magic_in = to_string(package_magic_charvec);
 
                 if( Constants::package_magic != package_magic_in ) {
-                    ERR_PRINT2("Decrypt failed: Expected Magic %s, but got %s in %s", Constants::package_magic.c_str(), package_magic_in.c_str(), source.to_string().c_str());
+                    listener->notifyError(decrypt_mode, header,
+                            "Expected Magic '"+Constants::package_magic+"', but got '"+package_magic_in+
+                            "' in "+source.to_string());
                     return header;
                 }
                 DBG_PRINT("Decrypt: Magic is %s", package_magic_in.c_str());
@@ -824,12 +833,13 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                 false /* valid */);
 
             if( fingerprt_sender.empty() ) {
-                ERR_PRINT2("Decrypt failed: Fingerprint sender is empty");
+                listener->notifyError(decrypt_mode, header, "Fingerprint sender is empty");
                 return header;
             }
             fingerprint_hash_func = Botan::HashFunction::create(crypto_cfg.pk_fingerprt_hash_algo);
             if( nullptr == fingerprint_hash_func ) {
-                ERR_PRINT2("Decrypt failed: Fingerprint hash algo '%s' not available", crypto_cfg.pk_fingerprt_hash_algo.c_str());
+                listener->notifyError(decrypt_mode, header,
+                        "Fingerprint hash algo '"+crypto_cfg.pk_fingerprt_hash_algo+"' not available");
                 return header;
             }
 
@@ -843,9 +853,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 }
             }
             if( nullptr == sender_pub_key ) {
-                jau::INFO_PRINT("Decrypt failed: No matching sender fingerprint, received `%s` in %s",
-                        jau::bytesHexString(fingerprt_sender, true /* lsbFirst */).c_str(), source.to_string().c_str());
-                listener->notifyHeader(decrypt_mode, header, false);
+                listener->notifyError(decrypt_mode, header,
+                        "No matching sender fingerprint, received '"+jau::bytesHexString(fingerprt_sender, true /* lsbFirst */)+
+                        "` in "+source.to_string());
                 return header;
             }
 
@@ -883,22 +893,6 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     }
                 }
             }
-            if( 0 > used_recevr_key_idx || 0 == recevr_count ) {
-                jau::INFO_PRINT("Decrypt failed: No matching receiver key found %zd/%zu in %s", used_recevr_key_idx, recevr_count, source.to_string().c_str());
-                header = PackHeader(target_path,
-                                    plaintext_size,
-                                    ts_creation,
-                                    subject,
-                                    plaintext_version, plaintext_version_parent,
-                                    crypto_cfg,
-                                    fingerprt_sender,
-                                    recevr_fingerprints,
-                                    used_recevr_key_idx,
-                                    false /* valid */);
-                listener->notifyHeader(decrypt_mode, header, false);
-                return header;
-            }
-
             header = PackHeader(target_path,
                                 plaintext_size,
                                 ts_creation,
@@ -909,6 +903,13 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                                 recevr_fingerprints,
                                 used_recevr_key_idx,
                                 false /* valid */);
+
+            if( 0 > used_recevr_key_idx || 0 == recevr_count ) {
+                listener->notifyError(decrypt_mode, header,
+                        "No matching receiver key found "+std::to_string(used_recevr_key_idx)+"/"+std::to_string(recevr_count)+
+                        " in "+source.to_string());
+                return header;
+            }
 
             const uint64_t in_bytes_signature = in_bytes_header;
             {
@@ -921,11 +922,11 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 input.clear_recording(); // implies stop
             }
             if( !verifier.check_signature(sender_signature) ) {
-                ERR_PRINT2("Decrypt failed: Signature mismatch on %" PRIu64 " header bytes / % " PRIu64 " bytes, received signature %s in %s",
-                        in_bytes_signature, in_bytes_header,
-                        jau::bytesHexString(sender_signature, true /* lsbFirst */).c_str(),
-                        source.to_string().c_str());
-                listener->notifyHeader(decrypt_mode, header, false);
+                const std::string msg();
+                listener->notifyError(decrypt_mode, header,
+                        "Signature mismatch on "+std::to_string(in_bytes_signature)+" header bytes / "+std::to_string(in_bytes_header)+
+                        " bytes, received signature '"+jau::bytesHexString(sender_signature, true /* lsbFirst */)+
+                        "' in "+source.to_string() );
                 return header;
             }
 
@@ -938,7 +939,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     used_recevr_key_idx, recevr_count, encrypted_sym_key.size(),
                     header.to_string(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
         } catch (Botan::Decoding_Error &e) {
-            ERR_PRINT("Decrypt failed: Caught exception: %s on %s", e.what(), source.to_string().c_str());
+            listener->notifyError(decrypt_mode, header, "Header Decoding: "+std::string(e.what())+" on "+source.to_string());
             return header;
         }
         DBG_PRINT("Decrypt: target_path '%s', net_file_size %s, version %s (parent %s), subject %s",
@@ -948,7 +949,10 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 subject.c_str());
         DBG_PRINT("Decrypt: creation time %s UTC", ts_creation.to_iso8601_string().c_str());
 
-        listener->notifyHeader(decrypt_mode, header, true);
+        if( !listener->notifyHeader(decrypt_mode, header) ) {
+            DBG_PRINT("Decrypt: notifyHeader() user abort from %s", source.to_string().c_str());
+            return header;
+        }
 
         //
         // Symmetric Encryption
@@ -956,7 +960,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
         std::shared_ptr<Botan::AEAD_Mode> aead = Botan::AEAD_Mode::create_or_throw(crypto_cfg.sym_enc_algo, Botan::DECRYPTION);
         if(!aead) {
-           ERR_PRINT2("Decrypt failed: sym_enc_algo %s not available from %s", crypto_cfg.sym_enc_algo.c_str(), source.to_string().c_str());
+           listener->notifyError(decrypt_mode, header, "sym_enc_algo '"+crypto_cfg.sym_enc_algo+"' not available from '"+source.to_string()+"'");
            return header;
         }
         const size_t expected_keylen = aead->key_spec().maximum_keylength();
@@ -980,8 +984,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         DBG_PRINT("Decrypt sym_key[sz %zd], %s", plain_file_key.size(), crypto_cfg.to_string().c_str());
 
         if( !crypto_cfg.valid() ) {
-            ERR_PRINT2("Decrypt failed: CryptoConfig incomplete %s from %s", crypto_cfg.to_string().c_str(), source.to_string().c_str());
-            listener->notifyHeader(decrypt_mode, header, false);
+            listener->notifyError(decrypt_mode, header, "CryptoConfig incomplete "+crypto_cfg.to_string()+" from "+source.to_string());
             return header;
         }
 
@@ -991,6 +994,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
         const bool sent_content_to_user = listener->getSendContent( decrypt_mode );
         uint64_t out_bytes_plaintext = 0;
+        bool consume_abort = false;
         _StreamConsumerFunc consume_data = [&](cipherpack::secure_vector<uint8_t>& data, bool is_final) -> bool {
             bool res = true;
             const uint64_t next_total = out_bytes_plaintext + data.size();
@@ -1007,7 +1011,8 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 try {
                     aead->update(data);
                 } catch (std::exception &e) {
-                    ERR_PRINT("Caught exception: %s", e.what());
+                    consume_abort = true;
+                    listener->notifyError(decrypt_mode, header, "Decrypting: "+std::string(e.what())+" on "+source.to_string());
                     return false;
                 }
                 if( nullptr != hash_func ) {
@@ -1017,15 +1022,19 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     res = listener->contentProcessed(decrypt_mode, CipherpackListener::content_type::message, data, false /* is_final */);
                 }
                 out_bytes_plaintext += data.size();
+                if( res ) {
+                    res = listener->notifyProgress(decrypt_mode, plaintext_size, out_bytes_plaintext);
+                }
                 DBG_PRINT("Decrypt: DecPayload written0 + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_plaintext, plaintext_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, plaintext_size, out_bytes_plaintext);
+                consume_abort = !res;
                 return res; // continue if user so desires
             } else {
                 try {
                     aead->finish(data);
                 } catch (std::exception &e) {
-                    ERR_PRINT("Caught exception: %s", e.what());
+                    consume_abort = true;
+                    listener->notifyError(decrypt_mode, header, "Decrypting: "+std::string(e.what())+" on "+source.to_string());
                     return false;
                 }
                 if( nullptr != hash_func ) {
@@ -1039,9 +1048,12 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     plaintext_size = out_bytes_plaintext;
                     header.set_plaintext_size(plaintext_size);
                 }
+                if( res ) {
+                    res = listener->notifyProgress(decrypt_mode, plaintext_size, out_bytes_plaintext);
+                }
                 DBG_PRINT("Decrypt: DecPayload writtenF + %zu bytes -> %" PRIu64 " bytes / %zu bytes, user[sent %d, res %d]",
                         data.size(), out_bytes_plaintext, plaintext_size, sent_content_to_user, res);
-                listener->notifyProgress(decrypt_mode, plaintext_size, out_bytes_plaintext);
+                consume_abort = !res;
                 return false; // EOS
             }
         };
@@ -1062,15 +1074,23 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             hash_func->final(hash_value.data());
             header.set_plaintext_hash(hash_func->name(), hash_value);
         }
-
-        if ( 0==in_bytes_total || source.fail() ) {
-            ERR_PRINT2("Decrypt failed: Input file read failed %s", source.to_string().c_str());
+        if( consume_abort ) {
+            DBG_PRINT("Decrypt: Processing aborted %s", source.to_string().c_str());
+            return header;
+        }
+        if ( source.fail() ) {
+            listener->notifyError(decrypt_mode, header, "Reading stream failed "+source.to_string());
+            return header;
+        }
+        if( 0==in_bytes_total ) {
+            listener->notifyError(decrypt_mode, header, "Processing stream failed "+source.to_string());
             return header;
         }
         if( out_bytes_plaintext != plaintext_size ) {
-            ERR_PRINT2("Decrypt: Writing done, %s output plaintext != %s header files size from %s",
-                    jau::to_decstring(out_bytes_plaintext).c_str(),
-                    jau::to_decstring(plaintext_size).c_str(), source.to_string().c_str());
+            listener->notifyError(decrypt_mode, header, "Plaintext size mismatch: "+
+                    jau::to_decstring(out_bytes_plaintext)+" output bytes != "+
+                    jau::to_decstring(plaintext_size)+" header plaintext bytes from "+
+                    source.to_string().c_str());
             return header;
         } else {
             WORDY_PRINT("Decrypt: Reading done from %s", source.to_string().c_str());
@@ -1088,7 +1108,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         header.setValid(true);
         return header;
     } catch (std::exception &e) {
-        ERR_PRINT("Decrypt failed: Caught exception: %s on %s", e.what(), source.to_string().c_str());
+        listener->notifyError(decrypt_mode, header, "Exception: "+std::string(e.what())+" on "+source.to_string());
         return header;
     }
 }
@@ -1103,11 +1123,13 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
     const bool decrypt_mode = true;
 
     if( dest_fname.empty() ) {
-        PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
+        PackHeader header = checkSignThenDecrypt_Impl(sign_pub_keys,
                                                   dec_sec_key_fname, passphrase,
                                                   source, listener, plaintext_hash_algo);
-        listener->notifyEnd(decrypt_mode, ph, ph.isValid());
-        return ph;
+        if( header.isValid() ) {
+            listener->notifyEnd(decrypt_mode, header);
+        }
+        return header;
     }
     std::string dest_fname2;
     if( dest_fname == "/dev/stdout" || dest_fname == "-" ) {
@@ -1126,11 +1148,14 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
 
     class MyListener : public WrappingCipherpackListener {
         private:
+            bool sent_content_to_user;
             jau::io::ByteOutStream_File* outfile_;
             uint64_t& out_bytes_plaintext_;
         public:
             MyListener(CipherpackListenerRef parent_, uint64_t& bytes_plaintext)
-            : WrappingCipherpackListener(parent_), outfile_(nullptr),
+            : WrappingCipherpackListener(parent_),
+              sent_content_to_user(parent_->getSendContent( decrypt_mode )),
+              outfile_(nullptr),
               out_bytes_plaintext_(bytes_plaintext)
             {}
 
@@ -1150,7 +1175,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
                     }
                     out_bytes_plaintext_ += data.size();
                 }
-                if( parent->getSendContent(decrypt_mode) ) {
+                if( sent_content_to_user ) {
                     return parent->contentProcessed(decrypt_mode, ctype, data, is_final);
                 } else {
                     return true;
@@ -1164,66 +1189,61 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
         if( output_stats.exists() && !output_stats.has_fd() ) {
             if( output_stats.is_file() ) {
                 if( !jau::fs::remove(dest_fname2) ) {
-                    ERR_PRINT2("Decrypt failed: Failed deletion of existing output file %s", output_stats.to_string().c_str());
-                    my_listener->notifyEnd(decrypt_mode, header, false);
+                    my_listener->notifyError(decrypt_mode, header, "Failed deletion of existing output file "+output_stats.to_string());
                     return header;
                 }
             } else if( output_stats.is_dir() || output_stats.is_block() ) {
-                ERR_PRINT2("Decrypt failed: Not overwriting existing %s", output_stats.to_string().c_str());
-                my_listener->notifyEnd(decrypt_mode, header, false);
+                my_listener->notifyError(decrypt_mode, header, "Not overwriting existing "+output_stats.to_string());
                 return header;
             }
         }
     }
     jau::io::ByteOutStream_File outfile(dest_fname2);
     if ( !outfile.good() ) {
-        ERR_PRINT2("Decrypt failed: Output file not open %s", outfile.to_string().c_str());
-        my_listener->notifyEnd(decrypt_mode, header, false);
+        my_listener->notifyError(decrypt_mode, header, "Failed to open output file "+outfile.to_string());
         return header;
     }
     my_listener->set_outfile(&outfile);
 
-    PackHeader ph = checkSignThenDecrypt_Impl(sign_pub_keys,
-                                              dec_sec_key_fname, passphrase,
-                                              source, my_listener, plaintext_hash_algo);
+    header = checkSignThenDecrypt_Impl(sign_pub_keys,
+                                       dec_sec_key_fname, passphrase,
+                                       source, my_listener, plaintext_hash_algo);
 
     {
         const jau::fs::file_stats output_stats(dest_fname2);
         if ( outfile.fail() ) {
-            ERR_PRINT2("Decrypt failed: Output file write failed %s", dest_fname2.c_str());
             if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
-            ph.setValid(false);
-            my_listener->notifyEnd(decrypt_mode, ph, false);
-            return ph;
+            header.setValid(false);
+            my_listener->notifyError(decrypt_mode, header, "Failed to write output file "+dest_fname2);
+            return header;
         }
         outfile.close();
 
-        if( !ph.isValid() ) {
+        if( !header.isValid() ) {
             if( output_stats.is_file() && !output_stats.has_fd() ) {
                 jau::fs::remove(dest_fname2);
             }
-            my_listener->notifyEnd(decrypt_mode, ph, false);
-            return ph;
+            return header;
         }
     }
     // outfile closed
     const jau::fs::file_stats output_stats(dest_fname2);
-    if( output_stats.is_file() && ph.plaintext_size() != output_stats.size() ) {
-        ERR_PRINT2("Decrypt: Writing done, %s plaintext_size != %s total bytes",
-                jau::to_decstring(ph.plaintext_size()).c_str(),
-                jau::to_decstring(output_stats.size()).c_str());
+    if( output_stats.is_file() && header.plaintext_size() != output_stats.size() ) {
         if( output_stats.is_file() && !output_stats.has_fd() ) {
             jau::fs::remove(dest_fname2);
         }
-        ph.setValid(false);
-        my_listener->notifyEnd(decrypt_mode, ph, false);
-        return ph;
+        header.setValid(false);
+        listener->notifyError(decrypt_mode, header, "Output plaintext file size mismatch: "+
+                jau::to_decstring(output_stats.size())+" output file bytes != "+
+                jau::to_decstring(header.plaintext_size())+" header plaintext bytes from "+
+                source.to_string().c_str());
+        return header;
     }
 
     WORDY_PRINT("Decrypt: Writing done: output: %s", output_stats.to_string().c_str());
-    my_listener->notifyEnd(decrypt_mode, ph, true);
-    return ph;
+    my_listener->notifyEnd(decrypt_mode, header);
+    return header;
 }
 
