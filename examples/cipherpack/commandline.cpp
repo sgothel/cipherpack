@@ -19,6 +19,78 @@ extern "C" {
 
 using namespace jau::fractions_i64_literals;
 
+class LoggingCipherpackListener : public cipherpack::CipherpackListener {
+    private:
+        bool verbose;
+    public:
+        jau::relaxed_atomic_int count_error;
+        jau::relaxed_atomic_int count_header;
+        jau::relaxed_atomic_int count_progress;
+        jau::relaxed_atomic_int count_end;
+        jau::relaxed_atomic_uint64 count_content;
+
+        LoggingCipherpackListener(const bool verbose_) noexcept
+        : verbose(verbose_),
+          count_error(0), count_header(0),
+          count_progress(0), count_end(0), count_content(0)
+        {}
+
+        void notifyError(const bool decrypt_mode, const cipherpack::PackHeader& header, const std::string& msg) noexcept override {
+            count_error++;
+            (void)decrypt_mode;
+            jau::PLAIN_PRINT(true, "CL::Error[%d]: %s, %s", count_error.load(), msg.c_str(), header.to_string(true, true).c_str());
+        }
+
+        bool notifyHeader(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override {
+            count_header++;
+            (void)decrypt_mode;
+            (void)header;
+            if( verbose ) {
+                jau::PLAIN_PRINT(true, "CL::Header[%d]: %s", count_header.load(), header.to_string(true, true).c_str());
+            }
+            return true;
+        }
+
+        bool notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override {
+            count_progress++;
+            (void)decrypt_mode;
+            (void)plaintext_size;
+            (void)bytes_processed;
+            return true;
+        }
+
+        void notifyEnd(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override {
+            count_end++;
+            (void)decrypt_mode;
+            (void)header;
+            if( verbose ) {
+                jau::PLAIN_PRINT(true, "CL::End[%d]: %s", count_end.load(), header.to_string(true, true).c_str());
+            }
+        }
+
+        bool getSendContent(const bool decrypt_mode) const noexcept override {
+            (void)decrypt_mode;
+            return false;
+        }
+
+        bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+            count_content.fetch_add( data.size() );
+            (void)decrypt_mode;
+            (void)ctype;
+            (void)data;
+            (void)is_final;
+            return true;
+        }
+        std::string toString() const noexcept override {
+            return "CipherpackListener[count[error "+std::to_string(count_error)+
+                                       ", header "+std::to_string(count_header)+
+                                       ", progress "+std::to_string(count_progress)+
+                                       ", content "+std::to_string(count_content)+
+                                       ", end "+std::to_string(count_end)+"]";
+        }
+};
+typedef std::shared_ptr<LoggingCipherpackListener> LoggingCipherpackListenerRef;
+
 static void print_version() {
     fprintf(stderr, "Cipherpack Native Version %s (API %s)\n", cipherpack::VERSION, cipherpack::VERSION_API);
 }
@@ -132,11 +204,12 @@ int main(int argc, char *argv[])
             jau::PLAIN_PRINT(true, "Pack: Error: source '%s' failed to open", fname_input.c_str());
             return -1;
         }
+        LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(verbose);
         cipherpack::PackHeader ph = cipherpack::encryptThenSign(cipherpack::CryptoConfig::getDefault(),
                                                                 enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
                                                                 *input, target_path, subject,
                                                                 plaintext_version, plaintext_version_parent,
-                                                                std::make_shared<cipherpack::CipherpackListener>(),
+                                                                cpl,
                                                                 plaintext_hash_algo, fname_output);
         if( !plaintext_fname_output.empty() ) {
             cipherpack::hash_util::append_to_file(plaintext_fname_output, fname_input, ph.plaintext_hash_algo(), ph.plaintext_hash());
@@ -144,6 +217,7 @@ int main(int argc, char *argv[])
         if( verbose ) {
             jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s", fname_input.c_str(), fname_output.c_str());
             jau::PLAIN_PRINT(true, "Pack: %s", ph.to_string(true, true).c_str());
+            jau::PLAIN_PRINT(true, "Pack: %s", cpl->toString().c_str());
         }
         return ph.isValid() ? 0 : -1;
     }
@@ -192,9 +266,10 @@ int main(int argc, char *argv[])
             jau::PLAIN_PRINT(true, "Unpack: Error: source '%s' failed to open", fname_input.c_str());
             return -1;
         }
+        LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(verbose);
         cipherpack::PackHeader ph = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                                                      *input,
-                                                                     std::make_shared<cipherpack::CipherpackListener>(),
+                                                                     cpl,
                                                                      plaintext_hash_algo, fname_output);
         if( !plaintext_fname_output.empty() ) {
             cipherpack::hash_util::append_to_file(plaintext_fname_output, ph.target_path(), ph.plaintext_hash_algo(), ph.plaintext_hash());
@@ -203,6 +278,7 @@ int main(int argc, char *argv[])
         if( verbose ) {
             jau::PLAIN_PRINT(true, "Unpack: Decypted %s to %s", fname_input.c_str(), fname_output.c_str());
             jau::PLAIN_PRINT(true, "Unpack: %s", ph.to_string(true, true).c_str());
+            jau::PLAIN_PRINT(true, "Unpack: %s", cpl->toString().c_str());
         }
         return ph.isValid() ? 0 : -1;
     }
