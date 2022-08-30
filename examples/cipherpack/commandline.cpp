@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
             jau::PLAIN_PRINT(true, "Pack: Error: source '%s' failed to open", fname_input.c_str());
             return -1;
         }
-        LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(verbose);
+        LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(false);
         cipherpack::PackHeader ph = cipherpack::encryptThenSign(cipherpack::CryptoConfig::getDefault(),
                                                                 enc_pub_keys, sign_sec_key_fname, sign_sec_key_passphrase,
                                                                 *input, target_path, subject,
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
             jau::PLAIN_PRINT(true, "Unpack: Error: source '%s' failed to open", fname_input.c_str());
             return -1;
         }
-        LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(verbose);
+        LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(false);
         cipherpack::PackHeader ph = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key_fname, dec_sec_key_passphrase,
                                                                      *input,
                                                                      cpl,
