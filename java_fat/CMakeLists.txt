@@ -67,8 +67,12 @@ add_custom_command (OUTPUT ${cipherpack_fat_jar_file} ${cipherpack_java_src_file
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/FileStats.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/FileUtil.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/FMode.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/MountFlags.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/TraverseEvent.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/TraverseOptions.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/UnmountFlags.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/linux/MountFlags.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/fs/linux/UnmountFlags.java
                     DEPENDS jaulib_fat_jar cipherpack cipherpack_jar javacipherpack
                     COMMENT "producing cipherpack [fat] jar files and its java source zip"
                     VERBATIM

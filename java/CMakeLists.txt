@@ -26,8 +26,12 @@ add_jar(cipherpack_jar
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/FileStats.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/FileUtil.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/FMode.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/MountFlags.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/TraverseEvent.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/TraverseOptions.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/UnmountFlags.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/linux/MountFlags.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/fs/linux/UnmountFlags.java
         INCLUDE_JARS ${jaulib_fat_jar_file}
         MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/manifest.txt
         OUTPUT_NAME cipherpack
