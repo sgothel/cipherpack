@@ -50,6 +50,7 @@ add_custom_command (OUTPUT ${cipherpack_fat_jar_file} ${cipherpack_java_src_file
                        --no-manifest
                        -C ${PROJECT_SOURCE_DIR}/java org
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_base org/jau/util/BasicTypes.java
+                       -C ${PROJECT_SOURCE_DIR}/jaulib/java_base org/jau/util/BaseCodec.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/sys/Clock.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/PrintUtil.java
                        -C ${PROJECT_SOURCE_DIR}/jaulib/java_jni org/jau/io/MemUtil.java

@@ -9,6 +9,7 @@ file(GLOB_RECURSE JAVA_SOURCES "*.java")
 add_jar(cipherpack_jar 
         ${JAVA_SOURCES}
         ${PROJECT_SOURCE_DIR}/jaulib/java_base/org/jau/util/BasicTypes.java
+        ${PROJECT_SOURCE_DIR}/jaulib/java_base/org/jau/util/BaseCodec.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/sys/Clock.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/PrintUtil.java
         ${PROJECT_SOURCE_DIR}/jaulib/java_jni/org/jau/io/MemUtil.java

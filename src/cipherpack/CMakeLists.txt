@@ -13,6 +13,7 @@ include_directories(
 set (cipherpack_LIB_SRCS
   ${PROJECT_SOURCE_DIR}/jaulib/src/debug.cpp
   ${PROJECT_SOURCE_DIR}/jaulib/src/basic_types.cpp
+  ${PROJECT_SOURCE_DIR}/jaulib/src/base_codec.cpp
   ${PROJECT_SOURCE_DIR}/jaulib/src/environment.cpp
   ${PROJECT_SOURCE_DIR}/jaulib/src/cpuid.cpp
   ${PROJECT_SOURCE_DIR}/jaulib/src/file_util.cpp
