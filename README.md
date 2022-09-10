@@ -267,7 +267,7 @@ please contact [Gothel Software](https://jausoft.com/) to setup a potential supp
 
 **1.0.0**
 
-* First stable release (TODO)
+* First stable release
 
 **0.6.0**
 
