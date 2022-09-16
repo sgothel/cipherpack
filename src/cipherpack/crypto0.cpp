@@ -467,7 +467,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     };
     ctx.io_buffer.reserve(Constants::buffer_size);
 
-    const jau::fs::path_visitor pv = jau::bindCaptureRefFunc<bool, context_t, jau::fs::traverse_event, const jau::fs::file_stats&>(&ctx,
+    const jau::fs::path_visitor pv = jau::bind_capref<bool, context_t, jau::fs::traverse_event, const jau::fs::file_stats&>(&ctx,
             ( bool(*)(context_t*, jau::fs::traverse_event, const jau::fs::file_stats&) ) /* help template type deduction of function-ptr */
                 ( [](context_t* ctx_ptr, jau::fs::traverse_event tevt, const jau::fs::file_stats& element_stats) -> bool {
                     if( is_set(tevt, jau::fs::traverse_event::file) && !is_set(tevt, jau::fs::traverse_event::symlink) ) {
