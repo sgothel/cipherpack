@@ -1,5 +1,9 @@
+/Debug*/
+/Release*/
 build*/
 dist*/
+/.cache/
+/compile_commands.json
 
 # Object files
 *.o
@@ -22,9 +26,5 @@ dist*/
 
 # Archive files
 *.jar
-
-/build/
-/Debug/
-/Release/
 
 /bin/

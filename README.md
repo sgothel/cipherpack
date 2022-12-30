@@ -25,7 +25,7 @@ to produce the input stream by injecting data off-thread and a
 [CipherpackListener](https://jausoft.com/projects/cipherpack/build/documentation/cpp/html/classcipherpack_1_1CipherpackListener.html)
 to receive the processed output stream.
 
-*Cipherpack* is implemented using C++17 and accessible via C++ and Java.
+*Cipherpack* is implemented using C++17 or C++20 and is accessible via C++ and Java.
 
 Please find the more detailed [overview in the API doc](https://jausoft.com/projects/cipherpack/build/documentation/cpp/html/group__CipherpackAPI.html#details).
 
@@ -34,10 +34,13 @@ Hence original project name was *Elevator*.
 
 See details on the [C++ and Java API](#cipherpack_apidoc) including its different C++ API level modules.
 
+### Status
+Build and clang-tidy clean on C++17 and C++20, passing all unit tests.
+
 ## Supported Platforms
-Minimum language requirements
-- C++17
-- Java 11 (optional)
+Language requirements
+- C++17 or C++20
+- Java 11, 17+ (optional)
 
 See [supported platforms](PLATFORMS.md) for details.
 
@@ -66,14 +69,22 @@ This project uses the following git submodules
 
 ### Build Dependencies
 - CMake 3.13+ but >= 3.18 is recommended
-- gcc >= 8.3.0
-  - or clang >= 10.0
+- C++ compiler
+  - gcc >= 8.3.0 (C++17)
+  - gcc >= 10.2.1 (C++17 and C++20)
+  - clang >= 15 (C++17 and C++20)
+- Optional for `lint` validation
+  - clang-tidy >= 15
+- Optional for `vscodium` integration
+  - clangd >= 15
+  - clang-tools >= 15
+  - clang-format >= 15
 - Optional
   - libunwind8 >= 1.2.1
   - libcurl4 >= 7.74 (tested, lower may work)
-  - For Java support
-    - OpenJDK >= 11
-    - junit4 >= 4.12
+- Optional Java support
+  - OpenJDK >= 11
+  - junit4 >= 4.12
 
 #### Install on FreeBSD
 
@@ -122,10 +133,17 @@ Installing build dependencies on Debian (10 or 11):
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 apt install git
 apt install build-essential g++ gcc libc-dev libpthread-stubs0-dev 
+apt install clang-15 clang-tidy-15 clangd-15 clang-tools-15 clang-format-15
 apt install libunwind8 libunwind-dev
 apt install cmake cmake-extras extra-cmake-modules pkg-config
 apt install doxygen graphviz
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If using optional clang toolchain, 
+perhaps change the clang version-suffix of above clang install line to the appropriate version.
+
+After complete clang installation, you might want to setup the latest version as your default.
+For Debian you can use this [clang alternatives setup script](https://jausoft.com/cgit/jaulib.git/tree/scripts/setup_clang_alternatives.sh).
 
 Install optional Java dependencies:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
@@ -213,6 +231,18 @@ Covered unit test requiring `sudo` are currently
 -DTEST_WITH_SUDO=ON
 ~~~~~~~~~~~~~
 
+Using clang instead of gcc:
+~~~~~~~~~~~~~
+-DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+~~~~~~~~~~~~~
+
+Building with clang and clang-tidy `lint` validation
+~~~~~~~~~~~~~
+-DCMAKE_C_COMPILER=/usr/bin/clang 
+-DCMAKE_CXX_COMPILER=/usr/bin/clang++ 
+-DCMAKE_CXX_CLANG_TIDY=/usr/bin/clang-tidy;-p;$rootdir/$build_dir
+~~~~~~~~~~~~~
+
 Disable stripping native lib even in non debug build:
 ~~~~~~~~~~~~~
 -DUSE_STRIP=OFF
@@ -238,11 +268,6 @@ Building debug and instrumentation (sanitizer) build:
 -DDEBUG=ON -DINSTRUMENTATION=ON
 ~~~~~~~~~~~~~
 
-Using clang instead of gcc:
-~~~~~~~~~~~~~
--DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
-~~~~~~~~~~~~~
-
 Cross-compiling on a different system:
 ~~~~~~~~~~~~~
 -DCMAKE_CXX_FLAGS:STRING=-m32 -march=i586
@@ -253,6 +278,56 @@ To build documentation run:
 ~~~~~~~~~~~~~
 make doc
 ~~~~~~~~~~~~~
+
+## IDE Integration
+
+### Eclipse 
+IDE integration configuration files are provided for 
+- [Eclipse](https://download.eclipse.org/eclipse/downloads/) with extensions
+  - [CDT](https://github.com/eclipse-cdt/) or [CDT @ eclipse.org](https://projects.eclipse.org/projects/tools.cdt)
+  - Not used due to lack of subproject include file and symbol resolution:
+    - `CMake Support`, install `C/C++ CMake Build Support` with ID `org.eclipse.cdt.cmake.feature.group`
+
+From the project root directory, prepare the `Debug` folder using `cmake`
+~~~~~~~~~~~~~
+./scripts/eclipse-cmake-prepare.sh
+~~~~~~~~~~~~~
+
+The existing project setup is just using `external build` via `make`.
+
+You can import the project to your workspace via `File . Import...` and `Existing Projects into Workspace` menu item.
+
+For Eclipse one might need to adjust some setting in the `.project` and `.cproject` (CDT) 
+via Eclipse settings UI, but it should just work out of the box.
+
+### VSCodium or VS Code
+
+IDE integration configuration files are provided for 
+- [VSCodium](https://vscodium.com/) or [VS Code](https://code.visualstudio.com/) with extensions
+  - [vscode-clangd](https://github.com/clangd/vscode-clangd)
+  - [twxs.cmake](https://github.com/twxs/vs.language.cmake)
+  - [ms-vscode.cmake-tools](https://github.com/microsoft/vscode-cmake-tools)
+  - [notskm.clang-tidy](https://github.com/notskm/vscode-clang-tidy)
+  - Java Support
+    - [redhat.java](https://github.com/redhat-developer/vscode-java#readme)
+      - Notable, `.settings/org.eclipse.jdt.core.prefs` describes the `lint` behavior
+    - [vscjava.vscode-java-test](https://github.com/Microsoft/vscode-java-test)
+    - [vscjava.vscode-java-debug](https://github.com/Microsoft/java-debug)
+    - [vscjava.vscode-maven](https://github.com/Microsoft/vscode-maven/)
+  - [cschlosser.doxdocgen](https://github.com/cschlosser/doxdocgen)
+  - [jerrygoyal.shortcut-menu-bar](https://github.com/GorvGoyl/Shortcut-Menu-Bar-VSCode-Extension)
+
+For VSCodium one might copy the [example root-workspace file](https://jausoft.com/cgit/cipherpack.git/tree/.vscode/cipherpack.code-workspace_example)
+to the parent folder of this project (*note the filename change*) and adjust the `path` to your filesystem.
+~~~~~~~~~~~~~
+cp .vscode/cipherpack.code-workspace_example ../cipherpack.code-workspace
+vi ../cipherpack.code-workspace
+~~~~~~~~~~~~~
+Then you can open it via `File . Open Workspace from File...` menu item.
+- All listed extensions are referenced in this workspace file to be installed via the IDE
+- The [local settings.json](.vscode/settings.json) has `clang-tidy` enabled
+  - If using `clang-tidy` is too slow, just remove it from the settings file.
+  - `clangd` will still contain a good portion of `clang-tidy` checks
 
 
 ## Support
