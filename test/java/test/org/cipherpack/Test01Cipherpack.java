@@ -864,6 +864,40 @@ public class Test01Cipherpack extends data_test {
             enc_feed.set_eof( xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
         } };
 
+    // full speed, with content size, implicit eof based on count
+    static FeederFunc feed_source_100_sized_eof_fast = new FeederFunc() {
+        @Override
+        public void feed(final ByteInStream_Feed enc_feed) {
+            long xfer_total = 0;
+            final File enc_stream = new File(enc_feed.id());
+            Assert.assertTrue( enc_stream.exists() );
+            final long file_size = enc_stream.length();
+            enc_feed.set_content_size( file_size );
+
+            InputStream in = null;
+            try {
+                in = new FileInputStream(enc_stream);
+                boolean in_eof = false; // we can't rely on in.available(), not supported at least on SMB input stream
+                while( xfer_total < file_size && !in_eof ) {
+                    final byte[] buffer = new byte[1024];
+                    final int count = in.read(buffer);
+                    if( 0 < count ) {
+                        xfer_total += count;
+                        enc_feed.write(buffer, 0, count);
+                    } else if( 0 > count ) {
+                        in_eof = true;
+                    }
+                }
+            } catch (final Exception ex) {
+                PrintUtil.println(System.err, "feed_source_10: "+ex.getMessage());
+                ex.printStackTrace();
+            } finally {
+                try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
+            }
+            // probably set after transfering due to above sleep, which also ends when total size has been reached.
+            enc_feed.set_eof( xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
+        } };
+
     // full speed, no content size, interrupting @ 1024 bytes within our header
     static void feed_source_20_nosize_irqed_1k(final ByteInStream_Feed enc_feed) {
         long xfer_total = 0;
@@ -946,8 +980,9 @@ public class Test01Cipherpack extends data_test {
             enc_listener.check_counter_end();
 
             final FeederFunc[] feed_funcs = { feed_source_00_nosize_slow, feed_source_01_sized_slow,
-                                              feed_source_10_nosize_fast, feed_source_11_sized_fast };
-            final String[] feed_funcs_suffix = { "nosize_slow", "sized_slow", "nosize_fast", "sized_fast" };
+                                              feed_source_10_nosize_fast, feed_source_11_sized_fast,
+                                              feed_source_100_sized_eof_fast };
+            final String[] feed_funcs_suffix = { "nosize_slow", "sized_slow", "nosize_fast", "sized_fast", "sidzed_eof_fast" };
             for(int func_idx=0; func_idx < feed_funcs.length; ++func_idx) {
                 final FeederFunc feed_func = feed_funcs[func_idx];
                 if( IDX_65MiB == file_idx && ( func_idx == 0 || func_idx == 1 ) ) {
