@@ -13,8 +13,9 @@
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="dist-amd64/lib/java/jaulib-fat.jar"/>
-	<classpathentry kind="lib" path="dist-amd64/lib/java/jaulib-test.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
+	<classpathentry kind="lib" path="Debug/jaulib/java_fat/jaulib-fat.jar" sourcepath="Debug/jaulib/java_fat/jaulib-java-src.zip"/>
+	<classpathentry kind="lib" path="Debug/jaulib/test/java/jaulib-test.jar"/>
+	<classpathentry kind="var" path="JUNIT_HOME"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
