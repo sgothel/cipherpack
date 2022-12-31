@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#export cipherpack_debug=true
-#export cipherpack_verbose=true
+# export cipherpack_debug=true
+# export cipherpack_verbose=true
 
 # Arguments:
 #   --perf_analysis   special performance analysis using 3rd party tools
@@ -63,6 +63,8 @@ export LANG=en_US.UTF-8
 # export EXE_WRAPPER="ASAN_OPTIONS=print_stats:halt_on_error:replace_intrin "
 # export EXE_WRAPPER="nice -20"
 
+set -o pipefail
+
 runit() {
     echo "script invocation: $0 ${script_args}"
     echo EXE_WRAPPER $EXE_WRAPPER
@@ -80,7 +82,8 @@ runit() {
     #export ASAN_OPTIONS=print_stats:halt_on_error:replace_intrin
 
     $EXE_WRAPPER ./$bname "$@"
+    exit $?
 }
 
 runit "$@" 2>&1 | tee $logfile
-
+exit $?
