@@ -42,6 +42,7 @@
 
 #include <jau/debug.hpp>
 #include <jau/file_util.hpp>
+#include <jau/environment.hpp>
 
 extern "C" {
     #include <sys/types.h>
@@ -1137,7 +1138,8 @@ class Test01Cipherpack : public TestData {
                 enc_listener->check_counter_end();
 
                 typedef std::function<void(jau::io::ByteInStream_Feed *)> feed_func_t;
-                std::vector<feed_func_t> feed_funcs = { feed_source_00_nosize_slow, feed_source_01_sized_slow, feed_source_10_nosize_fast, feed_source_11_sized_fast };
+                std::vector<feed_func_t> feed_funcs = { feed_source_00_nosize_slow, feed_source_01_sized_slow,
+                                                        feed_source_10_nosize_fast, feed_source_11_sized_fast };
                 std::vector<std::string> feed_funcs_suffix = { "nosize_slow", "sized_slow", "nosize_fast", "sized_fast" };
                 for(size_t func_idx=0; func_idx < feed_funcs.size(); ++func_idx) {
                     feed_func_t feed_func = feed_funcs[func_idx];
@@ -1165,6 +1167,67 @@ class Test01Cipherpack : public TestData {
                                 fname_decrypted_lst[file_idx], ph2.plaintext_hash());
                 }
             }
+        }
+
+        void test32_bug574() {
+            const std::string test_plaintext_file = jau::environment::getProperty("PLAINTEXT_FILE");
+            const std::string test_encrypted_file = jau::environment::getProperty("ENCRYPTED_FILE");
+            std::string fname_plaintext;
+            std::string fname_encrypted;
+            std::string fname_decrypted;
+            if( test_plaintext_file.empty() ) {
+                const size_t file_idx = IDX_65MiB;
+                fname_plaintext = fname_plaintext_lst[file_idx];
+                fname_encrypted = fname_encrypted_lst[file_idx];
+                fname_decrypted = fname_decrypted_lst[file_idx];
+            } else {
+                fname_plaintext = test_plaintext_file;
+                if( test_encrypted_file.empty() ) {
+                    fname_encrypted = test_plaintext_file+".enc";
+                } else {
+                    fname_encrypted = test_encrypted_file;
+                }
+                fname_decrypted = test_plaintext_file+".enc.dec";
+            }
+
+            const std::vector<std::string> enc_pub_keys { enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname };
+            const std::vector<std::string> sign_pub_keys { sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname };
+
+            if( test_encrypted_file.empty() ) {
+                LoggingCipherpackListenerRef enc_listener = std::make_shared<LoggingCipherpackListener>("test32.enc");
+                jau::io::ByteInStream_File source(fname_plaintext);
+                cipherpack::PackHeader ph1 = cipherpack::encryptThenSign(cipherpack::CryptoConfig::getDefault(),
+                                                                         enc_pub_keys,
+                                                                         sign_sec_key1_fname, sign_sec_key_passphrase,
+                                                                         source, fname_plaintext, "test32_bug574", plaintext_version, plaintext_version_parent,
+                                                                         enc_listener, "", fname_encrypted);
+                jau::PLAIN_PRINT(true, "test32_bug574: Encrypted %s to %s\n", fname_plaintext.c_str(), fname_encrypted.c_str());
+                jau::PLAIN_PRINT(true, "test32_bug574: %s\n", ph1.to_string(true, true).c_str());
+                REQUIRE( ph1.isValid() == true );
+                enc_listener->check_counter_end();
+            }
+
+            typedef std::function<void(jau::io::ByteInStream_Feed *)> feed_func_t;
+            std::string suffix = "sized_fast";
+            feed_func_t feed_func = feed_source_11_sized_fast;
+            LoggingCipherpackListenerRef dec_listener = std::make_shared<LoggingCipherpackListener>("test32.dec");
+            jau::io::ByteInStream_Feed enc_feed(fname_encrypted, io_timeout);
+            std::thread feeder_thread= std::thread(feed_func, &enc_feed);
+
+            cipherpack::PackHeader ph2 = cipherpack::checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
+                                                                          enc_feed,
+                                                                          dec_listener, "", fname_decrypted);
+            if( feeder_thread.joinable() ) {
+                feeder_thread.join();
+            }
+            jau::PLAIN_PRINT(true, "test32_bug574 %s: Decypted %s to %s\n", suffix.c_str(), fname_encrypted.c_str(), fname_decrypted.c_str());
+            jau::PLAIN_PRINT(true, "test32_bug574 %s: %s\n", suffix.c_str(), ph2.to_string(true, true).c_str());
+            REQUIRE( ph2.isValid() == true );
+            dec_listener->check_counter_end();
+
+            // hash_retest(ph1.plaintext_hash_algo(),
+            //             fname_plaintext, ph1.plaintext_hash(),
+            //             fname_decrypted, ph2.plaintext_hash());
         }
 
         void test34_enc_dec_fed_irq() {
@@ -1400,6 +1463,8 @@ METHOD_AS_TEST_CASE( Test01Cipherpack::test21_dec_from_pipe_slow, "test21_dec_fr
 METHOD_AS_TEST_CASE( Test01Cipherpack::test22_dec_from_pipe_fast, "test22_dec_from_pipe_fast",  "[pipe][pipe_ok][pipe_fast][fast][ok]");
 
 METHOD_AS_TEST_CASE( Test01Cipherpack::test31_fed_all_files,      "test31_fed_all_files",       "[feed][feed_ok][ok]");
+METHOD_AS_TEST_CASE( Test01Cipherpack::test32_bug574,             "test32_bug574",              "[feed][feed_ok][ok]");
+
 METHOD_AS_TEST_CASE( Test01Cipherpack::test34_enc_dec_fed_irq,    "test34_enc_dec_fed_irq",     "[feed][feed_error][error]");
 
 METHOD_AS_TEST_CASE( Test01Cipherpack::test41_abort_stream,       "test41_abort_stream",          "[abort][error]");
