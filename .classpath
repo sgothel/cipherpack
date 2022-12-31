@@ -16,6 +16,6 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="lib" path="Debug/jaulib/java_fat/jaulib-fat.jar" sourcepath="Debug/jaulib/java_fat/jaulib-java-src.zip"/>
 	<classpathentry kind="lib" path="Debug/jaulib/test/java/jaulib-test.jar"/>
-	<classpathentry kind="var" path="JUNIT_HOME"/>
+	<classpathentry kind="var" path="JUNIT_HOME" sourcepath="/JUNIT_SRC_HOME"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
