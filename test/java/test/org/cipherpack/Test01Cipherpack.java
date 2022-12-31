@@ -57,6 +57,8 @@ import org.jau.sys.Clock;
 import org.jau.util.BasicTypes;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Assume;
+import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
@@ -74,11 +76,14 @@ public class Test01Cipherpack extends data_test {
     static final int IDX_xbuffersz = 3;
     static final int IDX_xbuffersz_minus_tag = 4;
     static final int IDX_xbuffersz_plus_tag = 5;
-    static final int IDX_65MiB = 6;
+    static final int IDX_46MiB = 6;
+    static final int IDX_65MiB = 7;
 
     static List<String> fname_plaintext_lst = new ArrayList<String>();
     static List<String> fname_encrypted_lst = new ArrayList<String>();
     static List<String> fname_decrypted_lst = new ArrayList<String>();
+
+    static String single_test_name = null;
 
     static boolean remove_file(final String name) {
             final File file = new File( name );
@@ -156,8 +161,11 @@ public class Test01Cipherpack extends data_test {
         final long xbuffersz_plus = 4 * buffer_size + 1;
         add_test_file("test_cipher_0"+(i++)+"_xbuffsz_"+(xbuffersz/1024)+"kiB_add1.bin", xbuffersz_plus);
 
+        // 46MB Bug 574: Plaintext size: 48,001,024, encrypted size 48,007,099
+        add_test_file("test_cipher_0"+(i++)+"_46MiB.bin", 48001024);
+
         // 65MB big file: Will end up in a finish chunk of 1 byte + 16 bytes TAG, 4160 chunks @ 16384
-        add_test_file("test_cipher_0"+(i++)+"_65MiB.bin", 1024*1024*65+1);
+        add_test_file("test_cipher_0"+(i++)+"_65MiB.bin", 48007099); // 1024*1024*65+1);
     }
 
     static boolean system(final String[] command) {
@@ -250,6 +258,16 @@ public class Test01Cipherpack extends data_test {
         final long td_ms = t0.until(t1, ChronoUnit.MILLIS);
         ByteInStreamUtil.print_stats("Hash '"+hashAlgo+"'", origIn.content_size(), td_ms);
         PrintUtil.fprintf_td(System.err, "\n");
+    }
+
+    @Before
+    public final void testFilter() {
+        if( null != single_test_name && !single_test_name.equals(getTestMethodName()) ) {
+            System.err.println("++++ TestFilter: Disabled "+getFullTestName(" - "));
+            Assume.assumeTrue(false);
+        } else {
+            System.err.println("++++ TestFilter: Enabled "+getFullTestName(" - "));
+        }
     }
 
     @Test(timeout = 120000)
@@ -865,7 +883,7 @@ public class Test01Cipherpack extends data_test {
         } };
 
     // full speed, with content size, implicit eof based on count
-    static FeederFunc feed_source_100_sized_eof_fast = new FeederFunc() {
+    static FeederFunc feed_source_12_sized_eof_fast = new FeederFunc() {
         @Override
         public void feed(final ByteInStream_Feed enc_feed) {
             long xfer_total = 0;
@@ -889,7 +907,7 @@ public class Test01Cipherpack extends data_test {
                     }
                 }
             } catch (final Exception ex) {
-                PrintUtil.println(System.err, "feed_source_10: "+ex.getMessage());
+                PrintUtil.println(System.err, "feed_source_12: "+ex.getMessage());
                 ex.printStackTrace();
             } finally {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -981,11 +999,11 @@ public class Test01Cipherpack extends data_test {
 
             final FeederFunc[] feed_funcs = { feed_source_00_nosize_slow, feed_source_01_sized_slow,
                                               feed_source_10_nosize_fast, feed_source_11_sized_fast,
-                                              feed_source_100_sized_eof_fast };
-            final String[] feed_funcs_suffix = { "nosize_slow", "sized_slow", "nosize_fast", "sized_fast", "sidzed_eof_fast" };
+                                              feed_source_12_sized_eof_fast };
+            final String[] feed_funcs_suffix = { "nosize_slow", "sized_slow", "nosize_fast", "sized_fast", "sized_eof_fast" };
             for(int func_idx=0; func_idx < feed_funcs.length; ++func_idx) {
                 final FeederFunc feed_func = feed_funcs[func_idx];
-                if( IDX_65MiB == file_idx && ( func_idx == 0 || func_idx == 1 ) ) {
+                if( ( IDX_46MiB == file_idx || IDX_65MiB == file_idx ) && ( func_idx == 0 || func_idx == 1 ) ) {
                     continue; // skip big file, too slow -> takes too long time to test
                 }
                 final LoggingCipherpackListener dec_listener = new LoggingCipherpackListener("test31.dec."+file_idx+"."+func_idx);
@@ -1009,6 +1027,84 @@ public class Test01Cipherpack extends data_test {
                             fname_plaintext_lst.get(file_idx), ph1.plaintext_hash,
                             fname_decrypted_lst.get(file_idx), ph2.plaintext_hash);
             }
+        }
+    }
+
+    @Test(timeout = 120000)
+    public final void test32_bug574() {
+        CPFactory.checkInitialized();
+        final String test_plaintext_file = System.getenv("PLAINTEXT_FILE");
+        final String test_encrypted_file = System.getenv("ENCRYPTED_FILE");
+        final String test_loops_s = System.getenv("TEST_LOOPS");
+        int test_loops = 1;
+        if( null != test_loops_s ) {
+            try {
+                test_loops = Integer.parseInt(test_loops_s);
+            } catch(final Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+        String fname_plaintext;
+        String fname_encrypted;
+        String fname_decrypted;
+        if( null == test_plaintext_file ) {
+            final int file_idx = IDX_46MiB; // IDX_65MiB;
+            fname_plaintext = fname_plaintext_lst.get(file_idx);
+            fname_encrypted = fname_encrypted_lst.get(file_idx);
+            fname_decrypted = fname_decrypted_lst.get(file_idx);
+        } else {
+            fname_plaintext = test_plaintext_file;
+            if( null == test_encrypted_file ) {
+                fname_encrypted = test_plaintext_file+".enc";
+            } else {
+                fname_encrypted = test_encrypted_file;
+            }
+            fname_decrypted = test_plaintext_file+".enc.dec";
+        }
+
+        final List<String> enc_pub_keys = Arrays.asList(enc_pub_key1_fname, enc_pub_key2_fname, enc_pub_key3_fname, enc_pub_key4_fname);
+        final List<String> sign_pub_keys = Arrays.asList(sign_pub_key1_fname, sign_pub_key2_fname, sign_pub_key3_fname);
+
+        if( null == test_encrypted_file ) {
+            // 46MB Bug 574: Plaintext size: 48,001,024, encrypted size 48,007,099
+            // adding 1077 bytes to achieve encrypted size 48,007,099
+            final String plaintext_version_bytes = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+            final LoggingCipherpackListener enc_listener = new LoggingCipherpackListener("test32.enc");
+            final ByteInStream_File source = new ByteInStream_File(fname_plaintext);
+            final PackHeader ph1 = Cipherpack.encryptThenSign(CryptoConfig.getDefault(),
+                                                              enc_pub_keys,
+                                                              sign_sec_key1_fname, sign_sec_key_passphrase,
+                                                              source,
+                                                              fname_plaintext, "test32_bug574", plaintext_version_bytes, plaintext_version_parent,
+                                                              enc_listener, Cipherpack.default_hash_algo(), fname_encrypted);
+            PrintUtil.fprintf_td(System.err, "test32_bug574: Encrypted %s to %s\n", fname_plaintext, fname_encrypted);
+            PrintUtil.fprintf_td(System.err, "test32_bug574: %s\n", ph1.toString(true, true));
+            Assert.assertTrue( ph1.isValid() );
+            enc_listener.check_counter_end();
+        }
+
+        for(int loop_idx = 0; loop_idx < test_loops; ++loop_idx) {
+            final String suffix = "sized_eof_fast_"+Integer.toString(loop_idx);
+            final FeederFunc feed_func = feed_source_12_sized_eof_fast;
+            final LoggingCipherpackListener dec_listener = new LoggingCipherpackListener("test32.dec."+Integer.toString(loop_idx));
+            final ByteInStream_Feed enc_feed = new ByteInStream_Feed(fname_encrypted, io_timeout);
+            final Thread feeder_thread = executeOffThread( () -> { feed_func.feed(enc_feed); }, "test32_bug574::"+suffix, false /* detach */);
+
+            final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
+                                                                   enc_feed,
+                                                                   dec_listener, "", fname_decrypted);
+            try {
+                feeder_thread.join(1000);
+            } catch (final InterruptedException e) { }
+
+            PrintUtil.fprintf_td(System.err, "test32_bug574 %s: Decypted %s to %s\n", suffix, fname_encrypted, fname_decrypted);
+            PrintUtil.fprintf_td(System.err, "test32_bug574 %s: %s\n", suffix, ph2.toString(true, true));
+            Assert.assertTrue( ph2.isValid() );
+            dec_listener.check_counter_end();
+
+            // hash_retest(ph1.plaintext_hash_algo,
+            //             fname_plaintext_lst.get(file_idx), ph1.plaintext_hash,
+            //             fname_decrypted_lst.get(file_idx), ph2.plaintext_hash);
         }
     }
 
@@ -1230,6 +1326,12 @@ public class Test01Cipherpack extends data_test {
     }
 
     public static void main(final String args[]) {
-        org.junit.runner.JUnitCore.main(Test01Cipherpack.class.getName());
+        if( args.length > 0 ) {
+            System.err.println("Launching test: class "+Test01Cipherpack.class.getName()+", method "+args[0]);
+            single_test_name = args[0];
+            org.junit.runner.JUnitCore.main(Test01Cipherpack.class.getName());
+        } else {
+            org.junit.runner.JUnitCore.main(Test01Cipherpack.class.getName());
+        }
     }
 }
