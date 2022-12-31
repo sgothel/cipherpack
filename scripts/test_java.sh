@@ -111,10 +111,14 @@ do_test() {
     ulimit -c unlimited
     # export ASAN_OPTIONS="debug=true:strict_string_checks=true:detect_odr_violation=2:halt_on_error=false:verbosity=2"
     # LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/10/libasan.so \
-    $EXE_WRAPPER ${JAVA_CMD} ${JAVA_PROPS} -cp ${test_classpath} -Djava.library.path=${dist_dir}/lib org.junit.runner.JUnitCore ${test_class} ${*@Q}
+
+    # $EXE_WRAPPER ${JAVA_CMD} ${JAVA_PROPS} -cp ${test_classpath} -Djava.library.path=${dist_dir}/lib org.junit.runner.JUnitCore ${test_class} ${*@Q}
+
+    $EXE_WRAPPER ${JAVA_CMD} ${JAVA_PROPS} -cp ${test_classpath} -Djava.library.path=${dist_dir}/lib ${test_class} $*
+
     # $EXE_WRAPPER ${JAVA_CMD} ${JAVA_PROPS} -cp ${test_classpath} org.junit.runner.JUnitCore ${test_class} ${*@Q}
     exit $?
 }
 
-do_test "$@" 2>&1 | tee $logfile
+do_test $* 2>&1 | tee $logfile
 
