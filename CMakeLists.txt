@@ -20,11 +20,6 @@ else()
     message(STATUS "${PROJECT_NAME} DONT_USE_RTTI ${DONT_USE_RTTI} (user)")
 endif()
 
-# C++20 clean, but let's keep it C++17 for now
-# set (CMAKE_CXX_STANDARD 20)
-set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
-
 include(jaulib/JaulibSetup.cmake)
 JaulibSetup()
 
