@@ -108,7 +108,7 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
 
             buffer.resize(got);
             total += got;
-            has_more = 1 <= got && !in.end_of_data() && ( !in.has_content_size() || total < in.content_size() );
+            has_more = 1 <= got && in.good() && ( !in.has_content_size() || total < in.content_size() );
             try {
                 if( !consumer_fn(buffer, !has_more) ) {
                     break; // end streaming
@@ -151,7 +151,7 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
     {
         uint64_t got = _read_buffer(in, *buffers[idx]);
         total_read += got;
-        eof_read = 0 == got || in.end_of_data() || ( in.has_content_size() && total_read >= in.content_size() );
+        eof_read = 0 == got || !in.good() || ( in.has_content_size() && total_read >= in.content_size() );
         eof[idx] = eof_read;
         ++idx;
     }
@@ -171,7 +171,7 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
         if( !eof_read ) {
             uint64_t got = _read_buffer(in, *buffers[idx]);
             total_read += got;
-            eof_read = 0 == got || in.end_of_data() || ( in.has_content_size() && total_read >= in.content_size() );
+            eof_read = 0 == got || !in.good() || ( in.has_content_size() && total_read >= in.content_size() );
             eof[idx] = eof_read;
             if( 0 == got ) {
                 // read-ahead eof propagation if read zero bytes,
@@ -686,7 +686,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 
     const jau::fraction_timespec _t0 = jau::getMonotonicTime();
 
-    if( source.end_of_data() ) {
+    if( !source.good() ) {
         listener->notifyError(decrypt_mode, header, "Source is EOS or has an error "+source.to_string());
         return header;
     }

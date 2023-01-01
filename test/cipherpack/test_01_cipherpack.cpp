@@ -856,7 +856,7 @@ class Test01Cipherpack : public TestData {
                     std::vector<uint8_t> buffer;
                     buffer.reserve(chunck_sz);
                     uint64_t sent=0;
-                    while( sent < infile.content_size() && !infile.end_of_data() && !outfile.fail() ) {
+                    while( sent < infile.content_size() && infile.good() && !outfile.fail() ) {
                         const size_t chunck_sz_max = std::min(chunck_sz, infile.content_size()-sent);
                         buffer.resize(buffer.capacity());
                         const uint64_t got = infile.read(buffer.data(), chunck_sz_max);
@@ -1011,18 +1011,21 @@ class Test01Cipherpack : public TestData {
         static void feed_source_00_nosize_slow(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
-            while( !enc_stream.end_of_data() ) {
+            while( enc_stream.good() ) {
                 uint8_t buffer[slow_buffer_sz];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed->write(buffer, count);
-                    jau::sleep_for( slow_delay );
+                    if( enc_feed->write(buffer, count) ) {
+                        jau::sleep_for( slow_delay );
+                    } else {
+                        break;
+                    }
                 }
             }
             (void)xfer_total;
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed->set_eof( enc_stream.fail() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
+            enc_feed->set_eof( enc_feed->fail() || enc_stream.fail() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
         }
 
         // throttled, with content size
@@ -1033,33 +1036,38 @@ class Test01Cipherpack : public TestData {
 
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
-            while( !enc_stream.end_of_data() && xfer_total < file_size ) {
+            while( enc_stream.good() && xfer_total < file_size ) {
                 uint8_t buffer[slow_buffer_sz];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed->write(buffer, count);
-                    jau::sleep_for( slow_delay );
+                    if( enc_feed->write(buffer, count) ) {
+                        jau::sleep_for( slow_delay );
+                    } else {
+                        break;
+                    }
                 }
             }
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed->set_eof( xfer_total == file_size ? jau::io::async_io_result_t::SUCCESS : jau::io::async_io_result_t::FAILED );
+            enc_feed->set_eof( !enc_feed->fail() && !enc_stream.fail() && xfer_total == file_size ? jau::io::async_io_result_t::SUCCESS : jau::io::async_io_result_t::FAILED );
         }
 
         // full speed, no content size
         static void feed_source_10_nosize_fast(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
-            while( !enc_stream.end_of_data() ) {
+            while( enc_stream.good() ) {
                 uint8_t buffer[cipherpack::Constants::buffer_size];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed->write(buffer, count);
+                    if( !enc_feed->write(buffer, count) ) {
+                        break;
+                    }
                 }
             }
             (void)xfer_total;
-            enc_feed->set_eof( enc_stream.fail() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
+            enc_feed->set_eof( enc_feed->fail() || enc_stream.fail() ? jau::io::async_io_result_t::FAILED : jau::io::async_io_result_t::SUCCESS );
         }
 
         // full speed, with content size
@@ -1070,30 +1078,35 @@ class Test01Cipherpack : public TestData {
 
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
-            while( !enc_stream.end_of_data() && xfer_total < file_size ) {
+            while( enc_stream.good() && xfer_total < file_size ) {
                 uint8_t buffer[cipherpack::Constants::buffer_size];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed->write(buffer, count);
+                    if( !enc_feed->write(buffer, count) ) {
+                        break;
+                    }
                 }
             }
-            enc_feed->set_eof( xfer_total == file_size ? jau::io::async_io_result_t::SUCCESS : jau::io::async_io_result_t::FAILED );
+            enc_feed->set_eof( !enc_feed->fail() && !enc_stream.fail() && xfer_total == file_size ? jau::io::async_io_result_t::SUCCESS : jau::io::async_io_result_t::FAILED );
         }
 
         // full speed, no content size, interrupting @ 1024 bytes within our header
         static void feed_source_20_nosize_irqed_1k(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
-            while( !enc_stream.end_of_data() ) {
+            while( enc_stream.good() ) {
                 uint8_t buffer[1024];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed->write(buffer, count);
-                    if( xfer_total >= 1024 ) {
-                        enc_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
-                        return;
+                    if( enc_feed->write(buffer, count) ) {
+                        if( xfer_total >= 1024 ) {
+                            enc_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
+                            return;
+                        }
+                    } else {
+                        break;
                     }
                 }
             }
@@ -1107,15 +1120,18 @@ class Test01Cipherpack : public TestData {
 
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
-            while( !enc_stream.end_of_data() ) {
+            while( enc_stream.good() ) {
                 uint8_t buffer[1024];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed->write(buffer, count);
-                    if( xfer_total >= file_size/4 ) {
-                        enc_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
-                        return;
+                    if( enc_feed->write(buffer, count) ) {
+                        if( xfer_total >= file_size/4 ) {
+                            enc_feed->set_eof( jau::io::async_io_result_t::FAILED ); // calls data_feed->interruptReader();
+                            return;
+                        }
+                    } else {
+                        break;
                     }
                 }
             }

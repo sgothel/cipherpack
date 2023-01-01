@@ -776,8 +776,11 @@ public class Test01Cipherpack extends data_test {
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         // xfer_total += count;
-                        enc_feed.write(buffer, 0, count);
-                        try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
+                        if( enc_feed.write(buffer, 0, count) ) {
+                            try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
+                        } else {
+                            break;
+                        }
                     }
                 }
             } catch (final Exception ex) {
@@ -787,7 +790,7 @@ public class Test01Cipherpack extends data_test {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
             }
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed.set_eof( 1 /* SUCCESS */ );
+            enc_feed.set_eof( enc_feed.fail() ? -1 /* FAILED */ : 1 /* SUCCESS */ );
         } };
 
     // throttled, with content size
@@ -808,8 +811,11 @@ public class Test01Cipherpack extends data_test {
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         xfer_total += count;
-                        enc_feed.write(buffer, 0, count);
-                        try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
+                        if( enc_feed.write(buffer, 0, count) ) {
+                            try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
+                        } else {
+                            break;
+                        }
                     }
                 }
             } catch (final Exception ex) {
@@ -819,7 +825,7 @@ public class Test01Cipherpack extends data_test {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
             }
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed.set_eof( xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
+            enc_feed.set_eof( !enc_feed.fail() && xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
         } };
 
     // full speed, no content size
@@ -838,7 +844,9 @@ public class Test01Cipherpack extends data_test {
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         // xfer_total += count;
-                        enc_feed.write(buffer, 0, count);
+                        if( !enc_feed.write(buffer, 0, count) ) {
+                            break;
+                        }
                     }
                 }
             } catch (final Exception ex) {
@@ -848,7 +856,7 @@ public class Test01Cipherpack extends data_test {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
             }
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed.set_eof( 1 /* SUCCESS */ );
+            enc_feed.set_eof( enc_feed.fail() ? -1 /* FAIL */ : 1 /* SUCCESS */ );
         } };
 
     // full speed, with content size
@@ -869,7 +877,9 @@ public class Test01Cipherpack extends data_test {
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         xfer_total += count;
-                        enc_feed.write(buffer, 0, count);
+                        if( !enc_feed.write(buffer, 0, count) ) {
+                            break;
+                        }
                     }
                 }
             } catch (final Exception ex) {
@@ -879,7 +889,7 @@ public class Test01Cipherpack extends data_test {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
             }
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed.set_eof( xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
+            enc_feed.set_eof( !enc_feed.fail() && xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
         } };
 
     // full speed, with content size, implicit eof based on count
@@ -901,7 +911,9 @@ public class Test01Cipherpack extends data_test {
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         xfer_total += count;
-                        enc_feed.write(buffer, 0, count);
+                        if( !enc_feed.write(buffer, 0, count) ) {
+                            break;
+                        }
                     } else if( 0 > count ) {
                         in_eof = true;
                     }
@@ -913,7 +925,7 @@ public class Test01Cipherpack extends data_test {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
             }
             // probably set after transfering due to above sleep, which also ends when total size has been reached.
-            enc_feed.set_eof( xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
+            enc_feed.set_eof( !enc_feed.fail() && xfer_total == file_size ? 1 /* SUCCESS */ : -1 /* FAILED */);
         } };
 
     // full speed, no content size, interrupting @ 1024 bytes within our header
@@ -932,10 +944,13 @@ public class Test01Cipherpack extends data_test {
                 final int count = in.read(buffer);
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed.write(buffer, 0, count);
-                    if( xfer_total >= 1024 ) {
-                        enc_feed.set_eof( -1 /* FAILED */ ); // calls data_feed->interruptReader();
-                        return;
+                    if( enc_feed.write(buffer, 0, count) ) {
+                        if( xfer_total >= 1024 ) {
+                            enc_feed.set_eof( -1 /* FAILED */ ); // calls data_feed->interruptReader();
+                            return;
+                        }
+                    } else {
+                        break;
                     }
                 }
             }
@@ -963,10 +978,13 @@ public class Test01Cipherpack extends data_test {
                 final int count = in.read(buffer);
                 if( 0 < count ) {
                     xfer_total += count;
-                    enc_feed.write(buffer, 0, count);
-                    if( xfer_total >= file_size/4 ) {
-                        enc_feed.set_eof( -1 /* FAILED */ ); // calls data_feed->interruptReader();
-                        return;
+                    if( enc_feed.write(buffer, 0, count) ) {
+                        if( xfer_total >= file_size/4 ) {
+                            enc_feed.set_eof( -1 /* FAILED */ ); // calls data_feed->interruptReader();
+                            return;
+                        }
+                    } else {
+                        break;
                     }
                 }
             }

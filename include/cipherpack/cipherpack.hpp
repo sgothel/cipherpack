@@ -186,7 +186,7 @@ namespace cipherpack {
           { return in.peek(out, length, peek_offset); }
 
           bool end_of_data() const override
-          { return in.end_of_data(); }
+          { return !in.good(); }
 
           std::string id() const override
           { return in.id(); }
