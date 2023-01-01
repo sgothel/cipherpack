@@ -1011,7 +1011,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     aead->update(data);
                 } catch (std::exception &e) {
                     consume_abort = true;
-                    listener->notifyError(decrypt_mode, header, "Decrypting: "+std::string(e.what())+" on "+source.to_string());
+                    listener->notifyError(decrypt_mode, header, "Decrypting (.): "+std::string(e.what())+
+                                          " @ plaintext ( "+std::to_string(out_bytes_plaintext)+" + "+std::to_string(data.size())+" ) / "+std::to_string(plaintext_size)+
+                                          " bytes, final "+std::to_string(is_final)+" on "+source.to_string());
                     return false;
                 }
                 if( nullptr != hash_func ) {
@@ -1033,7 +1035,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     aead->finish(data);
                 } catch (std::exception &e) {
                     consume_abort = true;
-                    listener->notifyError(decrypt_mode, header, "Decrypting: "+std::string(e.what())+" on "+source.to_string());
+                    listener->notifyError(decrypt_mode, header, "Decrypting (F): "+std::string(e.what())+
+                                          " @ plaintext ( "+std::to_string(out_bytes_plaintext)+" + "+std::to_string(data.size())+" ) / "+std::to_string(plaintext_size)+
+                                          " bytes, final "+std::to_string(is_final)+" on "+source.to_string());
                     return false;
                 }
                 if( nullptr != hash_func ) {
