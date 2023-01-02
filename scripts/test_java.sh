@@ -2,6 +2,8 @@
 
 # export cipherpack_debug=true
 # export cipherpack_verbose=true
+unset cipherpack_debug
+unset cipherpack_verbose
 
 #
 # JAVA_PROPS="-Dorg.cipherpack.debug=true -Dorg.cipherpack.verbose=true"
@@ -81,7 +83,7 @@ export LANG=en_US.UTF-8
 # export JAVA_PROPS="-Djau.debug=true -Djau.verbose=true"
 
 # export JAVA_PROPS="-Xint -Xcheck:jni"
-# export JAVA_PROPS="-Xcheck:jni"
+# export JAVA_PROPS="-Xcheck:jni -verbose:jni"
 #export EXE_WRAPPER="LD_PRELOAD=/usr/lib/gcc/x86_64-linux-gnu/10/libasan.so"
 # export EXE_WRAPPER="valgrind --tool=memcheck --leak-check=full --show-reachable=no  --track-origins=yes --num-callers=24 --malloc-fill=0xff --free-fill=0xfe --error-limit=no --default-suppressions=yes --suppressions=$sdir/valgrind.supp --suppressions=$sdir/valgrind-jvm.supp --gen-suppressions=all -s --log-file=$valgrindlogfile"
 # export EXE_WRAPPER="valgrind --tool=helgrind --track-lockorders=yes --num-callers=24 --ignore-thread-creation=yes --default-suppressions=yes --suppressions=$sdir/valgrind.supp --suppressions=$sdir/valgrind-jvm.supp --gen-suppressions=all -s --log-file=$valgrindlogfile"

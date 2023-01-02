@@ -41,6 +41,7 @@ import java.util.List;
 
 import org.cipherpack.CPFactory;
 import org.cipherpack.Cipherpack;
+import org.cipherpack.CipherpackListener;
 import org.cipherpack.CryptoConfig;
 import org.cipherpack.PackHeader;
 import org.jau.fs.CopyOptions;
@@ -53,7 +54,6 @@ import org.jau.io.ByteInStream_Feed;
 import org.jau.io.ByteInStream_File;
 import org.jau.io.ByteInStream_URL;
 import org.jau.io.PrintUtil;
-import org.jau.sys.Clock;
 import org.jau.util.BasicTypes;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -226,12 +226,12 @@ public class Test01Cipherpack extends data_test {
 
         final ByteInStream origIn = ByteInStreamUtil.to_ByteInStream(origFile);
         Assert.assertNotNull( origIn );
-        final Instant t0 = Clock.getMonotonicTime();
+        final Instant t0 = org.jau.sys.Clock.getMonotonicTime();
         final byte[] origHashValue = Cipherpack.HashUtil.calc(hashAlgo, origIn);
         Assert.assertNotNull( origHashValue );
         Assert.assertArrayEquals(hashValue_p2, origHashValue);
 
-        final Instant t1 = Clock.getMonotonicTime();
+        final Instant t1 = org.jau.sys.Clock.getMonotonicTime();
         final long td_ms = t0.until(t1, ChronoUnit.MILLIS);
         ByteInStreamUtil.print_stats("Hash '"+hashAlgo+"'", origIn.content_size(), td_ms);
         PrintUtil.fprintf_td(System.err, "\n");
@@ -249,12 +249,12 @@ public class Test01Cipherpack extends data_test {
 
         final ByteInStream origIn = ByteInStreamUtil.to_ByteInStream(origFile);
         Assert.assertNotNull( origIn );
-        final Instant t0 = Clock.getMonotonicTime();
+        final Instant t0 = org.jau.sys.Clock.getMonotonicTime();
         final byte[] origHashValue = Cipherpack.HashUtil.calc(hashAlgo, origIn);
         Assert.assertNotNull( origHashValue );
         Assert.assertArrayEquals(hashValue_p2, origHashValue);
 
-        final Instant t1 = Clock.getMonotonicTime();
+        final Instant t1 = org.jau.sys.Clock.getMonotonicTime();
         final long td_ms = t0.until(t1, ChronoUnit.MILLIS);
         ByteInStreamUtil.print_stats("Hash '"+hashAlgo+"'", origIn.content_size(), td_ms);
         PrintUtil.fprintf_td(System.err, "\n");
@@ -912,6 +912,7 @@ public class Test01Cipherpack extends data_test {
                     if( 0 < count ) {
                         xfer_total += count;
                         if( !enc_feed.write(buffer, 0, count) ) {
+                            PrintUtil.println(System.err, "feed_source_12: Failed to write to feed> "+enc_feed.toString());
                             break;
                         }
                     } else if( 0 > count ) {
@@ -1048,6 +1049,90 @@ public class Test01Cipherpack extends data_test {
         }
     }
 
+    static public class Bug574CipherpackListener extends CipherpackListener {
+        /** Maximum notifyTransferProgress() is 10Hz, i.e. min_period is 1/10 = 100ms. This throttle is to avoid overloading the UI. */
+        private static final int MIN_PROGRESS_PERIOD_MS = 10;
+        private Instant t_last;
+        private Instant t_last_progress;
+        private final String name;
+        public long clock_gettime_in_ms;
+        public static enum GetTimeMethod {
+            /**
+             * Triggers Bug574:
+             *
+             * Clock.getMonotonicTime() causes a freeze coming from callback UpdateCipherpackListener.notifyProgress()
+             * called by org.cipherpack.Cipherpack.checkSignThenDecrypt1(Native Method)
+             */
+            JAU_GET_MONOTONIC_TIME,
+            /** OK */
+            JAU_GET_MONOTONIC_CURRENT_MS,
+            /** OK */
+            SYSTEM_GET_CURRENT_MS
+        };
+        final GetTimeMethod get_time_method = GetTimeMethod.JAU_GET_MONOTONIC_TIME;
+
+        public Bug574CipherpackListener(final String _name) {
+            super();
+            t_last = null;
+            t_last_progress = null;
+            name = _name;
+            clock_gettime_in_ms = 0;
+        }
+
+        @Override
+        public void notifyError(final boolean decrypt_mode, final PackHeader header, final String msg) {
+            PrintUtil.fprintf_td(System.err, "%s: Notify Error: clock_gettime_in %d ms, %s, %s\n",
+                    name, clock_gettime_in_ms, msg, header.toString());
+        }
+
+        @Override
+        public boolean notifyHeader(final boolean decrypt_mode, final PackHeader header) {
+            PrintUtil.fprintf_td(System.err, "%s: Notify Header: %s\n", name, header.toString());
+            return true;
+        }
+
+        @Override
+        public boolean notifyProgress(final boolean decrypt_mode, final long plaintext_size, final long bytes_processed) {
+            final Instant t0;
+            switch( get_time_method ) {
+                case JAU_GET_MONOTONIC_TIME:
+                    // FIXME: Clock.getMonotonicTime() causes a freeze coming from callback UpdateCipherpackListener.notifyProgress()
+                    //        called by org.cipherpack.Cipherpack.checkSignThenDecrypt1(Native Method)
+                    t0 = org.jau.sys.Clock.getMonotonicTime();
+                    break;
+                case JAU_GET_MONOTONIC_CURRENT_MS:
+                    // OK
+                    t0 = Instant.ofEpochMilli(org.jau.sys.Clock.currentTimeMillis());
+                    break;
+                case SYSTEM_GET_CURRENT_MS:
+                default:
+                    // OK
+                    t0 = Instant.ofEpochMilli(System.currentTimeMillis());
+                    break;
+            }
+            if( null != t_last ) {
+                clock_gettime_in_ms = t_last.until(t0, ChronoUnit.MILLIS);
+            }
+            t_last = t0;
+
+            if( null != t_last_progress ) {
+                final long td_ms = t_last_progress.until(t0, ChronoUnit.MILLIS);
+                if( td_ms < MIN_PROGRESS_PERIOD_MS && ( plaintext_size > bytes_processed || 0 >= plaintext_size ) ) {
+                    return true;
+                }
+            }
+            t_last_progress = t0;
+            final double progress = plaintext_size > 0 ? (double) bytes_processed / (double) plaintext_size * 100.0 : -1.0;
+            PrintUtil.fprintf_td(System.err, "%s: Notify Progress: %,d bytes received, %.02f%%\n", name, bytes_processed, progress);
+            return true;
+        }
+
+        @Override
+        public void notifyEnd(final boolean decrypt_mode, final PackHeader header) {
+            PrintUtil.fprintf_td(System.err, "%s: Notify End: %s\n", name, header.toString());
+        }
+    };
+
     @Test(timeout = 120000)
     public final void test32_bug574() {
         CPFactory.checkInitialized();
@@ -1104,8 +1189,8 @@ public class Test01Cipherpack extends data_test {
         for(int loop_idx = 0; loop_idx < test_loops; ++loop_idx) {
             final String suffix = "sized_eof_fast_"+Integer.toString(loop_idx);
             final FeederFunc feed_func = feed_source_12_sized_eof_fast;
-            final LoggingCipherpackListener dec_listener = new LoggingCipherpackListener("test32.dec."+Integer.toString(loop_idx));
-            final ByteInStream_Feed enc_feed = new ByteInStream_Feed(fname_encrypted, io_timeout);
+            final Bug574CipherpackListener dec_listener = new Bug574CipherpackListener(suffix);
+            final ByteInStream_Feed enc_feed = new ByteInStream_Feed(fname_encrypted, 5000); // 5_s only // io_timeout);
             final Thread feeder_thread = executeOffThread( () -> { feed_func.feed(enc_feed); }, "test32_bug574::"+suffix, false /* detach */);
 
             final PackHeader ph2 = Cipherpack.checkSignThenDecrypt(sign_pub_keys, dec_sec_key1_fname, dec_sec_key_passphrase,
@@ -1116,9 +1201,10 @@ public class Test01Cipherpack extends data_test {
             } catch (final InterruptedException e) { }
 
             PrintUtil.fprintf_td(System.err, "test32_bug574 %s: Decypted %s to %s\n", suffix, fname_encrypted, fname_decrypted);
-            PrintUtil.fprintf_td(System.err, "test32_bug574 %s: %s\n", suffix, ph2.toString(true, true));
+            PrintUtil.fprintf_td(System.err, "test32_bug574 %s: clock_gettime_in %d ms, %s\n",
+                    suffix, dec_listener.clock_gettime_in_ms, ph2.toString(true, true));
+            Assert.assertTrue( "Bug574: Hang within clock_gettime "+dec_listener.clock_gettime_in_ms+" ms, "+suffix, dec_listener.clock_gettime_in_ms < 10 );
             Assert.assertTrue( ph2.isValid() );
-            dec_listener.check_counter_end();
 
             // hash_retest(ph1.plaintext_hash_algo,
             //             fname_plaintext_lst.get(file_idx), ph1.plaintext_hash,
