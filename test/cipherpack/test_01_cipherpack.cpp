@@ -1019,6 +1019,7 @@ class Test01Cipherpack : public TestData {
                     if( enc_feed->write(buffer, count) ) {
                         jau::sleep_for( slow_delay );
                     } else {
+                        jau::PLAIN_PRINT(true, "feed_source_00: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1044,6 +1045,7 @@ class Test01Cipherpack : public TestData {
                     if( enc_feed->write(buffer, count) ) {
                         jau::sleep_for( slow_delay );
                     } else {
+                        jau::PLAIN_PRINT(true, "feed_source_01: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1062,6 +1064,7 @@ class Test01Cipherpack : public TestData {
                 if( 0 < count ) {
                     xfer_total += count;
                     if( !enc_feed->write(buffer, count) ) {
+                        jau::PLAIN_PRINT(true, "feed_source_10: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1084,6 +1087,7 @@ class Test01Cipherpack : public TestData {
                 if( 0 < count ) {
                     xfer_total += count;
                     if( !enc_feed->write(buffer, count) ) {
+                        jau::PLAIN_PRINT(true, "feed_source_11: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1106,6 +1110,7 @@ class Test01Cipherpack : public TestData {
                             return;
                         }
                     } else {
+                        jau::PLAIN_PRINT(true, "feed_source_20: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1131,6 +1136,7 @@ class Test01Cipherpack : public TestData {
                             return;
                         }
                     } else {
+                        jau::PLAIN_PRINT(true, "feed_source_21: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
                         break;
                     }
                 }

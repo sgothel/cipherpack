@@ -779,6 +779,7 @@ public class Test01Cipherpack extends data_test {
                         if( enc_feed.write(buffer, 0, count) ) {
                             try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
                         } else {
+                            PrintUtil.println(System.err, "feed_source_00: Failed to write to feed: "+enc_feed.toString());
                             break;
                         }
                     }
@@ -814,6 +815,7 @@ public class Test01Cipherpack extends data_test {
                         if( enc_feed.write(buffer, 0, count) ) {
                             try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
                         } else {
+                            PrintUtil.println(System.err, "feed_source_01: Failed to write to feed: "+enc_feed.toString());
                             break;
                         }
                     }
@@ -845,6 +847,7 @@ public class Test01Cipherpack extends data_test {
                     if( 0 < count ) {
                         // xfer_total += count;
                         if( !enc_feed.write(buffer, 0, count) ) {
+                            PrintUtil.println(System.err, "feed_source_10: Failed to write to feed: "+enc_feed.toString());
                             break;
                         }
                     }
@@ -878,6 +881,7 @@ public class Test01Cipherpack extends data_test {
                     if( 0 < count ) {
                         xfer_total += count;
                         if( !enc_feed.write(buffer, 0, count) ) {
+                            PrintUtil.println(System.err, "feed_source_11: Failed to write to feed: "+enc_feed.toString());
                             break;
                         }
                     }
@@ -912,7 +916,7 @@ public class Test01Cipherpack extends data_test {
                     if( 0 < count ) {
                         xfer_total += count;
                         if( !enc_feed.write(buffer, 0, count) ) {
-                            PrintUtil.println(System.err, "feed_source_12: Failed to write to feed> "+enc_feed.toString());
+                            PrintUtil.println(System.err, "feed_source_12: Failed to write to feed: "+enc_feed.toString());
                             break;
                         }
                     } else if( 0 > count ) {
@@ -951,6 +955,7 @@ public class Test01Cipherpack extends data_test {
                             return;
                         }
                     } else {
+                        PrintUtil.println(System.err, "feed_source_20: Failed to write to feed: "+enc_feed.toString());
                         break;
                     }
                 }
@@ -985,6 +990,7 @@ public class Test01Cipherpack extends data_test {
                             return;
                         }
                     } else {
+                        PrintUtil.println(System.err, "feed_source_21: Failed to write to feed: "+enc_feed.toString());
                         break;
                     }
                 }
