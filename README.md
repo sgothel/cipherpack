@@ -340,6 +340,12 @@ please contact [Gothel Software](https://jausoft.com/) to setup a potential supp
 
 ## Changes
 
+**1.1.1**
+* Stable stream handling w/o knowledge of content-size under heavy load
+* jaulib v1.1.1
+  - Fixed `Java_org_jau_sys_Clock_get[Monotonic|WallClock]TimeImpl()` for JNI callbacks
+  - Fixed `jau::io::ByteInStream_[URL|Feed]` utilize blocking read-operations w/o knowledge of content-size
+
 **1.0.0**
 
 * First stable release
