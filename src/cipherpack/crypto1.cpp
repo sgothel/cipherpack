@@ -102,13 +102,13 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
     uint64_t total = 0;
     bool has_more;
     do {
-        if( in.available(1) ) { // at least one byte to stream ..
+        if( in.available(1) ) { // at least one byte to stream, also considers eof
             buffer.resize(buffer.capacity());
             const uint64_t got = in.read(buffer.data(), buffer.capacity());
 
             buffer.resize(got);
             total += got;
-            has_more = 1 <= got && in.good() && ( !in.has_content_size() || total < in.content_size() );
+            has_more = 1 <= got && !in.fail() && ( !in.has_content_size() || total < in.content_size() );
             try {
                 if( !consumer_fn(buffer, !has_more) ) {
                     break; // end streaming
@@ -128,7 +128,7 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
 
 static uint64_t _read_buffer(jau::io::ByteInStream& in,
                              secure_vector<uint8_t>& buffer) noexcept {
-    if( in.available(1) ) { // at least one byte to stream ..
+    if( in.available(1) ) { // at least one byte to stream, also considers eof
         buffer.resize(buffer.capacity());
         const uint64_t got = in.read(buffer.data(), buffer.capacity());
         buffer.resize(got);
@@ -151,7 +151,7 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
     {
         uint64_t got = _read_buffer(in, *buffers[idx]);
         total_read += got;
-        eof_read = 0 == got || !in.good() || ( in.has_content_size() && total_read >= in.content_size() );
+        eof_read = 0 == got || in.fail() || ( in.has_content_size() && total_read >= in.content_size() );
         eof[idx] = eof_read;
         ++idx;
     }
@@ -171,7 +171,7 @@ static uint64_t _read_stream(jau::io::ByteInStream& in,
         if( !eof_read ) {
             uint64_t got = _read_buffer(in, *buffers[idx]);
             total_read += got;
-            eof_read = 0 == got || !in.good() || ( in.has_content_size() && total_read >= in.content_size() );
+            eof_read = 0 == got || in.fail() || ( in.has_content_size() && total_read >= in.content_size() );
             eof[idx] = eof_read;
             if( 0 == got ) {
                 // read-ahead eof propagation if read zero bytes,
@@ -938,7 +938,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                     used_recevr_key_idx, recevr_count, encrypted_sym_key.size(),
                     header.to_string(true /* show_crypto_algos */, true /* force_all_fingerprints */).c_str());
         } catch (Botan::Decoding_Error &e) {
-            listener->notifyError(decrypt_mode, header, "Header Decoding: "+std::string(e.what())+" on "+source.to_string());
+            listener->notifyError(decrypt_mode, header, "Header Decoding: "+std::string(e.what())+" on "+input.to_string()+" -> "+source.to_string());
             return header;
         }
         DBG_PRINT("Decrypt: target_path '%s', net_file_size %s, version %s (parent %s), subject %s",
