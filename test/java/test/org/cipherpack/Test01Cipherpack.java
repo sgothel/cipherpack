@@ -288,7 +288,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test00_enc: "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end(source.content_size());
 
             final ByteInStream_File enc_stream = new ByteInStream_File(fname_encrypted_lst.get(file_idx));
@@ -297,7 +297,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test00_enc_dec_file_single: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test00_dec: "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end(ph2.plaintext_size);
         }
     }
@@ -318,7 +318,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test01_enc_dec_all_files: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test01_enc_dec_all_files: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test01_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end(source.content_size());
 
             final LoggingCipherpackListener dec_listener = new LoggingCipherpackListener("test01.dec."+file_idx, true /* send_content */);
@@ -328,7 +328,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test01_enc_dec_all_files: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test01_enc_dec_all_files: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test01_dec: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end(ph2.plaintext_size);
             hash_retest(ph1.plaintext_hash_algo,
                         fname_plaintext_lst.get(file_idx), ph1.plaintext_hash,
@@ -353,7 +353,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test02_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end();
 
             final LoggingCipherpackListener dec_listener = new LoggingCipherpackListener("test02.dec.1."+file_idx);
@@ -363,7 +363,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test02_dec: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
         {
@@ -378,7 +378,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test02_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end();
 
             final LoggingCipherpackListener dec_listener = new LoggingCipherpackListener("test02.dec.1."+file_idx);
@@ -388,7 +388,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test02_enc_dec_file_misc: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test02_dec: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
     }
@@ -411,7 +411,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, "", fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test03_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end();
 
             {
@@ -422,7 +422,7 @@ public class Test01Cipherpack extends data_test {
                                                                        dec_listener, "", fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: %s\n", ph2.toString(true, true));
-                Assert.assertTrue( ph2.isValid() );
+                Assert.assertTrue( "test03_dec.1: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
             }
             {
@@ -433,7 +433,7 @@ public class Test01Cipherpack extends data_test {
                                                                        dec_listener, "SHA-256", fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: %s\n", ph2.toString(true, true));
-                Assert.assertTrue( ph2.isValid() );
+                Assert.assertTrue( "test03_dec.2: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
                 hash_retest(ph2.plaintext_hash_algo,
                                 fname_plaintext_lst.get(file_idx),
@@ -447,7 +447,7 @@ public class Test01Cipherpack extends data_test {
                                                                        dec_listener, "SHA-512", fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: %s\n", ph2.toString(true, true));
-                Assert.assertTrue( ph2.isValid() );
+                Assert.assertTrue( "test03_dec.3: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
                 hash_retest(ph2.plaintext_hash_algo,
                                 fname_plaintext_lst.get(file_idx),
@@ -461,7 +461,7 @@ public class Test01Cipherpack extends data_test {
                                                                        dec_listener, "BLAKE2b(512)", fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test03_enc_dec_file_perf: %s\n", ph2.toString(true, true));
-                Assert.assertTrue( ph2.isValid() );
+                Assert.assertTrue( "test03_dec.4: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
                 hash_retest(ph2.plaintext_hash_algo,
                                 fname_plaintext_lst.get(file_idx),
@@ -486,7 +486,7 @@ public class Test01Cipherpack extends data_test {
                                                           enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test04_enc_dec_file_error: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test04_enc_dec_file_error: %s\n", ph1.toString(true, true));
-        Assert.assertTrue( ph1.isValid() );
+        Assert.assertTrue( "test04_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
         enc_listener.check_counter_end();
 
         {
@@ -499,7 +499,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test04_enc_dec_file_error: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test04_enc_dec_file_error: %s\n", ph2.toString(true, true));
-            Assert.assertFalse( ph2.isValid() );
+            Assert.assertFalse( "test04_dec.e1: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
         {
@@ -512,7 +512,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test04_enc_dec_file_error: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test04_enc_dec_file_error: %s\n", ph2.toString(true, true));
-            Assert.assertFalse( ph2.isValid() );
+            Assert.assertFalse( "test04_dec.e2: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
     }
@@ -538,7 +538,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test11_dec_http_all_files: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test11_dec_http_all_files: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test11_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end();
 
             final String uri_encrypted = url_input_root + fname_encrypted_lst.get(file_idx);
@@ -553,7 +553,7 @@ public class Test01Cipherpack extends data_test {
                                                                        dec_listener, Cipherpack.default_hash_algo(), file_decrypted);
                 PrintUtil.fprintf_td(System.err, "test11_dec_http_all_files: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test11_dec_http_all_files: %s\n", ph2.toString(true, true));
-                Assert.assertTrue( ph2.isValid() );
+                Assert.assertTrue( "test11_dec: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
             }
         }
@@ -580,7 +580,7 @@ public class Test01Cipherpack extends data_test {
                                                           enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: %s\n", ph1.toString(true, true));
-        Assert.assertTrue( ph1.isValid() );
+        Assert.assertTrue( "test12_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
         enc_listener.check_counter_end();
 
         final String uri_encrypted = url_input_root + fname_encrypted_lst.get(file_idx);
@@ -595,7 +595,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), file_decrypted);
             PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test12_dec.1: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
         {
@@ -606,7 +606,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), file_decrypted);
             PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test12_dec.2: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
         {
@@ -617,7 +617,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), file_decrypted);
             PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test12_dec_http_misc: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test12_dec.3: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
     }
@@ -643,7 +643,7 @@ public class Test01Cipherpack extends data_test {
                                                           enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test13_dec_http_perf: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test13_dec_http_perf: %s\n", ph1.toString(true, true));
-        Assert.assertTrue( ph1.isValid() );
+        Assert.assertTrue( "test13_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
         enc_listener.check_counter_end();
 
         final String uri_encrypted = url_input_root + fname_encrypted_lst.get(file_idx);
@@ -658,7 +658,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, ph1.plaintext_hash_algo, file_decrypted);
             PrintUtil.fprintf_td(System.err, "test13_dec_http_perf: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test13_dec_http_perf: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test13_dec.1: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
 
             hash_retest(ph1.plaintext_hash_algo,
@@ -673,7 +673,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, "", file_decrypted);
             PrintUtil.fprintf_td(System.err, "test13_dec_http_perf: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test13_dec_http_perf: %s\n", ph2.toString(true, true));
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test13_dec.2: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
     }
@@ -699,7 +699,7 @@ public class Test01Cipherpack extends data_test {
                                                           enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test14_dec_http_error: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
         PrintUtil.fprintf_td(System.err, "test14_dec_http_error: %s\n", ph1.toString(true, true));
-        Assert.assertTrue( ph1.isValid() );
+        Assert.assertTrue( "test14_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
         enc_listener.check_counter_end();
 
         final String uri_encrypted = url_input_root + fname_encrypted_lst.get(file_idx);
@@ -715,7 +715,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), file_decrypted);
             PrintUtil.fprintf_td(System.err, "test14_dec_http_error: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test14_dec_http_error: %s\n", ph2.toString(true, true));
-            Assert.assertFalse( ph2.isValid() );
+            Assert.assertFalse( "test14_dec.e1: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
         {
@@ -728,7 +728,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), file_decrypted);
             PrintUtil.fprintf_td(System.err, "test14_dec_http_error: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test14_dec_http_error: %s\n", ph2.toString(true, true));
-            Assert.assertFalse( ph2.isValid() );
+            Assert.assertFalse( "test14_dec.e2: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
         {
@@ -741,7 +741,7 @@ public class Test01Cipherpack extends data_test {
                                                                    dec_listener, Cipherpack.default_hash_algo(), file_decrypted);
             PrintUtil.fprintf_td(System.err, "test14_dec_http_error: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test14_dec_http_error: %s\n", ph2.toString(true, true));
-            Assert.assertFalse( ph2.isValid() );
+            Assert.assertFalse( "test14_dec.e3: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
             dec_listener.check_counter_end();
         }
     }
@@ -1019,7 +1019,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test31_fed_all_files: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test31_fed_all_files: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test31_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end();
 
             final FeederFunc[] feed_funcs = { feed_source_00_nosize_slow, feed_source_01_sized_slow,
@@ -1045,7 +1045,7 @@ public class Test01Cipherpack extends data_test {
 
                 PrintUtil.fprintf_td(System.err, "test31_fed_all_files %s: Decypted %s to %s\n", suffix, fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test31_fed_all_files %s: %s\n", suffix, ph2.toString(true, true));
-                Assert.assertTrue( ph2.isValid() );
+                Assert.assertTrue( "test31_dec: file_idx "+file_idx+", "+suffix+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
 
                 hash_retest(ph1.plaintext_hash_algo,
@@ -1188,7 +1188,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted);
             PrintUtil.fprintf_td(System.err, "test32_bug574: Encrypted %s to %s\n", fname_plaintext, fname_encrypted);
             PrintUtil.fprintf_td(System.err, "test32_bug574: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test32_bug574: "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end();
         }
 
@@ -1210,7 +1210,7 @@ public class Test01Cipherpack extends data_test {
             PrintUtil.fprintf_td(System.err, "test32_bug574 %s: clock_gettime_in %d ms, %s\n",
                     suffix, dec_listener.clock_gettime_in_ms, ph2.toString(true, true));
             Assert.assertTrue( "Bug574: Hang within clock_gettime "+dec_listener.clock_gettime_in_ms+" ms, "+suffix, dec_listener.clock_gettime_in_ms < 10 );
-            Assert.assertTrue( ph2.isValid() );
+            Assert.assertTrue( "test32_bug574: "+suffix+", "+ph2.toString(), ph2.isValid() );
 
             // hash_retest(ph1.plaintext_hash_algo,
             //             fname_plaintext_lst.get(file_idx), ph1.plaintext_hash,
@@ -1235,7 +1235,7 @@ public class Test01Cipherpack extends data_test {
                                                               enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test34_enc_dec_fed_irq: Encrypted %s to %s\n", fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
             PrintUtil.fprintf_td(System.err, "test34_enc_dec_fed_irq: %s\n", ph1.toString(true, true));
-            Assert.assertTrue( ph1.isValid() );
+            Assert.assertTrue( "test34_enc: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
             enc_listener.check_counter_end();
 
             final String file_decrypted = fname_encrypted_lst.get(file_idx)+".dec";
@@ -1254,7 +1254,7 @@ public class Test01Cipherpack extends data_test {
 
                 PrintUtil.fprintf_td(System.err, "test34_enc_dec_fed_irq: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test34_enc_dec_fed_irq: %s\n", ph2.toString(true, true));
-                Assert.assertFalse( ph2.isValid() );
+                Assert.assertFalse( "test34_dec.e1: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
             }
             {
@@ -1272,7 +1272,7 @@ public class Test01Cipherpack extends data_test {
 
                 PrintUtil.fprintf_td(System.err, "test34_enc_dec_fed_irq: Decypted %s to %s\n", fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test34_enc_dec_fed_irq: %s\n", ph2.toString(true, true));
-                Assert.assertFalse( ph2.isValid() );
+                Assert.assertFalse( "test34_dec.e2: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end();
             }
         }
@@ -1298,7 +1298,7 @@ public class Test01Cipherpack extends data_test {
                                                  enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_enc_1.%d: Encrypted %s to %s\n", abort_item, fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_enc_1.%d: %s\n", abort_item, ph1.toString(true, true));
-                Assert.assertFalse( ph1.isValid() );
+                Assert.assertFalse( "test41_enc.1: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
                 enc_listener.check_counter_end(0);
             }
             {
@@ -1312,7 +1312,7 @@ public class Test01Cipherpack extends data_test {
                                                  enc_listener, Cipherpack.default_hash_algo(), fname_encrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_enc_2.%d: Encrypted %s to %s\n", abort_item, fname_plaintext_lst.get(file_idx), fname_encrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_enc_2.%d: %s\n", abort_item, ph1.toString(true, true));
-                Assert.assertTrue( ph1.isValid() );
+                Assert.assertTrue( "test41_enc.2: file_idx "+file_idx+", "+ph1.toString(), ph1.isValid() );
                 enc_listener.check_counter_end(source.content_size());
             }
             {
@@ -1324,7 +1324,7 @@ public class Test01Cipherpack extends data_test {
                                                                        dec_listener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_dec.1.%d: Decypted %s to %s\n", abort_item, fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_dec.1.%d: %s\n", abort_item, ph2.toString(true, true));
-                Assert.assertFalse( ph2.isValid() );
+                Assert.assertFalse( "test41_dec.1: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end(0);
             }
             if( !org.jau.io.UriTk.protocol_supported("http:") ) {
@@ -1340,7 +1340,7 @@ public class Test01Cipherpack extends data_test {
                                                                        dec_listener, ph1.plaintext_hash_algo, fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_dec.2.%d: Decypted %s to %s\n", abort_item, fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_dec.2.%d: %s\n", abort_item, ph2.toString(true, true));
-                Assert.assertFalse( ph2.isValid() );
+                Assert.assertFalse( "test41_dec.2: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end(0);
             }
             {
@@ -1357,7 +1357,7 @@ public class Test01Cipherpack extends data_test {
                 } catch (final InterruptedException e) { }
                 PrintUtil.fprintf_td(System.err, "test41_dec.3.%d: Decypted %s to %s\n", abort_item, fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_dec.3.%d: %s\n", abort_item, ph2.toString(true, true));
-                Assert.assertFalse( ph2.isValid() );
+                Assert.assertFalse( "test41_dec.3: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end(0);
             }
             {
@@ -1374,7 +1374,7 @@ public class Test01Cipherpack extends data_test {
                 } catch (final InterruptedException e) { }
                 PrintUtil.fprintf_td(System.err, "test41_dec.4.%d: Decypted %s to %s\n", abort_item, fname_encrypted_lst.get(file_idx), fname_decrypted_lst.get(file_idx));
                 PrintUtil.fprintf_td(System.err, "test41_dec.4.%d: %s\n", abort_item, ph2.toString(true, true));
-                Assert.assertFalse( ph2.isValid() );
+                Assert.assertFalse( "test41_dec.4: file_idx "+file_idx+", "+ph2.toString(), ph2.isValid() );
                 dec_listener.check_counter_end(0);
             }
         }
