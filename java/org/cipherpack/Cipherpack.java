@@ -125,6 +125,9 @@ import org.jau.util.BasicTypes;
  */
 public final class Cipherpack {
 
+    /** Intermediate copy buffer size of {@code 16384 bytes}, usually the 4 x 4096 bytes page-size. */
+    public static final int buffer_size = 16384;
+
     /**
      * Name of default hash algo for the plaintext message,
      * e.g. for {@link #encryptThenSign(CryptoConfig, List, String, ByteBuffer, ByteInStream, String, String, String, String, CipherpackListener, String, String) encryptThenSign()}
