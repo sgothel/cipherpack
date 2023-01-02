@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.cipherpack.CipherpackListener;
 import org.cipherpack.PackHeader;
+import org.jau.io.PrintUtil;
 import org.junit.Assert;
 
 public class LoggingCipherpackListener extends CipherpackListener {
@@ -112,11 +113,14 @@ public class LoggingCipherpackListener extends CipherpackListener {
     @Override
     public void notifyError(final boolean decrypt_mode, final PackHeader header, final String msg) {
         count_error.incrementAndGet();
+        PrintUtil.fprintf_td(System.err, "CL::Error: %s[%d]: %s, %s\n", name, count_error.get(), msg, header.toString());
     }
+
 
     @Override
     public boolean notifyHeader(final boolean decrypt_mode, final PackHeader header) {
         count_header.incrementAndGet();
+        PrintUtil.fprintf_td(System.err, "CL::Header: %s[%d]: %s\n", name, count_header.get(), header.toString());
         return abort_header ? false : true;
     }
 
@@ -129,6 +133,7 @@ public class LoggingCipherpackListener extends CipherpackListener {
     @Override
     public void notifyEnd(final boolean decrypt_mode, final PackHeader header) {
         count_end.incrementAndGet();
+        PrintUtil.fprintf_td(System.err, "CL::End: %s[%d]: %s\n", name, count_end.get(), header.toString());
     }
 
     @Override

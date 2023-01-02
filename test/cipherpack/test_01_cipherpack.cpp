@@ -230,7 +230,7 @@ class Test01Cipherpack : public TestData {
                     count_header++;
                     (void)decrypt_mode;
                     (void)header;
-                    // jau::PLAIN_PRINT(true, "CL::Header: %s[%d]: %s", name.c_str(), count_header.load(), header.to_string(true, true).c_str());
+                    jau::PLAIN_PRINT(true, "CL::Header: %s[%d]: %s", name.c_str(), count_header.load(), header.to_string(true, true).c_str());
                     return abort_header ? false : true;
                 }
 
@@ -246,7 +246,7 @@ class Test01Cipherpack : public TestData {
                     count_end++;
                     (void)decrypt_mode;
                     (void)header;
-                    // jau::PLAIN_PRINT(true, "CL::End: %s[%d]: %s", name.c_str(), count_end.load(), header.to_string(true, true).c_str());
+                    jau::PLAIN_PRINT(true, "CL::End: %s[%d]: %s", name.c_str(), count_end.load(), header.to_string(true, true).c_str());
                 }
 
                 bool getSendContent(const bool decrypt_mode) const noexcept override {
@@ -1011,15 +1011,15 @@ class Test01Cipherpack : public TestData {
         static void feed_source_00_nosize_slow(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
+            uint8_t buffer[slow_buffer_sz];
             while( enc_stream.good() ) {
-                uint8_t buffer[slow_buffer_sz];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
                     if( enc_feed->write(buffer, count) ) {
                         jau::sleep_for( slow_delay );
                     } else {
-                        jau::PLAIN_PRINT(true, "feed_source_00: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
+                        jau::PLAIN_PRINT(true, "feed_source_00: Error: Failed to write %zu to feed: %s\n", count, enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1037,15 +1037,15 @@ class Test01Cipherpack : public TestData {
 
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
+            uint8_t buffer[slow_buffer_sz];
             while( enc_stream.good() && xfer_total < file_size ) {
-                uint8_t buffer[slow_buffer_sz];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
                     if( enc_feed->write(buffer, count) ) {
                         jau::sleep_for( slow_delay );
                     } else {
-                        jau::PLAIN_PRINT(true, "feed_source_01: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
+                        jau::PLAIN_PRINT(true, "feed_source_01: Error: Failed to write %zu to feed: %s\n", count, enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1058,13 +1058,13 @@ class Test01Cipherpack : public TestData {
         static void feed_source_10_nosize_fast(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
+            uint8_t buffer[cipherpack::Constants::buffer_size];
             while( enc_stream.good() ) {
-                uint8_t buffer[cipherpack::Constants::buffer_size];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
                     if( !enc_feed->write(buffer, count) ) {
-                        jau::PLAIN_PRINT(true, "feed_source_10: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
+                        jau::PLAIN_PRINT(true, "feed_source_10: Error: Failed to write %zu to feed: %s\n", count, enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1081,13 +1081,13 @@ class Test01Cipherpack : public TestData {
 
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
+            uint8_t buffer[cipherpack::Constants::buffer_size];
             while( enc_stream.good() && xfer_total < file_size ) {
-                uint8_t buffer[cipherpack::Constants::buffer_size];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
                     if( !enc_feed->write(buffer, count) ) {
-                        jau::PLAIN_PRINT(true, "feed_source_11: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
+                        jau::PLAIN_PRINT(true, "feed_source_11: Error: Failed to write %zu to feed: %s\n", count, enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1099,8 +1099,8 @@ class Test01Cipherpack : public TestData {
         static void feed_source_20_nosize_irqed_1k(jau::io::ByteInStream_Feed * enc_feed) {
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
+            uint8_t buffer[1024];
             while( enc_stream.good() ) {
-                uint8_t buffer[1024];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
@@ -1110,7 +1110,7 @@ class Test01Cipherpack : public TestData {
                             return;
                         }
                     } else {
-                        jau::PLAIN_PRINT(true, "feed_source_20: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
+                        jau::PLAIN_PRINT(true, "feed_source_20: Error: Failed to write %zu to feed: %s\n", count, enc_feed->to_string().c_str());
                         break;
                     }
                 }
@@ -1125,8 +1125,8 @@ class Test01Cipherpack : public TestData {
 
             uint64_t xfer_total = 0;
             jau::io::ByteInStream_File enc_stream(enc_feed->id());
+            uint8_t buffer[1024];
             while( enc_stream.good() ) {
-                uint8_t buffer[1024];
                 size_t count = enc_stream.read(buffer, sizeof(buffer));
                 if( 0 < count ) {
                     xfer_total += count;
@@ -1136,7 +1136,7 @@ class Test01Cipherpack : public TestData {
                             return;
                         }
                     } else {
-                        jau::PLAIN_PRINT(true, "feed_source_21: Failed to write to feed: %s\n", enc_feed->to_string().c_str());
+                        jau::PLAIN_PRINT(true, "feed_source_21: Error: Failed to write %zu to feed: %s\n", count, enc_feed->to_string().c_str());
                         break;
                     }
                 }

@@ -90,13 +90,13 @@ public class Test01Cipherpack extends data_test {
             try {
                 if( file.exists() ) {
                     if( !file.delete() ) {
-                        PrintUtil.println(System.err, "Remove.1: Failed deletion of existing file "+name);
+                        PrintUtil.println(System.err, "Remove.1: Error: Failed deletion of existing file "+name);
                         return false;
                     }
                 }
                 return true;
             } catch (final Exception ex) {
-                PrintUtil.println(System.err, "Remove.2: Failed deletion of existing file "+name+": "+ex.getMessage());
+                PrintUtil.println(System.err, "Remove.2: Error: Failed deletion of existing file "+name+": "+ex.getMessage());
                 ex.printStackTrace();
             }
             return false;
@@ -123,7 +123,7 @@ public class Test01Cipherpack extends data_test {
                         out.write( (byte)'_' );
                     }
                 } catch (final Exception ex) {
-                    PrintUtil.println(System.err, "Write test file: Failed "+name+": "+ex.getMessage());
+                    PrintUtil.println(System.err, "Error: Write test file: Failed "+name+": "+ex.getMessage());
                     ex.printStackTrace();
                 }
             }
@@ -771,21 +771,21 @@ public class Test01Cipherpack extends data_test {
             InputStream in = null;
             try {
                 in = new FileInputStream(enc_stream);
+                final byte[] buffer = new byte[slow_buffer_sz];
                 while( in.available() > 0 ) {
-                    final byte[] buffer = new byte[slow_buffer_sz];
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         // xfer_total += count;
                         if( enc_feed.write(buffer, 0, count) ) {
                             try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
                         } else {
-                            PrintUtil.println(System.err, "feed_source_00: Failed to write to feed: "+enc_feed.toString());
+                            PrintUtil.println(System.err, "feed_source_00: Error: Failed to write "+count+" bytes to feed: "+enc_feed.toString());
                             break;
                         }
                     }
                 }
             } catch (final Exception ex) {
-                PrintUtil.println(System.err, "feed_source_00: "+ex.getMessage());
+                PrintUtil.println(System.err, "feed_source_00: Error: "+ex.getMessage());
                 ex.printStackTrace();
             } finally {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -807,21 +807,21 @@ public class Test01Cipherpack extends data_test {
             InputStream in = null;
             try {
                 in = new FileInputStream(enc_stream);
+                final byte[] buffer = new byte[slow_buffer_sz];
                 while( xfer_total < file_size && in.available() > 0 ) {
-                    final byte[] buffer = new byte[slow_buffer_sz];
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         xfer_total += count;
                         if( enc_feed.write(buffer, 0, count) ) {
                             try { Thread.sleep( slow_delay_ms ); } catch(final Throwable t) {}
                         } else {
-                            PrintUtil.println(System.err, "feed_source_01: Failed to write to feed: "+enc_feed.toString());
+                            PrintUtil.println(System.err, "feed_source_01: Error: Failed to write "+count+" bytes to feed: "+enc_feed.toString());
                             break;
                         }
                     }
                 }
             } catch (final Exception ex) {
-                PrintUtil.println(System.err, "feed_source_01: "+ex.getMessage());
+                PrintUtil.println(System.err, "feed_source_01: Error: "+ex.getMessage());
                 ex.printStackTrace();
             } finally {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -841,19 +841,19 @@ public class Test01Cipherpack extends data_test {
             InputStream in = null;
             try {
                 in = new FileInputStream(enc_stream);
+                final byte[] buffer = new byte[Cipherpack.buffer_size];
                 while( in.available() > 0 ) {
-                    final byte[] buffer = new byte[1024];
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         // xfer_total += count;
                         if( !enc_feed.write(buffer, 0, count) ) {
-                            PrintUtil.println(System.err, "feed_source_10: Failed to write to feed: "+enc_feed.toString());
+                            PrintUtil.println(System.err, "feed_source_10: Error: Failed to write "+count+" bytes to feed: "+enc_feed.toString());
                             break;
                         }
                     }
                 }
             } catch (final Exception ex) {
-                PrintUtil.println(System.err, "feed_source_10: "+ex.getMessage());
+                PrintUtil.println(System.err, "feed_source_10: Error: "+ex.getMessage());
                 ex.printStackTrace();
             } finally {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -875,19 +875,19 @@ public class Test01Cipherpack extends data_test {
             InputStream in = null;
             try {
                 in = new FileInputStream(enc_stream);
+                final byte[] buffer = new byte[Cipherpack.buffer_size];
                 while( xfer_total < file_size && in.available() > 0 ) {
-                    final byte[] buffer = new byte[1024];
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         xfer_total += count;
                         if( !enc_feed.write(buffer, 0, count) ) {
-                            PrintUtil.println(System.err, "feed_source_11: Failed to write to feed: "+enc_feed.toString());
+                            PrintUtil.println(System.err, "feed_source_11: Error: Failed to write "+count+" bytes to feed: "+enc_feed.toString());
                             break;
                         }
                     }
                 }
             } catch (final Exception ex) {
-                PrintUtil.println(System.err, "feed_source_10: "+ex.getMessage());
+                PrintUtil.println(System.err, "feed_source_10: Error: "+ex.getMessage());
                 ex.printStackTrace();
             } finally {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -910,13 +910,13 @@ public class Test01Cipherpack extends data_test {
             try {
                 in = new FileInputStream(enc_stream);
                 boolean in_eof = false; // we can't rely on in.available(), not supported at least on SMB input stream
+                final byte[] buffer = new byte[Cipherpack.buffer_size];
                 while( xfer_total < file_size && !in_eof ) {
-                    final byte[] buffer = new byte[1024];
                     final int count = in.read(buffer);
                     if( 0 < count ) {
                         xfer_total += count;
                         if( !enc_feed.write(buffer, 0, count) ) {
-                            PrintUtil.println(System.err, "feed_source_12: Failed to write to feed: "+enc_feed.toString());
+                            PrintUtil.println(System.err, "feed_source_12: Error: Failed to write "+count+" bytes to feed: "+enc_feed.toString());
                             break;
                         }
                     } else if( 0 > count ) {
@@ -924,7 +924,7 @@ public class Test01Cipherpack extends data_test {
                     }
                 }
             } catch (final Exception ex) {
-                PrintUtil.println(System.err, "feed_source_12: "+ex.getMessage());
+                PrintUtil.println(System.err, "feed_source_12: Error: "+ex.getMessage());
                 ex.printStackTrace();
             } finally {
                 try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -944,8 +944,8 @@ public class Test01Cipherpack extends data_test {
         InputStream in = null;
         try {
             in = new FileInputStream(enc_stream);
+            final byte[] buffer = new byte[1024];
             while( xfer_total < file_size && in.available() > 0 ) {
-                final byte[] buffer = new byte[1024];
                 final int count = in.read(buffer);
                 if( 0 < count ) {
                     xfer_total += count;
@@ -955,13 +955,13 @@ public class Test01Cipherpack extends data_test {
                             return;
                         }
                     } else {
-                        PrintUtil.println(System.err, "feed_source_20: Failed to write to feed: "+enc_feed.toString());
+                        PrintUtil.println(System.err, "feed_source_20: Error: Failed to write "+count+" bytes to feed: "+enc_feed.toString());
                         break;
                     }
                 }
             }
         } catch (final Exception ex) {
-            PrintUtil.println(System.err, "feed_source_20: "+ex.getMessage());
+            PrintUtil.println(System.err, "feed_source_20: Error: "+ex.getMessage());
             ex.printStackTrace();
         } finally {
             try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
@@ -979,8 +979,8 @@ public class Test01Cipherpack extends data_test {
         InputStream in = null;
         try {
             in = new FileInputStream(enc_stream);
+            final byte[] buffer = new byte[1024];
             while( xfer_total < file_size && in.available() > 0 ) {
-                final byte[] buffer = new byte[1024];
                 final int count = in.read(buffer);
                 if( 0 < count ) {
                     xfer_total += count;
@@ -990,13 +990,13 @@ public class Test01Cipherpack extends data_test {
                             return;
                         }
                     } else {
-                        PrintUtil.println(System.err, "feed_source_21: Failed to write to feed: "+enc_feed.toString());
+                        PrintUtil.println(System.err, "feed_source_21: Error: Failed to write "+count+" bytes to feed: "+enc_feed.toString());
                         break;
                     }
                 }
             }
         } catch (final Exception ex) {
-            PrintUtil.println(System.err, "feed_source_21: "+ex.getMessage());
+            PrintUtil.println(System.err, "feed_source_21: Error: "+ex.getMessage());
             ex.printStackTrace();
         } finally {
             try { if( null != in ) { in.close(); } } catch (final IOException e) { e.printStackTrace(); }
