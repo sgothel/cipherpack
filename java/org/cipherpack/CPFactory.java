@@ -115,7 +115,7 @@ public class CPFactory {
 
         boolean isJaulibAvail = false;
         try {
-            isJaulibAvail = null != Class.forName("org.jau.sys.PlatformProps", true /* initializeClazz */, CPFactory.class.getClassLoader());
+            isJaulibAvail = null != Class.forName("org.jau.sys.RuntimeProps", true /* initializeClazz */, CPFactory.class.getClassLoader());
         } catch( final Throwable t ) {
             if( DEBUG ) {
                 System.err.println("CPFactory Caught: "+t.getMessage());
@@ -125,7 +125,7 @@ public class CPFactory {
         JAULIB_AVAILABLE = isJaulibAvail;
 
         if( isJaulibAvail ) {
-            JAULIB_JARCACHE_USED = org.jau.sys.PlatformProps.USE_TEMP_JAR_CACHE;
+            JAULIB_JARCACHE_USED = org.jau.sys.RuntimeProps.USE_TEMP_JAR_CACHE;
         } else {
             JAULIB_JARCACHE_USED = false;
         }
