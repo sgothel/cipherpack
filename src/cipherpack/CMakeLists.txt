@@ -7,7 +7,7 @@ set (botan_LIB_SRCS
 
 add_library (botan STATIC ${botan_LIB_SRCS})
 target_include_directories(botan PRIVATE ${AMALGAMATION_ARCH_INC})
-target_compile_options(botan PRIVATE -fPIC -Wno-cast-align -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-array-parameter)
+target_compile_options(botan PRIVATE -fPIC -Wno-cast-align -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-array-parameter -Wno-maybe-uninitialized)
 set_target_properties(botan PROPERTIES CXX_CLANG_TIDY "")
 
 #
