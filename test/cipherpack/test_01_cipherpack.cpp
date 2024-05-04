@@ -83,7 +83,7 @@ class Test01Cipherpack : public TestData {
 
         class data {
             private:
-                static void add_test_file(const std::string name, const size_t size) {
+                static void add_test_file(const std::string& name, const size_t size) {
                     jau::fs::remove(name);
                     jau::fs::remove(name+".enc");
                     jau::fs::remove(name+".enc.dec");
@@ -96,10 +96,10 @@ class Test01Cipherpack : public TestData {
 
                         size_t written=0;
                         for(; written+one_line.size() <= size; written+=one_line.size()) {
-                            ofs.write(reinterpret_cast<const char*>(one_line.data()), one_line.size());
+                            ofs.write(reinterpret_cast<const char*>(one_line.data()), static_cast<ssize_t>(one_line.size()));
                         }
                         if( size-written > 0 ) {
-                            ofs.write(reinterpret_cast<const char*>(one_line.data()), size-written);
+                            ofs.write(reinterpret_cast<const char*>(one_line.data()), static_cast<ssize_t>(size-written));
                         }
                     }
                     jau::fs::file_stats stats(name);
@@ -161,8 +161,8 @@ class Test01Cipherpack : public TestData {
                 jau::relaxed_atomic_int count_end;
                 jau::relaxed_atomic_uint64 count_content;
 
-                LoggingCipherpackListener(const std::string& name_, const bool send_content_=false) noexcept
-                : name(name_), send_content(send_content_),
+                LoggingCipherpackListener(std::string name_, const bool send_content_=false) noexcept
+                : name(std::move(name_)), send_content(send_content_),
                   abort_header( false ),
                   abort_progress( false ),
                   abort_content( false ),
@@ -821,8 +821,8 @@ class Test01Cipherpack : public TestData {
          * Automated test using a pipe input file descriptor
          * w/o content-size knowledge on the receiving side.
          */
-        cipherpack::PackHeader test_pipe_to_decrypt(const std::string test_name,
-                                                    const std::string input_fname, const std::string output_fname,
+        cipherpack::PackHeader test_pipe_to_decrypt(const std::string& test_name,
+                                                    const std::string& input_fname, const std::string& output_fname,
                                                     const size_t chunck_sz, const jau::fraction_i64 chunck_sleep,
                                                     const std::string& hash_algo,
                                                     const std::vector<uint8_t>& exp_hash_value) {
@@ -861,7 +861,7 @@ class Test01Cipherpack : public TestData {
                         buffer.resize(buffer.capacity());
                         const uint64_t got = infile.read(buffer.data(), chunck_sz_max);
                         buffer.resize(got);
-                        outfile.write((char*)buffer.data(), got);
+                        outfile.write((char*)buffer.data(), static_cast<ssize_t>(got));
                         sent += got;
                         if( chunck_sleep > jau::fractions_i64::zero ) {
                             jau::sleep_for( chunck_sleep );

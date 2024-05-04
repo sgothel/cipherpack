@@ -30,6 +30,7 @@
 #endif
 
 #include <jau/cpuid.hpp>
+#include <jau/os/os_support.hpp>
 
 #include <jau/debug.hpp>
 
@@ -84,7 +85,7 @@ environment::environment() noexcept {
 
 
 void environment::print_info() noexcept {
-    jau::cpu::print_cpu_info(stderr);
+    jau::fprintf_td(stderr, "%s\n", jau::os::get_platform_info().c_str());
 
     jau::fprintf_td(stderr, "Botan cpuid: '%s'\n", Botan::CPUID::to_string().c_str());
     jau::fprintf_td(stderr, "Botan cpuid: has_simd32 %d\n", (int)Botan::CPUID::has_simd_32());
@@ -158,7 +159,7 @@ std::string PackHeader::to_string(const bool show_crypto_algos, const bool force
                 if( 0 < i ) {
                     recevr_fingerprint_str += ", ";
                 }
-                recevr_fingerprint_str += "'"+jau::bytesHexString(tkf, true /* lsbFirst */)+"'";
+                recevr_fingerprint_str.append("'").append(jau::bytesHexString(tkf, true /* lsbFirst */)).append("'");
                 ++i;
             }
             recevr_fingerprint_str += "]";
@@ -467,9 +468,10 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     };
     ctx.io_buffer.reserve(Constants::buffer_size);
 
-    const jau::fs::path_visitor pv = jau::bind_capref<bool, context_t, jau::fs::traverse_event, const jau::fs::file_stats&>(&ctx,
-            ( bool(*)(context_t*, jau::fs::traverse_event, const jau::fs::file_stats&) ) /* help template type deduction of function-ptr */
-                ( [](context_t* ctx_ptr, jau::fs::traverse_event tevt, const jau::fs::file_stats& element_stats) -> bool {
+    const jau::fs::path_visitor pv = jau::bind_capref<bool, context_t, jau::fs::traverse_event, const jau::fs::file_stats&, size_t>(&ctx,
+            ( bool(*)(context_t*, jau::fs::traverse_event, const jau::fs::file_stats&, size_t) ) /* help template type deduction of function-ptr */
+                ( [](context_t* ctx_ptr, jau::fs::traverse_event tevt, const jau::fs::file_stats& element_stats, size_t depth) -> bool {
+                    (void)depth;
                     if( is_set(tevt, jau::fs::traverse_event::file) && !is_set(tevt, jau::fs::traverse_event::symlink) ) {
                         jau::io::ByteInStream_File in(ctx_ptr->dirfds.back(), element_stats.item().basename());
                         if( in.fail() ) {

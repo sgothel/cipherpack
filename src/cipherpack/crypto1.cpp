@@ -25,6 +25,7 @@
 
 #include <cipherpack/cipherpack.hpp>
 
+#include <cstdint>
 #include <jau/debug.hpp>
 #include <jau/file_util.hpp>
 
@@ -50,6 +51,20 @@ static uint64_t to_uint64_t(const Botan::BigInt& v) {
     return out;
 }
 
+static int64_t to_positive_int64_t(const Botan::BigInt& v) {
+    if( v.is_negative() ) {
+        throw Botan::Encoding_Error("BigInt::to_positive_int64_t: Number is negative");
+    }
+    if( v.bits() > 63 ) {
+        throw Botan::Encoding_Error("BigInt::to_positive_int64_t: Number is too big to convert");
+    }
+    uint64_t out = 0;
+    for(size_t i = 0; i < 8; ++i) {
+        out = (out << 8) | v.byte_at(7-i);
+    }
+    return static_cast<int64_t>( out );
+}
+
 static std::vector<uint8_t> to_OctetString(const std::string& s) {
     return std::vector<uint8_t>( s.begin(), s.end() );
 }
@@ -62,8 +77,8 @@ class WrappingCipherpackListener : public CipherpackListener {
     public:
         CipherpackListenerRef parent;
 
-        WrappingCipherpackListener(CipherpackListenerRef parent_)
-        : parent(parent_) {}
+        WrappingCipherpackListener(CipherpackListenerRef parent_) // NOLINT(modernize-pass-by-value)
+        : parent( parent_ ) {} // NOLINT(performance-unnecessary-value-param)
 
         void notifyError(const bool decrypt_mode, const PackHeader& header, const std::string& msg) noexcept override {
             parent->notifyError(decrypt_mode, header, msg);
@@ -89,7 +104,7 @@ class WrappingCipherpackListener : public CipherpackListener {
             return parent->contentProcessed(decrypt_mode, ctype, data, is_final);
         }
 
-        ~WrappingCipherpackListener() noexcept override {}
+        ~WrappingCipherpackListener() noexcept override = default;
 
         std::string toString() const noexcept override { return "WrappingCipherpackListener["+jau::to_hexstring(this)+"]"; }
 };
@@ -98,7 +113,7 @@ typedef std::function<bool (secure_vector<uint8_t>& /* data */, bool /* is_final
 
 static uint64_t _read_stream(jau::io::ByteInStream& in,
                              cipherpack::secure_vector<uint8_t>& buffer,
-                             _StreamConsumerFunc consumer_fn) noexcept {
+                             const _StreamConsumerFunc& consumer_fn) noexcept {
     uint64_t total = 0;
     bool has_more;
     do {
@@ -139,7 +154,7 @@ static uint64_t _read_buffer(jau::io::ByteInStream& in,
 
 static uint64_t _read_stream(jau::io::ByteInStream& in,
                              cipherpack::secure_vector<uint8_t>& buffer1, secure_vector<uint8_t>& buffer2,
-                             _StreamConsumerFunc consumer_fn) noexcept {
+                             const _StreamConsumerFunc& consumer_fn) noexcept {
     secure_vector<uint8_t>* buffers[] = { &buffer1, &buffer2 };
     bool eof[] = { false, false };
 
@@ -507,9 +522,9 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
                                        const std::string& target_path, const std::string& subject,
                                        const std::string& plaintext_version,
                                        const std::string& plaintext_version_parent,
-                                       CipherpackListenerRef listener,
+                                       CipherpackListenerRef listener, // NOLINT(performance-unnecessary-value-param)
                                        const std::string_view& plaintext_hash_algo,
-                                       const std::string dest_fname) {
+                                       const std::string dest_fname) { // NOLINT(performance-unnecessary-value-param)
     environment::get();
     const bool decrypt_mode = false;
 
@@ -559,7 +574,7 @@ PackHeader cipherpack::encryptThenSign(const CryptoConfig& crypto_cfg,
             uint64_t& out_bytes_plaintext_;
         public:
             MyListener(CipherpackListenerRef parent_, uint64_t& bytes_header, uint64_t& bytes_plaintext)
-            : WrappingCipherpackListener(parent_), outfile_(nullptr),
+            : WrappingCipherpackListener( parent_ ), outfile_(nullptr),                                    // NOLINT(performance-unnecessary-value-param)
               out_bytes_header_(bytes_header), out_bytes_plaintext_(bytes_plaintext)
             {}
 
@@ -729,7 +744,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
         Botan::OID sym_enc_algo_oid;
 
         std::vector<uint8_t> fingerprt_sender;
-        size_t recevr_count;
+        ssize_t recevr_count;
         ssize_t used_recevr_key_idx = -1;
         std::vector<uint8_t> encrypted_sym_key;
         std::vector<uint8_t> encrypted_nonce;
@@ -818,7 +833,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
                 crypto_cfg.pk_enc_hash_algo = to_string( pk_enc_hash_algo_cv );
                 crypto_cfg.pk_sign_algo = to_string( pk_sign_algo_cv );
                 crypto_cfg.sym_enc_algo = Botan::OIDS::oid2str_or_empty( sym_enc_algo_oid );
-                recevr_count = to_uint64_t(bi_recevr_count);
+                recevr_count = to_positive_int64_t(bi_recevr_count);
             }
 
             header = PackHeader(target_path,
@@ -870,7 +885,7 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
             std::vector<uint8_t> encrypted_nonce_temp;
 
             // DER-Header per receiver
-            for(size_t idx=0; idx < recevr_count; idx++) {
+            for(ssize_t idx=0; idx < recevr_count; idx++) {
                 Botan::BER_Decoder ber(winput);
                 ber.start_sequence()
                    .decode(receiver_fingerprint_temp, Botan::ASN1_Type::OctetString)
@@ -1119,9 +1134,9 @@ static PackHeader checkSignThenDecrypt_Impl(const std::vector<std::string>& sign
 PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
                                             const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
                                             jau::io::ByteInStream& source,
-                                            CipherpackListenerRef listener,
+                                            CipherpackListenerRef listener, // NOLINT(performance-unnecessary-value-param)
                                             const std::string_view& plaintext_hash_algo,
-                                            const std::string dest_fname) {
+                                            const std::string dest_fname) { // NOLINT(performance-unnecessary-value-param)
     environment::get();
     const bool decrypt_mode = true;
 
@@ -1155,7 +1170,7 @@ PackHeader cipherpack::checkSignThenDecrypt(const std::vector<std::string>& sign
             jau::io::ByteOutStream_File* outfile_;
             uint64_t& out_bytes_plaintext_;
         public:
-            MyListener(CipherpackListenerRef parent_, uint64_t& bytes_plaintext)
+            MyListener(CipherpackListenerRef parent_, uint64_t& bytes_plaintext)   // NOLINT(performance-unnecessary-value-param)
             : WrappingCipherpackListener(parent_),
               sent_content_to_user(parent_->getSendContent( decrypt_mode )),
               outfile_(nullptr),

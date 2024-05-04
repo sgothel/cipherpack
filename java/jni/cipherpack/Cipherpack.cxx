@@ -135,7 +135,7 @@ jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, j
         }
         jau::jni::JNICriticalArray<uint64_t, jlongArray> criticalArray(env); // RAII - release
         uint64_t * bh_ptr = criticalArray.get(jbytes_hashed, criticalArray.Mode::UPDATE_AND_RELEASE);
-        if( NULL == bh_ptr ) {
+        if( nullptr == bh_ptr ) {
             throw jau::InternalError("GetPrimitiveArrayCritical(address byte array) is null", E_FILE_LINE);
         }
 

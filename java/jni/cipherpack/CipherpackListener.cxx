@@ -60,7 +60,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         return "JNICipherpackListener[this "+jau::to_hexstring(this)+", iname "+std::to_string(iname)+"]";
     }
 
-    ~JNICipherpackListener() override {
+    ~JNICipherpackListener() override { // NOLINT(modernize-use-equals-default)
         // listenerObjRef dtor will call notifyDelete and clears the nativeInstance handle
     }
 
@@ -87,7 +87,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         mContentProcessedImpl = jau::jni::search_method(env, cpListenerClazz, "contentProcessedImpl", _contentProcessedImplMethodArgs.c_str(), false);
     }
 
-    void notifyError(const bool decrypt_mode, const cipherpack::PackHeader& header, const std::string& msg) noexcept override {
+    void notifyError(const bool decrypt_mode, const cipherpack::PackHeader& header, const std::string& msg) noexcept override { // NOLINT(bugprone-exception-escape): FIXME
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
@@ -101,7 +101,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         env->DeleteLocalRef(jmsg);
     }
 
-    bool notifyHeader(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override {
+    bool notifyHeader(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override { // NOLINT(bugprone-exception-escape): FIXME
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
@@ -114,7 +114,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         return JNI_TRUE == res;
     }
 
-    bool notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override {
+    bool notifyProgress(const bool decrypt_mode, const uint64_t plaintext_size, const uint64_t bytes_processed) noexcept override { // NOLINT(bugprone-exception-escape): FIXME
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
@@ -126,7 +126,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         return JNI_TRUE == res;
     }
 
-    void notifyEnd(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override {
+    void notifyEnd(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override { // NOLINT(bugprone-exception-escape): FIXME
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);
@@ -138,7 +138,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         env->DeleteLocalRef(jph);
     }
 
-    bool getSendContent(const bool decrypt_mode) const noexcept override {
+    bool getSendContent(const bool decrypt_mode) const noexcept override { // NOLINT(bugprone-exception-escape): FIXME
         JNIEnv *env = *jau::jni::jni_env;
         JNICipherpackListener * mthis = const_cast<JNICipherpackListener*>(this);
         jau::jni::JavaAnonRef asl_java = mthis->getJavaObject(); // hold until done!
@@ -149,7 +149,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
         return JNI_TRUE == res;
     }
 
-    bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override {
+    bool contentProcessed(const bool decrypt_mode, const content_type ctype, cipherpack::secure_vector<uint8_t>& data, const bool is_final) noexcept override { // NOLINT(bugprone-exception-escape): FIXME
         JNIEnv *env = *jau::jni::jni_env;
         jau::jni::JavaAnonRef asl_java = getJavaObject(); // hold until done!
         jau::jni::JavaGlobalObj::check(asl_java, E_FILE_LINE);

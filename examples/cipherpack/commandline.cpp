@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
         std::string fname_input = jau::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-epk", argv[argi]) && argi + 1 < argc ) {
-                enc_pub_keys.push_back( argv[++argi] );
+                enc_pub_keys.emplace_back(argv[++argi] );
             } else if( 0 == strcmp("-ssk", argv[argi]) && argi + 1 < argc ) {
                 sign_sec_key_fname = argv[++argi];
             } else if( 0 == strcmp("-sskp", argv[argi]) && argi + 1 < argc ) {
@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
         std::string fname_input = jau::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-spk", argv[argi]) && argi + 1 < argc ) {
-                sign_pub_keys.push_back( argv[++argi] );
+                sign_pub_keys.emplace_back(argv[++argi] );
             } else if( 0 == strcmp("-dsk", argv[argi]) && argi + 1 < argc ) {
                 dec_sec_key_fname = argv[++argi];
             } else if( 0 == strcmp("-dskp", argv[argi]) && argi + 1 < argc ) {
@@ -365,7 +365,7 @@ int main(int argc, char *argv[])
                     continue;
                 }
             }
-            const std::string hash_line1 = hash_algo+" "+hash_value1+" *"+hashed_file;
+            const std::string hash_line1 = hash_algo+" "+hash_value1+" *"+hashed_file; // NOLINT(performance-inefficient-string-concatenation)
             uint64_t bytes_hashed = 0;
             std::unique_ptr<std::vector<uint8_t>> hash2 = cipherpack::hash_util::calc(hash_algo, hashed_file, bytes_hashed); // 20_s default timeout if uri
             if( nullptr == hash2 ) {
@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
             }
             const std::string hash_value2 = jau::bytesHexString(hash2->data(), 0, hash2->size(), true /* lsbFirst */, true /* lowerCase */);
             if( hash_value2 != hash_value1 ) {
-                const std::string hash_line2 = hash_algo+" "+hash_value2+" *"+hashed_file;
+                const std::string hash_line2 = hash_algo+" "+hash_value2+" *"+hashed_file; // NOLINT(performance-inefficient-string-concatenation)
                 jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Hash value mismatch", fname_input.c_str(), line_no);
                 jau::PLAIN_PRINT(true,"- expected: %s", hash_line1.c_str());
                 jau::PLAIN_PRINT(true,"- produced: %s", hash_line2.c_str());
