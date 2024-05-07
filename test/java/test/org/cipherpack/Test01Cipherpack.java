@@ -1382,7 +1382,7 @@ public class Test01Cipherpack extends data_test {
 
     final static String root = "test_data";
     // submodule location with jaulib directly hosted below main project
-    final static String project_root2 = "../../../jaulib/test_data";
+    final static String project_root2 = "../../../../jaulib/test_data";
 
     @Test(timeout = 120000)
     public final void test50_copy_and_verify() {

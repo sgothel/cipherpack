@@ -44,31 +44,31 @@ public class data_test extends SingletonJunitCase {
 
     public static final long io_timeout = 10000; // 10_s;
 
-    public static final String enc_pub_key1_fname = "../../../test_keys/terminal_rsa1.pub.pem";
-    public static final String dec_sec_key1_fname = "../../../test_keys/terminal_rsa1";
+    public static final String enc_pub_key1_fname = "../../../../test_keys/terminal_rsa1.pub.pem";
+    public static final String dec_sec_key1_fname = "../../../../test_keys/terminal_rsa1";
 
-    public static final String enc_pub_key2_fname = "../../../test_keys/terminal_rsa2.pub.pem";
-    public static final String dec_sec_key2_fname = "../../../test_keys/terminal_rsa2";
+    public static final String enc_pub_key2_fname = "../../../../test_keys/terminal_rsa2.pub.pem";
+    public static final String dec_sec_key2_fname = "../../../../test_keys/terminal_rsa2";
 
-    public static final String enc_pub_key3_fname = "../../../test_keys/terminal_rsa3.pub.pem";
-    public static final String dec_sec_key3_fname = "../../../test_keys/terminal_rsa3";
+    public static final String enc_pub_key3_fname = "../../../../test_keys/terminal_rsa3.pub.pem";
+    public static final String dec_sec_key3_fname = "../../../../test_keys/terminal_rsa3";
 
-    public static final String enc_pub_key4_fname = "../../../test_keys/terminal_rsa4.pub.pem";
-    public static final String dec_sec_key4_fname = "../../../test_keys/terminal_rsa4";
+    public static final String enc_pub_key4_fname = "../../../../test_keys/terminal_rsa4.pub.pem";
+    public static final String dec_sec_key4_fname = "../../../../test_keys/terminal_rsa4";
 
     public static final ByteBuffer dec_sec_key_passphrase = null;
 
-    public static final String sign_pub_key1_fname = "../../../test_keys/host_rsa1.pub.pem";
-    public static final String sign_sec_key1_fname = "../../../test_keys/host_rsa1";
+    public static final String sign_pub_key1_fname = "../../../../test_keys/host_rsa1.pub.pem";
+    public static final String sign_sec_key1_fname = "../../../../test_keys/host_rsa1";
 
-    public static final String sign_pub_key2_fname = "../../../test_keys/host_rsa2.pub.pem";
-    public static final String sign_sec_key2_fname = "../../../test_keys/host_rsa2";
+    public static final String sign_pub_key2_fname = "../../../../test_keys/host_rsa2.pub.pem";
+    public static final String sign_sec_key2_fname = "../../../../test_keys/host_rsa2";
 
-    public static final String sign_pub_key3_fname = "../../../test_keys/host_rsa3.pub.pem";
-    public static final String sign_sec_key3_fname = "../../../test_keys/host_rsa3";
+    public static final String sign_pub_key3_fname = "../../../../test_keys/host_rsa3.pub.pem";
+    public static final String sign_sec_key3_fname = "../../../../test_keys/host_rsa3";
 
-    public static final String sign_pub_key4_fname = "../../../test_keys/host_rsa4.pub.pem";
-    public static final String sign_sec_key4_fname = "../../../test_keys/host_rsa4";
+    public static final String sign_pub_key4_fname = "../../../../test_keys/host_rsa4.pub.pem";
+    public static final String sign_sec_key4_fname = "../../../../test_keys/host_rsa4";
 
     public static final ByteBuffer sign_sec_key_passphrase = Buffers.newDirectByteBuffer(0);
 

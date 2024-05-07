@@ -1413,7 +1413,7 @@ class Test01Cipherpack : public TestData {
 
         const std::string root = "test_data";
         // submodule location with jaulib directly hosted below main project
-        const std::string project_root2 = "../../../jaulib/test_data";
+        const std::string project_root2 = "../../../../jaulib/test_data";
 
         void test50_copy_and_verify() {
             const std::string title("test50_copy_and_verify");

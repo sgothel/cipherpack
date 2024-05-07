@@ -25,7 +25,7 @@ to produce the input stream by injecting data off-thread and a
 [CipherpackListener](https://jausoft.com/projects/cipherpack/build/documentation/cpp/html/classcipherpack_1_1CipherpackListener.html)
 to receive the processed output stream.
 
-*Cipherpack* is implemented using C++17 or C++20 and is accessible via C++ and Java.
+*Cipherpack* is implemented using C++20 and is accessible via C++ and Java.
 
 Please find the more detailed [overview in the API doc](https://jausoft.com/projects/cipherpack/build/documentation/cpp/html/group__CipherpackAPI.html#details).
 
@@ -35,14 +35,20 @@ Hence original project name was *Elevator*.
 See details on the [C++ and Java API](#cipherpack_apidoc) including its different C++ API level modules.
 
 ### Status
-Build and clang-tidy clean on C++17 and C++20, passing all unit tests.
+Build and clang-tidy clean on C++20, passing all unit tests.
 
 ## Supported Platforms
 Language requirements
-- C++17 or C++20
+- C++20 or better, see [jaulib C++ Minimum Requirements](https://jausoft.com/cgit/jaulib.git/about/README.md#cpp_min_req).
 - Java 11, 17+ (optional)
 
 See [supported platforms](PLATFORMS.md) for details.
+
+### C++ Minimum Requirements
+C++20 is the minimum requirement for releases > 1.1.4,
+see [jaulib C++ Minimum Requirements](https://jausoft.com/cgit/jaulib.git/about/README.md#cpp_min_req).
+
+Release 1.1.4 is the last version conforming to C++17.
 
 ## Programming with Cipherpack
 
@@ -68,17 +74,16 @@ This project uses the following git submodules
 - [Botan](https://github.com/randombit/botan.git)
 
 ### Build Dependencies
-- CMake 3.13+ but >= 3.18 is recommended
+- CMake >= 3.21 (2021-07-14)
 - C++ compiler
-  - gcc >= 8.3.0 (C++17)
-  - gcc >= 10.2.1 (C++17 and C++20)
-  - clang >= 15 (C++17 and C++20)
+  - gcc >= 11 (C++20), recommended >= 12
+  - clang >= 13 (C++20), recommended >= 16
 - Optional for `lint` validation
-  - clang-tidy >= 15
+  - clang-tidy >= 16
 - Optional for `vscodium` integration
-  - clangd >= 15
-  - clang-tools >= 15
-  - clang-format >= 15
+  - clangd >= 16
+  - clang-tools >= 16
+  - clang-format >= 16
 - Optional
   - libunwind8 >= 1.2.1
   - libcurl4 >= 7.74 (tested, lower may work)
@@ -129,11 +134,11 @@ Note: `mini-httpd` is being used for unit testing URL streaming only.
 
 #### Install on Debian or Ubuntu
 
-Installing build dependencies on Debian (10 or 11):
+Installing build dependencies for Debian >= 12 and Ubuntu >= 22:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 apt install git
 apt install build-essential g++ gcc libc-dev libpthread-stubs0-dev 
-apt install clang-15 clang-tidy-15 clangd-15 clang-tools-15 clang-format-15
+apt install clang-16 clang-tidy-16 clangd-16 clang-tools-16 clang-format-16
 apt install libunwind8 libunwind-dev
 apt install cmake cmake-extras extra-cmake-modules pkg-config
 apt install doxygen graphviz
@@ -169,136 +174,138 @@ Note: `mini-httpd` is being used for unit testing URL streaming only.
 
 ### Build Procedure
 
-To fetch the source tree use:
+#### Build preparations
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 git clone --recurse-submodule git://jausoft.com/srv/scm/cipherpack.git
 cd cipherpack
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-From here on we assume to be in the `cipherpack` project folder.
+<a name="cmake_presets_optional"></a>
 
-For a generic build use:
+#### CMake Build via Presets
+Analog to [jaulib CMake build presets](https://jausoft.com/cgit/jaulib.git/about/README.md#cmake_presets_optional) ...
+
+Following debug presets are defined in `CMakePresets.json`
+- `debug`
+  - default generator
+  - default compiler
+  - C++20
+  - debug enabled
+  - java (if available)
+  - libunwind enabled
+  - libcurl enabled
+  - testing on
+  - testing with sudo off
+- `debug-gcc`
+  - inherits from `debug`
+  - compiler: `gcc`
+  - disabled `clang-tidy`
+- `debug-clang`
+  - inherits from `debug`
+  - compiler: `clang`
+  - enabled `clang-tidy`
+- `release`
+  - inherits from `debug`
+  - debug disabled
+  - libunwind disabled
+- `release-gcc`
+  - compiler: `gcc`
+  - disabled `clang-tidy`
+- `release-clang`
+  - compiler: `clang`
+  - enabled `clang-tidy`
+
+Kick-off the workflow by e.g. using preset `release-gcc` to configure, build, test, install and building documentation.
+You may skip `install` and `doc` by dropping it from `--target`.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
-CPU_COUNT=`getconf _NPROCESSORS_ONLN`
-mkdir build
-cd build
-cmake -DBUILDJAVA=ON -DBUILDEXAMPLES=ON -DBUILD_TESTING=ON ..
-make -j $CPU_COUNT install
-make test
-make doc
+cmake --preset release-gcc
+cmake --build --preset release-gcc --parallel
+cmake --build --preset release-gcc --target test install doc
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+<a name="cmake_presets_hardcoded"></a>
+
+#### CMake Build via Hardcoded Presets
+Analog to [jaulib CMake hardcoded presets](https://jausoft.com/cgit/jaulib.git/about/README.md#cmake_presets_hardcoded) ...
+
+Besides above `CMakePresets.json` presets, 
+`JaulibSetup.cmake` contains hardcoded presets for *undefined variables* if
+- `CMAKE_INSTALL_PREFIX` and `CMAKE_CXX_CLANG_TIDY` cmake variables are unset, or 
+- `JAU_CMAKE_ENFORCE_PRESETS` cmake- or environment-variable is set to `TRUE` or `ON`
+
+The hardcoded presets resemble `debug-clang` [presets](README.md#cmake_presets_optional).
+
+Kick-off the workflow to configure, build, test, install and building documentation.
+You may skip `install` and `doc` by dropping it from `--target`.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
+rm -rf build/default
+cmake -B build/default
+cmake --build build/default --parallel
+cmake --build build/default --target test install doc
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The install target of the last command will create the include/ and lib/ directories with a copy of
-the headers and library objects respectively in your build location. Note that
-doing an out-of-source build may cause issues when rebuilding later on.
+the headers and library objects respectively in your dist location.
 
-You may also invoke `scripts/build.sh`,
-which resolves installed environment variables like `JAVA_HOME` and `JUNIT_CP`
-as well as building and distributing using `os_arch` type folders.
-- `scripts/setup-machine-arch.sh` .. generic setup for all scripts
-- `scripts/build.sh` .. initial build incl. install and unit testing
-- `scripts/rebuild.sh` .. rebuild
-- `scripts/build-cross.sh` .. [cross-build](#cross-build)
-- `scripts/rebuild-cross.sh` .. [cross-build](#cross-build)
-- `scripts/test_java.sh` .. invoke a java unit test
-- `scripts/test_exe_template.sh` .. invoke the symlink'ed files to invoke native unit tests
-
+#### CMake Variables
 Our cmake configure has a number of options, *cmake-gui* or *ccmake* can show
 you all the options. The interesting ones are detailed below:
 
-Changing install path from /usr/local to /usr
-~~~~~~~~~~~~~
--DCMAKE_INSTALL_PREFIX=/usr
-~~~~~~~~~~~~~
+See [jaulib CMake variables](https://jausoft.com/cgit/jaulib.git/about/README.md#cmake_variables) for details.
 
-Building debug build:
-~~~~~~~~~~~~~
--DDEBUG=ON
-~~~~~~~~~~~~~
+#### Deprecated Build Scripts
+- `scripts/build-cross.sh` .. [cross-build](#cross-build)
+- `scripts/rebuild-cross.sh` .. [cross-build](#cross-build)
 
-Add unit tests to build (default: disabled)
-~~~~~~~~~~~~~
--DBUILD_TESTING=ON
-~~~~~~~~~~~~~
+(*FIXME: scripts needs to be overhauled to reflect new CMake build/dist folder*)
 
-Add unit tests requiring `sudo` to build (default: disabled).<br />
-This option requires `-DBUILD_TESTING=ON` to be effective.<br />
-Covered unit test requiring `sudo` are currently 
-- `Linux` OS
-  - `jau::fs::mount_image()`
-  - `jau::fs::umount()`
-~~~~~~~~~~~~~
--DTEST_WITH_SUDO=ON
-~~~~~~~~~~~~~
+### Test Scripts
+- `scripts/test_java.sh` .. invoke a java unit test
+- `scripts/test_exe_template.sh` .. invoke the symlink'ed files to invoke native unit tests
 
-Using clang instead of gcc:
-~~~~~~~~~~~~~
--DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
-~~~~~~~~~~~~~
+(*FIXME: scripts needs to be overhauled to reflect new CMake build/dist folder*)
 
-Building with clang and clang-tidy `lint` validation
-~~~~~~~~~~~~~
--DCMAKE_C_COMPILER=/usr/bin/clang 
--DCMAKE_CXX_COMPILER=/usr/bin/clang++ 
--DCMAKE_CXX_CLANG_TIDY=/usr/bin/clang-tidy;-p;$rootdir/$build_dir
-~~~~~~~~~~~~~
+### Cross Build
+Also provided is a [cross-build script](https://jausoft.com/cgit/direct_bt.git/tree/scripts/build-cross.sh)
+using chroot into a target system using [QEMU User space emulation](https://qemu-project.gitlab.io/qemu/user/main.html)
+and [Linux kernel binfmt_misc](https://wiki.debian.org/QemuUserEmulation)
+to run on other architectures than the host.
 
-Disable stripping native lib even in non debug build:
-~~~~~~~~~~~~~
--DUSE_STRIP=OFF
-~~~~~~~~~~~~~
-
-Enable using `libcurl` (default: disabled)
-~~~~~~~~~~~~~
--DUSE_LIBCURL=ON
-~~~~~~~~~~~~~
-
-Enable using `libunwind` (default: disabled)
-~~~~~~~~~~~~~
--DUSE_LIBUNWIND=ON
-~~~~~~~~~~~~~
-
-Disable using `C++ Runtime Type Information` (*RTTI*) (default: enabled)
-~~~~~~~~~~~~~
--DDONT_USE_RTTI=ON
-~~~~~~~~~~~~~
-
-Building debug and instrumentation (sanitizer) build:
-~~~~~~~~~~~~~
--DDEBUG=ON -DINSTRUMENTATION=ON
-~~~~~~~~~~~~~
-
-Cross-compiling on a different system:
-~~~~~~~~~~~~~
--DCMAKE_CXX_FLAGS:STRING=-m32 -march=i586
--DCMAKE_C_FLAGS:STRING=-m32 -march=i586
-~~~~~~~~~~~~~
-
-To build documentation run: 
-~~~~~~~~~~~~~
-make doc
-~~~~~~~~~~~~~
+You may use [our pi-gen branch](https://jausoft.com/cgit/pi-gen.git/about/) to produce 
+a Raspi-arm64, Raspi-armhf or PC-amd64 target image.
 
 ## IDE Integration
 
 ### Eclipse 
+Tested Eclipse 2024-03 (4.31).
+
 IDE integration configuration files are provided for 
 - [Eclipse](https://download.eclipse.org/eclipse/downloads/) with extensions
   - [CDT](https://github.com/eclipse-cdt/) or [CDT @ eclipse.org](https://projects.eclipse.org/projects/tools.cdt)
-  - Not used due to lack of subproject include file and symbol resolution:
-    - `CMake Support`, install `C/C++ CMake Build Support` with ID `org.eclipse.cdt.cmake.feature.group`
+  - [CDT-LSP](https://github.com/eclipse-cdt/cdt-lsp) *recommended*
+    - Should work with clang toolchain >= 16
+    - Utilizes clangd, clang-tidy and clang-format to support C++20 and above
+    - Add to available software site: `https://download.eclipse.org/tools/cdt/releases/cdt-lsp-latest`
+    - Install `C/C++ LSP Support` in the `Eclipse CDT LSP Category`
+  - `CMake Support`, install `C/C++ CMake Build Support` with ID `org.eclipse.cdt.cmake.feature.group`
+    - Usable via via [Hardcoded CMake Presets](README.md#cmake_presets_hardcoded) with `debug-clang`
 
-From the project root directory, prepare the `Debug` folder using `cmake`
-~~~~~~~~~~~~~
-./scripts/eclipse-cmake-prepare.sh
-~~~~~~~~~~~~~
+The [Hardcoded CMake Presets](README.md#cmake_presets_hardcoded) will 
+use `build/default` as the default build folder with debug enabled.
 
-The existing project setup is just using `external build` via `make`.
+Make sure to set the environment variable `CMAKE_BUILD_PARALLEL_LEVEL`
+to a suitable high number, best to your CPU core count.
+This will enable parallel build with the IDE.
 
 You can import the project to your workspace via `File . Import...` and `Existing Projects into Workspace` menu item.
 
 For Eclipse one might need to adjust some setting in the `.project` and `.cproject` (CDT) 
 via Eclipse settings UI, but it should just work out of the box.
+
+Otherwise recreate the Eclipse project by 
+- delete `.project` and `.cproject` 
+- `File . New . C/C++ Project` and `Empty or Existing CMake Project` while using this project folder.
 
 ### VSCodium or VS Code
 
@@ -339,6 +346,9 @@ please contact [Gothel Software](https://jausoft.com/) to setup a potential supp
 
 
 ## Changes
+
+**1.1.4**
+* Last version conforming to C++17
 
 **1.1.1**
 * Stable stream handling w/o knowledge of content-size under heavy load

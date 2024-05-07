@@ -1,11 +1,9 @@
 cmake_minimum_required (VERSION 3.13.0 FATAL_ERROR)
-project (cipherpack LANGUAGES C CXX)
+set(USE_LIBCURL ON CACHE BOOL "" FORCE)
+include(jaulib/JaulibSetup.cmake)
+JaulibPreset()
 
-if(${CMAKE_VERSION} VERSION_LESS "3.18.0")
-    message(STATUS "CMake ${CMAKE_VERSION}, please consider to switch to CMake 3.18.0 or later")
-else()
-    message(STATUS "CMake ${CMAKE_VERSION} >= 3.18.0, good.")
-endif()
+project (cipherpack LANGUAGES C CXX)
 
 set (THREADS_PREFER_PTHREAD_FLAG ON)
 find_package (Threads REQUIRED)
@@ -20,7 +18,6 @@ else()
     message(STATUS "${PROJECT_NAME} DONT_USE_RTTI ${DONT_USE_RTTI} (user)")
 endif()
 
-include(jaulib/JaulibSetup.cmake)
 JaulibSetup()
 
 # Determine amalgamation platform include director, depnding on OS_NAME and OS_ARCH
