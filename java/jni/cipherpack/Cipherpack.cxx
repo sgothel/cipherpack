@@ -26,6 +26,7 @@
 #include "org_cipherpack_Cipherpack_HashUtil.h"
 
 // #define VERBOSE_ON 1
+#include <jau/basic_types.hpp>
 #include <jau/debug.hpp>
 
 #include "cipherpack/cipherpack.hpp"
@@ -127,11 +128,11 @@ jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, j
         const jau::fraction_i64 timeout = (int64_t)jtimeoutMS * 1_ms;
 
         if( nullptr == jbytes_hashed ) {
-            throw jau::IllegalArgumentException("bytes_hashed null", E_FILE_LINE);
+            throw jau::IllegalArgumentError("bytes_hashed null", E_FILE_LINE);
         }
         const size_t bh_size = env->GetArrayLength(jbytes_hashed);
         if( 1 > bh_size ) {
-            throw jau::IllegalArgumentException("bytes_hashed array size "+std::to_string(bh_size)+" < 1", E_FILE_LINE);
+            throw jau::IllegalArgumentError("bytes_hashed array size "+std::to_string(bh_size)+" < 1", E_FILE_LINE);
         }
         jau::jni::JNICriticalArray<uint64_t, jlongArray> criticalArray(env); // RAII - release
         uint64_t * bh_ptr = criticalArray.get(jbytes_hashed, criticalArray.Mode::UPDATE_AND_RELEASE);

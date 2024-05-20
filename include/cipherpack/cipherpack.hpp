@@ -234,12 +234,12 @@ namespace cipherpack {
           sym_enc_nonce_bytes(0)
         { }
 
-        CryptoConfig(const std::string& pk_type_,
-                     const std::string& pk_fingerprt_hash_algo_,
-                     const std::string& pk_enc_padding_algo_,
-                     const std::string& pk_enc_hash_algo_,
-                     const std::string& pk_sign_algo_,
-                     const std::string& sym_enc_algo_,
+        CryptoConfig(const std::string& pk_type_,                  // NOLINT(modernize-pass-by-value)
+                     const std::string& pk_fingerprt_hash_algo_,   // NOLINT(modernize-pass-by-value)
+                     const std::string& pk_enc_padding_algo_,      // NOLINT(modernize-pass-by-value)
+                     const std::string& pk_enc_hash_algo_,         // NOLINT(modernize-pass-by-value)
+                     const std::string& pk_sign_algo_,             // NOLINT(modernize-pass-by-value)
+                     const std::string& sym_enc_algo_,             // NOLINT(modernize-pass-by-value)
                      const size_t sym_enc_nonce_bytes_) noexcept
         : pk_type(pk_type_),
           pk_fingerprt_hash_algo(pk_fingerprt_hash_algo_),
@@ -324,15 +324,15 @@ namespace cipherpack {
             { }
 
             /** Complete ctor, denoting a complete package header, see @ref cipherpack_stream "Cipherpack Data Stream". */
-            PackHeader(const std::string& _target_path,
+            PackHeader(const std::string& _target_path,                                    // NOLINT(modernize-pass-by-value)
                        const uint64_t& _plaintext_size,
                        const jau::fraction_timespec& _ts_creation,
-                       const std::string& _subject,
-                       const std::string& _pversion, const std::string& _pversion_parent,
-                       const CryptoConfig& _crypto_cfg,
+                       const std::string& _subject,                                        // NOLINT(modernize-pass-by-value)
+                       const std::string& _pversion, const std::string& _pversion_parent,  // NOLINT(modernize-pass-by-value)
+                       const CryptoConfig& _crypto_cfg,                                    // NOLINT(modernize-pass-by-value)
                        const std::vector<uint8_t>& _sender_fingerprint,
                        const std::vector<std::vector<uint8_t>>& _recevr_fingerprints,
-                       const size_t _used_recevr_key_idx,
+                       const ssize_t _used_recevr_key_idx,
                        const bool _valid)
             : target_path_(_target_path),
               plaintext_size_(_plaintext_size),
@@ -345,7 +345,7 @@ namespace cipherpack {
               used_recevr_key_idx_(_used_recevr_key_idx),
               plaintext_hash_algo_(),
               plaintext_hash_(),
-              valid_(_valid)
+              valid_(_valid && _used_recevr_key_idx >= 0)
             { }
 
             /** Returns the designated target path for this plaintext message, see @ref cipherpack_stream "Cipherpack Data Stream". */
@@ -532,7 +532,7 @@ namespace cipherpack {
                 return true;
             }
 
-            ~CipherpackListener() noexcept override {}
+            ~CipherpackListener() noexcept override = default;
 
             std::string toString() const noexcept override { return "CipherpackListener["+jau::to_hexstring(this)+"]"; }
 

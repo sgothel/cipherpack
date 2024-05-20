@@ -23,6 +23,7 @@
  */
 
 #include <jni.h>
+#include <jau/basic_types.hpp>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -42,15 +43,17 @@ void rethrow_and_raise_java_exception_impl(JNIEnv *env, const char* file, int li
         jau::jni::raise_java_exception(env, e, file, line);
     } catch (const jau::NullPointerException &e) {
         jau::jni::raise_java_exception(env, e, file, line);
-    } catch (const jau::IllegalArgumentException &e) {
+    } catch (const jau::IllegalArgumentError &e) {
         jau::jni::raise_java_exception(env, e, file, line);
-    } catch (const jau::IllegalStateException &e) {
+    } catch (const jau::IllegalStateError &e) {
         jau::jni::raise_java_exception(env, e, file, line);
     } catch (const jau::UnsupportedOperationException &e) {
         jau::jni::raise_java_exception(env, e, file, line);
-    } catch (const jau::IndexOutOfBoundsException &e) {
+    } catch (const jau::IndexOutOfBoundsError &e) {
         jau::jni::raise_java_exception(env, e, file, line);
-    } catch (const jau::RuntimeException &e) {
+    } catch (const jau::RuntimeExceptionBase &e) {
+        jau::jni::raise_java_exception(env, e, file, line);
+    } catch (const jau::ExceptionBase &e) {
         jau::jni::raise_java_exception(env, e, file, line);
     } catch (const std::bad_alloc &e) {
         jau::jni::raise_java_exception(env, e, file, line);
