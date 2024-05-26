@@ -33,9 +33,7 @@ jstring Java_org_cipherpack_CPFactory_getNativeVersion(JNIEnv *env, jclass clazz
 {
     try {
         (void) clazz;
-
-        std::string api_version = std::string(cipherpack::VERSION);
-        return env->NewStringUTF(api_version.c_str());
+        return env->NewStringUTF(cipherpack::VERSION.versionString().c_str());
     } catch(...) {
         rethrow_and_raise_java_exception(env);
     }

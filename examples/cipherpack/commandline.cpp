@@ -92,7 +92,7 @@ class LoggingCipherpackListener : public cipherpack::CipherpackListener {
 typedef std::shared_ptr<LoggingCipherpackListener> LoggingCipherpackListenerRef;
 
 static void print_version() {
-    fprintf(stderr, "Cipherpack Native Version %s (API %s)\n", cipherpack::VERSION, cipherpack::VERSION_API);
+    fprintf(stderr, "Cipherpack Native Version %s (API %s)\n", cipherpack::VERSION.toString().c_str(), cipherpack::VERSION_API);
 }
 
 static void print_usage(const char* progname) {
