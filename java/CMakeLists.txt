@@ -1,11 +1,11 @@
 # java/CMakeLists.txt
 
-set(CMAKE_JNI_TARGET TRUE)
-
 set(cipherpack_jar_file ${CMAKE_CURRENT_BINARY_DIR}/cipherpack.jar CACHE FILEPATH "cipherpack jar file" FORCE)
 
+set(CMAKE_JNI_TARGET TRUE)
 file(GLOB_RECURSE JAVA_SOURCES "*.java")
 
+set(CMAKE_JAVA_COMPILE_FLAGS ${cipherpack_JAVA_COMPILE_FLAGS})
 add_jar(cipherpack_jar 
         ${JAVA_SOURCES}
         ${PROJECT_SOURCE_DIR}/jaulib/java_base/org/jau/util/BasicTypes.java

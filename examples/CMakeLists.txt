@@ -5,6 +5,8 @@ include_directories(
 )
 
 add_executable (cipherpack_exe cipherpack/commandline.cpp)
+target_compile_options(cipherpack_exe PUBLIC ${cipherpack_CXX_FLAGS})
+target_link_options(cipherpack_exe PUBLIC ${cipherpack_EXE_LINKER_FLAGS})
 target_link_libraries (cipherpack_exe cipherpack)
 set_target_properties(cipherpack_exe PROPERTIES OUTPUT_NAME cipherpack)
 add_dependencies(cipherpack_exe cipherpack)

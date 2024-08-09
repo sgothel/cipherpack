@@ -13,6 +13,8 @@ set( TARGETS_IDIOMATIC_EXAMPLES ${BASENAMES_IDIOMATIC_EXAMPLES} )
 
 foreach( name ${TARGETS_IDIOMATIC_EXAMPLES} )
     add_executable(${name} ${name}.cpp data_test.cpp)
+    target_compile_options(${name} PUBLIC ${cipherpack_CXX_FLAGS})
+    target_link_options(${name} PUBLIC ${cipherpack_EXE_LINKER_FLAGS})
     target_link_libraries(${name} cipherpack catch2)
     add_dependencies(${name} cipherpack catch2)
     add_test (NAME ${name} COMMAND ${name})

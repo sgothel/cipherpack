@@ -192,29 +192,43 @@ Following debug presets are defined in `CMakePresets.json`
   - default compiler
   - C++20
   - debug enabled
+  - disabled `clang-tidy`
   - java (if available)
   - libunwind enabled
   - libcurl enabled
   - testing on
   - testing with sudo off
+  - binary-dir `build/debug`
+  - install-dir `dist/debug`
 - `debug-gcc`
   - inherits from `debug`
   - compiler: `gcc`
   - disabled `clang-tidy`
+  - binary-dir `build/debug-gcc`
+  - install-dir `dist/debug-gcc`
 - `debug-clang`
   - inherits from `debug`
   - compiler: `clang`
   - enabled `clang-tidy`
+  - binary-dir `build/debug-clang`
+  - install-dir `dist/debug-clang`
 - `release`
   - inherits from `debug`
   - debug disabled
+  - disabled `clang-tidy`
   - libunwind disabled
+  - binary-dir `build/release`
+  - install-dir `dist/release`
 - `release-gcc`
   - compiler: `gcc`
   - disabled `clang-tidy`
+  - binary-dir `build/release-gcc`
+  - install-dir `dist/release-gcc`
 - `release-clang`
   - compiler: `clang`
   - enabled `clang-tidy`
+  - binary-dir `build/release-clang`
+  - install-dir `dist/release-clang`
 
 Kick-off the workflow by e.g. using preset `release-gcc` to configure, build, test, install and building documentation.
 You may skip `install` and `doc` by dropping it from `--target`.
@@ -223,6 +237,8 @@ cmake --preset release-gcc
 cmake --build --preset release-gcc --parallel
 cmake --build --preset release-gcc --target test install doc
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You may utilize `scripts/build-preset.sh` for an initial build, install and test workflow.
 
 <a name="cmake_presets_hardcoded"></a>
 
@@ -332,10 +348,10 @@ vi ../cipherpack.code-workspace
 ~~~~~~~~~~~~~
 Then you can open it via `File . Open Workspace from File...` menu item.
 - All listed extensions are referenced in this workspace file to be installed via the IDE
-- The [local settings.json](.vscode/settings.json) has `clang-tidy` enabled
-  - If using `clang-tidy` is too slow, just remove it from the settings file.
-  - `clangd` will still contain a good portion of `clang-tidy` checks
-
+- Select one of the [CMake Presets](README.md#cmake_presets_optional) for
+  - Configuration
+  - Build
+  - Test
 
 ## Support
 

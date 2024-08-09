@@ -8,10 +8,11 @@ set (botan_LIB_SRCS
 add_library (botan STATIC ${botan_LIB_SRCS})
 target_include_directories(botan PRIVATE ${AMALGAMATION_ARCH_INC})
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(botan PRIVATE -fPIC -Wno-cast-align -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-array-parameter -Wno-maybe-uninitialized -Wno-restrict -Wno-stringop-overread)
+  target_compile_options(botan PRIVATE ${cipherpack_CXX_FLAGS} -fPIC -Wno-cast-align -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-array-parameter -Wno-maybe-uninitialized -Wno-restrict -Wno-stringop-overread)
 else()
-  target_compile_options(botan PRIVATE -fPIC -Wno-cast-align -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-array-parameter)
+  target_compile_options(botan PRIVATE ${cipherpack_CXX_FLAGS} -fPIC -Wno-cast-align -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-array-parameter)
 endif()
+target_link_options(botan PUBLIC ${cipherpack_STATIC_LINKER_FLAGS})
 set_target_properties(botan PROPERTIES CXX_CLANG_TIDY "")
 
 #
@@ -48,6 +49,8 @@ set (cipherpack_LIB_SRCS
 )
 
 add_library (cipherpack SHARED ${cipherpack_LIB_SRCS})
+target_compile_options(cipherpack PUBLIC ${cipherpack_CXX_FLAGS})
+target_link_options(cipherpack PUBLIC ${cipherpack_SHARED_LINKER_FLAGS})
 target_link_libraries (
   cipherpack
   botan

@@ -14,6 +14,7 @@ string( REPLACE ".java" ".jar" BASENAMES_IDIOMATIC_EXAMPLE_JARS "${SOURCES_IDIOM
 set( TARGETS_IDIOMATIC_EXAMPLE_JARS ${BASENAMES_IDIOMATIC_EXAMPLE_JARS} )
 
 foreach( name ${TARGETS_IDIOMATIC_EXAMPLES} )
+    set(CMAKE_JAVA_COMPILE_FLAGS ${cipherpack_JAVA_COMPILE_FLAGS})
     add_jar(${name} SOURCES ${name}.java INCLUDE_JARS cipherpack_jar ENTRY_POINT Notification)
     add_custom_command(TARGET ${name}
             POST_BUILD

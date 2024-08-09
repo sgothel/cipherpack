@@ -24,7 +24,18 @@ bname=`basename $0 .sh`
 
 . $rootdir/jaulib/scripts/setup-machine-arch.sh "-quiet"
 
-dist_dir=${rootdir}/dist-${os_name}-${archabi}
+tripleid="$os_name-$archabi"
+
+if [ ! -z "$1" ] ; then
+    preset_name=$1
+    shift 1
+else
+    echo "ERROR: No preset passed as 1st argument, use one of:"
+    cmake --list-presets
+    exit 1
+fi
+
+dist_dir="${rootdir}/dist/${preset_name}-${tripleid}"
 
 if [ ! -e ${dist_dir}/bin/cipherpack -o ! -e ${dist_dir}/lib/libcipherpack.so ] ; then
     echo "Not available: ${dist_dir}/bin/cipherpack or ${dist_dir}/lib/libcipherpack.so"
