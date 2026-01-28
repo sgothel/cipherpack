@@ -22,13 +22,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <iostream>
 #include <cassert>
-#include <cinttypes>
 #include <cstring>
-
-#include <fstream>
-#include <iostream>
 
 #define CATCH_CONFIG_RUNNER
 // #define CATCH_CONFIG_MAIN

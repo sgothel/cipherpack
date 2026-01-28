@@ -26,13 +26,11 @@
 #ifndef DATA_TEST_HPP_
 #define DATA_TEST_HPP_
 
-#include <iostream>
 #include <cassert>
-#include <cinttypes>
 #include <cstring>
 
 #include <jau/fraction_type.hpp>
-#include <jau/io_util.hpp>
+#include <jau/io/io_util.hpp>
 
 using namespace jau::fractions_i64_literals;
 

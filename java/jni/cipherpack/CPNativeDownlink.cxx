@@ -48,7 +48,7 @@ void Java_org_cipherpack_CPNativeDownlink_initNativeJavaObject(JNIEnv *env, jobj
         }
         javaUplink->setJavaObject( std::make_shared<jau::jni::JavaGlobalObj>( std::move(global_obj), mNotifyDeleted ) );
         jau::jni::JavaGlobalObj::check(javaUplink->getJavaObject(), E_FILE_LINE);
-        DBG_JNI_PRINT("Java_org_cipherpack_CPNativeDownlink_initNativeJavaObject %p -> %s", javaUplink.shared_ptr().get(), javaUplink->toString().c_str());
+        jau_DBG_JNI_PRINT("Java_org_cipherpack_CPNativeDownlink_initNativeJavaObject %p -> %s", javaUplink.shared_ptr().get(), javaUplink->toString());
     } catch(...) {
         rethrow_and_raise_java_exception(env);
     }
@@ -60,7 +60,7 @@ void Java_org_cipherpack_CPNativeDownlink_deleteNativeJavaObject(JNIEnv *env, jo
     try {
         jau::jni::shared_ptr_ref<jau::jni::JavaUplink> javaUplink(nativeInstance); // hold copy until done
         javaUplink.null_check2();
-        DBG_JNI_PRINT("Java_org_cipherpack_CPNativeDownlink_deleteNativeJavaObject %p -> %s", javaUplink.shared_ptr().get(), javaUplink->toString().c_str());
+        jau_DBG_JNI_PRINT("Java_org_cipherpack_CPNativeDownlink_deleteNativeJavaObject %p -> %s", javaUplink.shared_ptr().get(), javaUplink->toString());
         javaUplink->setJavaObject();
     } catch(...) {
         rethrow_and_raise_java_exception(env);

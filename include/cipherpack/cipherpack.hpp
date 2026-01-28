@@ -28,16 +28,16 @@
 
 #include <string>
 #include <cstdint>
-#include <functional>
 
 #include <botan_all.h>
 
 #include <cipherpack/version.hpp>
+#include "jau/string_util.hpp"
 
 #include <jau/basic_types.hpp>
-#include <jau/file_util.hpp>
-#include <jau/byte_stream.hpp>
-#include <jau/io_util.hpp>
+#include <jau/io/file_util.hpp>
+#include <jau/io/byte_stream.hpp>
+#include <jau/io/io_util.hpp>
 #include <jau/environment.hpp>
 #include <jau/java_uplink.hpp>
 
@@ -171,9 +171,9 @@ namespace cipherpack {
     class WrappingDataSource : public Botan::DataSource
     {
        public:
-          jau::io::ByteInStream& in;
+          jau::io::ByteStream& in;
 
-          WrappingDataSource(jau::io::ByteInStream& in_)
+          WrappingDataSource(jau::io::ByteStream& in_)
           : in(in_) {}
 
           [[nodiscard]] size_t read(uint8_t out[], size_t length) override
@@ -192,7 +192,7 @@ namespace cipherpack {
           { return in.id(); }
 
           size_t get_bytes_read() const override
-          { return static_cast<size_t>( in.tellg() ); }
+          { return static_cast<size_t>( in.position() ); }
     };
 
     /**
@@ -454,7 +454,7 @@ namespace cipherpack {
              * @param header the preliminary PackHeader
              * @param msg the error message
              */
-            virtual void notifyError(const bool decrypt_mode, const PackHeader& header, const std::string& msg) noexcept {
+            virtual void notifyError(const bool decrypt_mode, const PackHeader&, const std::string& msg) noexcept {
                 (void)decrypt_mode;
                 (void)msg;
             }
@@ -534,7 +534,7 @@ namespace cipherpack {
 
             ~CipherpackListener() noexcept override = default;
 
-            std::string toString() const noexcept override { return "CipherpackListener["+jau::to_hexstring(this)+"]"; }
+            std::string toString() const noexcept override { return "CipherpackListener["+jau::toHexString(this)+"]"; }
 
             std::string get_java_class() const noexcept override {
                 return java_class();
@@ -606,7 +606,7 @@ namespace cipherpack {
     PackHeader encryptThenSign(const CryptoConfig& crypto_cfg,
                                const std::vector<std::string>& enc_pub_keys,
                                const std::string& sign_sec_key_fname, const jau::io::secure_string& passphrase,
-                               jau::io::ByteInStream& source,
+                               jau::io::ByteStream& source,
                                const std::string& target_path, const std::string& subject,
                                const std::string& plaintext_version,
                                const std::string& plaintext_version_parent,
@@ -638,7 +638,7 @@ namespace cipherpack {
      */
     PackHeader checkSignThenDecrypt(const std::vector<std::string>& sign_pub_keys,
                                     const std::string& dec_sec_key_fname, const jau::io::secure_string& passphrase,
-                                    jau::io::ByteInStream& source,
+                                    jau::io::ByteStream& source,
                                     CipherpackListenerRef listener,
                                     const std::string_view& plaintext_hash_algo,
                                     const std::string destination_fname = "");
@@ -678,7 +678,7 @@ namespace cipherpack {
          * @param source the byte input stream
          * @return the calculated hash value or nullptr in case of error
          */
-        std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, jau::io::ByteInStream& source) noexcept;
+        std::unique_ptr<std::vector<uint8_t>> calc(const std::string_view& algo, jau::io::ByteStream& source) noexcept;
 
         /**
          * Return the calculated hash value using given algo name and the bytes of a single file or all files if denoting a directory.

@@ -33,7 +33,7 @@
 
 #include "CipherpackHelper.hpp"
 
-jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass jclazz,
+jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass /*jclazz*/,
         jobject jccfg, jobject jenc_pub_keys,
         jstring jsign_sec_key_fname, jobject jpassphrase,
         jobject jsource_feed,
@@ -45,7 +45,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
         jstring jdestination_fname)
 {
     try {
-        jau::jni::shared_ptr_ref<jau::io::ByteInStream> refSource(env, jsource_feed); // hold until done
+        jau::jni::shared_ptr_ref<jau::io::ByteStream> refSource(env, jsource_feed); // hold until done
         jau::jni::shared_ptr_ref<cipherpack::CipherpackListener> refListener(env, cpListener); // hold until done
 
         cipherpack::CryptoConfig ccfg = jcipherpack::to_CryptoConfig(env, jccfg);
@@ -73,7 +73,7 @@ jobject Java_org_cipherpack_Cipherpack_encryptThenSignImpl1(JNIEnv *env, jclass 
     return nullptr;
 }
 
-jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass jclazz,
+jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass /*jclazz*/,
         jobject jsign_pub_keys,
         jstring jdec_sec_key_fname, jobject jpassphrase,
         jobject jsource_feed,
@@ -82,7 +82,7 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
         jstring jdestination_fname)
 {
     try {
-        jau::jni::shared_ptr_ref<jau::io::ByteInStream> refSource(env, jsource_feed); // hold until done
+        jau::jni::shared_ptr_ref<jau::io::ByteStream> refSource(env, jsource_feed); // hold until done
         jau::jni::shared_ptr_ref<cipherpack::CipherpackListener> refListener(env, cpListener); // hold until done
 
         std::vector<std::string> sign_pub_keys = jau::jni::convert_jlist_string_to_vector(env, jsign_pub_keys);
@@ -104,9 +104,9 @@ jobject Java_org_cipherpack_Cipherpack_checkSignThenDecrypt1(JNIEnv *env, jclass
     return nullptr;
 }
 
-jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl1(JNIEnv *env, jclass jclazz, jstring jalgo, jobject jsource_feed) {
+jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl1(JNIEnv *env, jclass /*jclazz*/, jstring jalgo, jobject jsource_feed) {
     try {
-        jau::jni::shared_ptr_ref<jau::io::ByteInStream> refSource(env, jsource_feed); // hold until done
+        jau::jni::shared_ptr_ref<jau::io::ByteStream> refSource(env, jsource_feed); // hold until done
         std::string algo = jau::jni::from_jstring_to_string(env, jalgo);
 
         std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(algo, *refSource);
@@ -121,7 +121,7 @@ jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl1(JNIEnv *env, j
     return nullptr;
 }
 
-jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, jclass jclazz, jstring jalgo, jstring jpath_or_uri, jlongArray jbytes_hashed, jlong jtimeoutMS) {
+jbyteArray Java_org_cipherpack_Cipherpack_00024HashUtil_calcImpl2(JNIEnv *env, jclass /*jclazz*/, jstring jalgo, jstring jpath_or_uri, jlongArray jbytes_hashed, jlong jtimeoutMS) {
     try {
         std::string algo = jau::jni::from_jstring_to_string(env, jalgo);
         std::string path_or_uri = jau::jni::from_jstring_to_string(env, jpath_or_uri);

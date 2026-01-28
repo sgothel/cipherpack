@@ -6,10 +6,10 @@
 #include <iostream>
 #include <fstream>
 #include <cassert>
-#include <cinttypes>
 #include <cstring>
 
 #include <cipherpack/cipherpack.hpp>
+#include "jau/byte_util.hpp"
 
 #include <jau/debug.hpp>
 
@@ -38,7 +38,7 @@ class LoggingCipherpackListener : public cipherpack::CipherpackListener {
         void notifyError(const bool decrypt_mode, const cipherpack::PackHeader& header, const std::string& msg) noexcept override {
             count_error++;
             (void)decrypt_mode;
-            jau::PLAIN_PRINT(true, "CL::Error[%d]: %s, %s", count_error.load(), msg.c_str(), header.to_string(true, true).c_str());
+            jau_PLAIN_PRINT(true, "CL::Error[%d]: %s, %s", count_error.load(), msg, header.to_string(true, true));
         }
 
         bool notifyHeader(const bool decrypt_mode, const cipherpack::PackHeader& header) noexcept override {
@@ -46,7 +46,7 @@ class LoggingCipherpackListener : public cipherpack::CipherpackListener {
             (void)decrypt_mode;
             (void)header;
             if( verbose ) {
-                jau::PLAIN_PRINT(true, "CL::Header[%d]: %s", count_header.load(), header.to_string(true, true).c_str());
+                jau_PLAIN_PRINT(true, "CL::Header[%d]: %s", count_header.load(), header.to_string(true, true));
             }
             return true;
         }
@@ -64,7 +64,7 @@ class LoggingCipherpackListener : public cipherpack::CipherpackListener {
             (void)decrypt_mode;
             (void)header;
             if( verbose ) {
-                jau::PLAIN_PRINT(true, "CL::End[%d]: %s", count_end.load(), header.to_string(true, true).c_str());
+                jau_PLAIN_PRINT(true, "CL::End[%d]: %s", count_end.load(), header.to_string(true, true));
             }
         }
 
@@ -97,7 +97,7 @@ static void print_version() {
 
 static void print_usage(const char* progname) {
     print_version();
-    std::string bname = jau::fs::basename(progname);
+    std::string bname = jau::io::fs::basename(progname);
     fprintf(stderr, "Usage %s pack [-epk <enc-pub-key>]+ -ssk <sign-sec-key> [-sskp <sign-sec-key-passphrase>]? "
                     "[-target_path <target-path-filename>]? [-subject <string>]? [-version <file-version-str>]? [-version_parent <file-version-parent-str>]? "
                     "[-hash <plaintext-hash-algo>]? [-hashout <plaintext-hash-outfile>]? [-verbose]? [-out <output-filename>]? [<input-source>]?\n", bname.c_str());
@@ -155,8 +155,8 @@ int main(int argc, char *argv[])
         std::string plaintext_hash_algo(cipherpack::default_hash_algo());
         std::string plaintext_fname_output; // none
         bool verbose = false;
-        std::string fname_output = jau::fs::to_named_fd(1); // stdout default
-        std::string fname_input = jau::fs::to_named_fd(0); // stdin default
+        std::string fname_output = jau::io::fs::to_named_fd(1); // stdout default
+        std::string fname_input = jau::io::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-epk", argv[argi]) && argi + 1 < argc ) {
                 enc_pub_keys.emplace_back(argv[++argi] );
@@ -194,14 +194,14 @@ int main(int argc, char *argv[])
         if( 0 == enc_pub_keys.size() ||
             sign_sec_key_fname.empty() )
         {
-            jau::PLAIN_PRINT(true, "Pack: Error: Arguments incomplete");
+            jau_PLAIN_PRINT(true, "Pack: Error: Arguments incomplete");
             print_usage(argv[0]);
             return -1;
         }
 
-        std::unique_ptr<jau::io::ByteInStream> input = jau::io::to_ByteInStream(fname_input); // 20_s default timeout if uri
+        std::unique_ptr<jau::io::ByteStream> input = jau::io::to_ByteInStream(fname_input); // 20_s default timeout if uri
         if( nullptr == input ) {
-            jau::PLAIN_PRINT(true, "Pack: Error: source '%s' failed to open", fname_input.c_str());
+            jau_PLAIN_PRINT(true, "Pack: Error: source '%s' failed to open", fname_input);
             return -1;
         }
         LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(false);
@@ -215,9 +215,9 @@ int main(int argc, char *argv[])
             cipherpack::hash_util::append_to_file(plaintext_fname_output, fname_input, ph.plaintext_hash_algo(), ph.plaintext_hash());
         }
         if( verbose ) {
-            jau::PLAIN_PRINT(true, "Pack: Encrypted %s to %s", fname_input.c_str(), fname_output.c_str());
-            jau::PLAIN_PRINT(true, "Pack: %s", ph.to_string(true, true).c_str());
-            jau::PLAIN_PRINT(true, "Pack: %s", cpl->toString().c_str());
+            jau_PLAIN_PRINT(true, "Pack: Encrypted %s to %s", fname_input, fname_output);
+            jau_PLAIN_PRINT(true, "Pack: %s", ph.to_string(true, true));
+            jau_PLAIN_PRINT(true, "Pack: %s", cpl->toString());
         }
         return ph.isValid() ? 0 : -1;
     }
@@ -228,8 +228,8 @@ int main(int argc, char *argv[])
         std::string plaintext_hash_algo(cipherpack::default_hash_algo());
         std::string plaintext_fname_output; // none
         bool verbose = false;
-        std::string fname_output = jau::fs::to_named_fd(1); // stdout default
-        std::string fname_input = jau::fs::to_named_fd(0); // stdin default
+        std::string fname_output = jau::io::fs::to_named_fd(1); // stdout default
+        std::string fname_input = jau::io::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-spk", argv[argi]) && argi + 1 < argc ) {
                 sign_pub_keys.emplace_back(argv[++argi] );
@@ -256,14 +256,14 @@ int main(int argc, char *argv[])
         if( 0 == sign_pub_keys.size() ||
             dec_sec_key_fname.empty() )
         {
-            jau::PLAIN_PRINT(true, "Unpack: Error: Arguments incomplete");
+            jau_PLAIN_PRINT(true, "Unpack: Error: Arguments incomplete");
             print_usage(argv[0]);
             return -1;
         }
 
-        std::unique_ptr<jau::io::ByteInStream> input = jau::io::to_ByteInStream(fname_input); // 20_s default timeout if uri
+        std::unique_ptr<jau::io::ByteStream> input = jau::io::to_ByteInStream(fname_input); // 20_s default timeout if uri
         if( nullptr == input ) {
-            jau::PLAIN_PRINT(true, "Unpack: Error: source '%s' failed to open", fname_input.c_str());
+            jau_PLAIN_PRINT(true, "Unpack: Error: source '%s' failed to open", fname_input);
             return -1;
         }
         LoggingCipherpackListenerRef cpl = std::make_shared<LoggingCipherpackListener>(false);
@@ -276,17 +276,17 @@ int main(int argc, char *argv[])
         }
         // dec_sec_key_passphrase.resize(0);
         if( verbose ) {
-            jau::PLAIN_PRINT(true, "Unpack: Decypted %s to %s", fname_input.c_str(), fname_output.c_str());
-            jau::PLAIN_PRINT(true, "Unpack: %s", ph.to_string(true, true).c_str());
-            jau::PLAIN_PRINT(true, "Unpack: %s", cpl->toString().c_str());
+            jau_PLAIN_PRINT(true, "Unpack: Decypted %s to %s", fname_input, fname_output);
+            jau_PLAIN_PRINT(true, "Unpack: %s", ph.to_string(true, true));
+            jau_PLAIN_PRINT(true, "Unpack: %s", cpl->toString());
         }
         return ph.isValid() ? 0 : -1;
     }
     if( command == "hash") {
         std::string hash_algo(cipherpack::default_hash_algo());
         bool verbose = false;
-        std::string fname_output = jau::fs::to_named_fd(1); // stdout default
-        std::string fname_input = jau::fs::to_named_fd(0); // stdin default
+        std::string fname_output = jau::io::fs::to_named_fd(1); // stdout default
+        std::string fname_input = jau::io::fs::to_named_fd(0); // stdin default
         for(; argi < argc; ++argi) {
             if( 0 == strcmp("-hash", argv[argi]) && argi + 1 < argc ) {
                 hash_algo = argv[++argi];
@@ -302,11 +302,11 @@ int main(int argc, char *argv[])
         uint64_t bytes_hashed = 0;
         std::unique_ptr<std::vector<uint8_t>> hash = cipherpack::hash_util::calc(hash_algo, fname_input, bytes_hashed); // 20_s default timeout if uri
         if( nullptr != hash ) {
-            std::string hash_str = jau::bytesHexString(hash->data(), 0, hash->size(), true /* lsbFirst */, true /* lowerCase */);
+            std::string hash_str = jau::toHexString(hash->data(), hash->size(), jau::lb_endian_t::little);
             cipherpack::hash_util::append_to_file(fname_output, fname_input, hash_algo, *hash);
             if( verbose ) {
-                jau::PLAIN_PRINT(true, "Hash: algo '%s', bytes %s, '%s' of '%s'", hash_algo.c_str(), jau::to_decstring(bytes_hashed).c_str(),
-                        hash_str.c_str(), fname_input.c_str());
+                jau_PLAIN_PRINT(true, "Hash: algo '%s', bytes %s, '%s' of '%s'", hash_algo, jau::to_decstring(bytes_hashed),
+                        hash_str, fname_input);
             }
             return 0;
         }
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
         }
         std::ifstream in(fname_input, std::ios::in | std::ios::binary);
         if( in.bad() ) {
-            jau::PLAIN_PRINT(true, "HashCheck: Error: Couldn't open file '%s'", fname_input.c_str());
+            jau_PLAIN_PRINT(true, "HashCheck: Error: Couldn't open file '%s'", fname_input);
             return -1;
         }
         int line_no = 0;
@@ -339,7 +339,7 @@ int main(int argc, char *argv[])
             {
                 char* p = std::strstr(haystack, " ");
                 if( nullptr == p ) {
-                    jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: No separator to hash value found", fname_input.c_str(), line_no);
+                    jau_PLAIN_PRINT(true, "HashCheck: Error: %s:%d: No separator to hash value found", fname_input, line_no);
                     return -1;
                 }
                 *p = 0; // EOS
@@ -349,7 +349,7 @@ int main(int argc, char *argv[])
             {
                 char* p = std::strstr(haystack, " *");
                 if( nullptr == p ) {
-                    jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: No separator to hashed file found", fname_input.c_str(), line_no);
+                    jau_PLAIN_PRINT(true, "HashCheck: Error: %s:%d: No separator to hashed file found", fname_input, line_no);
                     return -1;
                 }
                 *p = 0; // EOS
@@ -358,10 +358,10 @@ int main(int argc, char *argv[])
             }
             hashed_file = std::string(haystack);
             {
-                jau::fs::file_stats hashed_file_stats(hashed_file);
+                jau::io::fs::file_stats hashed_file_stats(hashed_file);
                 if( hashed_file_stats.has_fd() ) {
-                    jau::PLAIN_PRINT(true, "HashCheck: Ignored: %s:%d: Named file descriptor: %s",
-                            fname_input.c_str(), line_no, hashed_file_stats.to_string().c_str());
+                    jau_PLAIN_PRINT(true, "HashCheck: Ignored: %s:%d: Named file descriptor: %s",
+                            fname_input, line_no, hashed_file_stats.toString());
                     continue;
                 }
             }
@@ -369,18 +369,18 @@ int main(int argc, char *argv[])
             uint64_t bytes_hashed = 0;
             std::unique_ptr<std::vector<uint8_t>> hash2 = cipherpack::hash_util::calc(hash_algo, hashed_file, bytes_hashed); // 20_s default timeout if uri
             if( nullptr == hash2 ) {
-                jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Bad format: %s", fname_input.c_str(), line_no, hash_line1.c_str());
+                jau_PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Bad format: %s", fname_input, line_no, hash_line1);
                 return -1;
             }
-            const std::string hash_value2 = jau::bytesHexString(hash2->data(), 0, hash2->size(), true /* lsbFirst */, true /* lowerCase */);
+            const std::string hash_value2 = jau::toHexString(hash2->data(), hash2->size(), jau::lb_endian_t::little);
             if( hash_value2 != hash_value1 ) {
                 const std::string hash_line2 = hash_algo+" "+hash_value2+" *"+hashed_file; // NOLINT(performance-inefficient-string-concatenation)
-                jau::PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Hash value mismatch", fname_input.c_str(), line_no);
-                jau::PLAIN_PRINT(true,"- expected: %s", hash_line1.c_str());
-                jau::PLAIN_PRINT(true,"- produced: %s", hash_line2.c_str());
+                jau_PLAIN_PRINT(true, "HashCheck: Error: %s:%d: Hash value mismatch", fname_input, line_no);
+                jau_PLAIN_PRINT(true,"- expected: %s", hash_line1);
+                jau_PLAIN_PRINT(true,"- produced: %s", hash_line2);
                 return -1;
             } else if( verbose ) {
-                jau::PLAIN_PRINT(true, "HashCheck: OK: %s:%d: %s", fname_input.c_str(), line_no, hash_line1.c_str());
+                jau_PLAIN_PRINT(true, "HashCheck: OK: %s:%d: %s", fname_input, line_no, hash_line1);
             }
         }
         return 0;

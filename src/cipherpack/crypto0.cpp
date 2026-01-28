@@ -1,6 +1,6 @@
 /*
  * Author: Sven Gothel <sgothel@jausoft.com>
- * Copyright (c) 2021 Gothel Software e.K.
+ * Copyright (c) 2021-2026 Gothel Software e.K.
  * Copyright (c) 2021 ZAFENA AB
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -64,9 +64,9 @@ static std::string cp_query_hash_provider(const std::string& algo) noexcept {
 static void cp_print_hash_provider(const std::string& algo) noexcept {
     std::string p = cp_query_hash_provider(algo);
     if( p.empty() ) {
-        jau::fprintf_td(stderr, "hash '%s': Not available, provider {", algo.c_str());
+        jau::fprintf_td(stderr, "hash '%s': Not available, provider {", algo);
     } else {
-        jau::fprintf_td(stderr, "hash '%s': provider '%s' of {", algo.c_str(), p.c_str());
+        jau::fprintf_td(stderr, "hash '%s': provider '%s' of {", algo, p);
     }
     std::vector<std::string> hash_provider = Botan::HashFunction::providers(algo);
     for(const std::string& pi : hash_provider) {
@@ -85,9 +85,9 @@ environment::environment() noexcept {
 
 
 void environment::print_info() noexcept {
-    jau::fprintf_td(stderr, "%s\n", jau::os::get_platform_info().c_str());
+    jau::fprintf_td(stderr, "%s\n", jau::os::get_platform_info());
 
-    jau::fprintf_td(stderr, "Botan cpuid: '%s'\n", Botan::CPUID::to_string().c_str());
+    jau::fprintf_td(stderr, "Botan cpuid: '%s'\n", Botan::CPUID::to_string());
     jau::fprintf_td(stderr, "Botan cpuid: has_simd32 %d\n", (int)Botan::CPUID::has_simd_32());
 
     cp_print_hash_provider("SHA-256");
@@ -150,44 +150,46 @@ std::string PackHeader::to_string(const bool show_crypto_algos, const bool force
     std::string recevr_fingerprint_str;
     {
         if( 0 <= used_recevr_key_idx_ ) {
-            recevr_fingerprint_str += "dec '"+jau::bytesHexString(recevr_fingerprints_.at(used_recevr_key_idx_), true /* lsbFirst */)+"', ";
+            recevr_fingerprint_str.append("dec '")
+                                  .append(jau::toHexString(recevr_fingerprints_.at(used_recevr_key_idx_), jau::lb_endian_t::little))
+                                  .append("' ,");
         }
         if( force_all_fingerprints || 0 > used_recevr_key_idx_ ) {
             recevr_fingerprint_str += "enc[";
             int i = 0;
             for(const std::vector<uint8_t>& tkf : recevr_fingerprints_) {
                 if( 0 < i ) {
-                    recevr_fingerprint_str += ", ";
+                    recevr_fingerprint_str.append(", ");
                 }
-                recevr_fingerprint_str.append("'").append(jau::bytesHexString(tkf, true /* lsbFirst */)).append("'");
+                recevr_fingerprint_str.append("'").append(jau::toHexString(tkf, jau::lb_endian_t::little)).append("'");
                 ++i;
             }
-            recevr_fingerprint_str += "]";
+            recevr_fingerprint_str.append("]");
         }
     }
 
     std::string res = "Header[";
     res += "valid "+std::to_string( isValid() )+
-           ", file[target_path '"+target_path_+"', plaintext_size "+jau::to_decstring(plaintext_size_).c_str()+
-           "], creation "+ts_creation_.to_iso8601_string()+" UTC, subject '"+subject_+"', "+
+           ", file[target_path '"+target_path_+"', plaintext_size "+jau::to_decstring(plaintext_size_)+
+           "], creation "+ts_creation_.toISO8601String()+" UTC, subject '"+subject_+"', "+
            " version['"+plaintext_version_+
            "', parent '"+plaintext_version_parent_+"']"+crypto_str+
-           ", fingerprints[sender '"+jau::bytesHexString(sender_fingerprint_, true /* lsbFirst */)+
+           ", fingerprints[sender '"+jau::toHexString(sender_fingerprint_, jau::lb_endian_t::little)+
            "', recevr["+recevr_fingerprint_str+
            "]], phash['"+plaintext_hash_algo_+"', sz "+std::to_string(plaintext_hash_.size())+"]]";
     return res;
 }
 
 std::shared_ptr<Botan::Public_Key> cipherpack::load_public_key(const std::string& pubkey_fname) {
-    jau::io::ByteInStream_File key_data_(pubkey_fname);
+    jau::io::ByteStream_File key_data_(pubkey_fname);
     WrappingDataSource key_data(key_data_);
     std::shared_ptr<Botan::Public_Key> key(Botan::X509::load_key(key_data));
     if( !key ) {
-        ERR_PRINT("Couldn't load Key %s", pubkey_fname.c_str());
+        jau_ERR_PRINT("Couldn't load Key %s", pubkey_fname);
         return std::shared_ptr<Botan::Public_Key>();
     }
     if( key->algo_name() != "RSA" ) {
-        ERR_PRINT("Key doesn't support RSA %s", pubkey_fname.c_str());
+        jau_ERR_PRINT("Key doesn't support RSA %s", pubkey_fname);
         return std::shared_ptr<Botan::Public_Key>();
     }
     return key;
@@ -308,7 +310,7 @@ static cipherpack::secure_vector<uint8_t> jau_PKCS8_decode(Botan::DataSource& so
 }
 
 std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::string& privatekey_fname, const jau::io::secure_string& passphrase) {
-    jau::io::ByteInStream_File key_data_(privatekey_fname);
+    jau::io::ByteStream_File key_data_(privatekey_fname);
     WrappingDataSource key_data(key_data_);
     std::shared_ptr<Botan::Private_Key> key;
     if( passphrase.empty() ) {
@@ -335,11 +337,11 @@ std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::stri
         ::explicit_bzero(insec_passphrase_copy.data(), insec_passphrase_copy.size());
     }
     if( !key ) {
-        ERR_PRINT("Couldn't load Key %s", privatekey_fname.c_str());
+        jau_ERR_PRINT("Couldn't load Key %s", privatekey_fname);
         return std::shared_ptr<Botan::Private_Key>();
     }
     if( key->algo_name() != "RSA" ) {
-        ERR_PRINT("Key doesn't support RSA %s", privatekey_fname.c_str());
+        jau_ERR_PRINT("Key doesn't support RSA %s", privatekey_fname);
         return std::shared_ptr<Botan::Private_Key>();
     }
     return key;
@@ -348,17 +350,17 @@ std::shared_ptr<Botan::Private_Key> cipherpack::load_private_key(const std::stri
 std::string cipherpack::hash_util::file_suffix(const std::string& algo) noexcept {
     std::string s = algo;
     // lower-case
-    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+    std::transform(s.begin(), s.end(), s.begin(), ::tolower); // NOLINT(modernize-use-ranges)
     // remove '-'
-    auto it = std::remove( s.begin(), s.end(), '-');
+    auto it = std::remove( s.begin(), s.end(), '-'); // NOLINT(modernize-use-ranges)
     s.erase(it, s.end());
     return s;
 }
 
 bool cipherpack::hash_util::append_to_file(const std::string& out_file, const std::string& hashed_file, const std::string_view& hash_algo, const std::vector<uint8_t>& hash_value) noexcept {
-    const std::string hash_str = jau::bytesHexString(hash_value.data(), 0, hash_value.size(), true /* lsbFirst */, true /* lowerCase */);
+    const std::string hash_str = jau::toHexString(hash_value.data(), hash_value.size(), jau::lb_endian_t::little);
 
-    jau::io::ByteOutStream_File out(out_file);
+    jau::io::ByteStream_File out(out_file);
     if( !out.good() ) {
         return false;
     }
@@ -383,11 +385,11 @@ bool cipherpack::hash_util::append_to_file(const std::string& out_file, const st
     return out.good();
 }
 
-std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, jau::io::ByteInStream& source) noexcept {
+std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, jau::io::ByteStream& source) noexcept {
     const std::string algo_s(algo);
     std::unique_ptr<Botan::HashFunction> hash_func = Botan::HashFunction::create(algo_s);
     if( nullptr == hash_func ) {
-        ERR_PRINT2("Hash failed: Algo %s not available", algo_s.c_str());
+        jau_ERR_PRINT2("Hash failed: Algo %s not available", algo_s);
         return nullptr;
     }
     jau::io::StreamConsumerFunc consume_data = [&](jau::io::secure_vector<uint8_t>& data, bool is_final) -> bool {
@@ -399,8 +401,8 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     io_buffer.reserve(Constants::buffer_size);
     const uint64_t in_bytes_total = jau::io::read_stream(source, io_buffer, consume_data);
     source.close();
-    if( source.has_content_size() && in_bytes_total != source.content_size() ) {
-        ERR_PRINT2("Hash failed: Only read %" PRIu64 " bytes of %s", in_bytes_total, source.to_string().c_str());
+    if( source.hasContentSize() && in_bytes_total != source.contentSize() ) {
+        jau_ERR_PRINT2("Hash failed: Only read %" PRIu64 " bytes of %s", in_bytes_total, source.toString());
         return nullptr;
     }
     std::unique_ptr<std::vector<uint8_t>> res = std::make_unique<std::vector<uint8_t>>(hash_func->output_length());
@@ -409,6 +411,7 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
 }
 
 std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::string_view& algo, const std::string& path_or_uri, uint64_t& bytes_hashed, jau::fraction_i64 timeout) noexcept {
+    using namespace jau::io::fs;
     bytes_hashed = 0;
 
     if( !jau::io::uri_tk::is_local_file_protocol(path_or_uri) &&
@@ -419,23 +422,23 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
             return calc(algo, in);
         }
     }
-    std::unique_ptr<jau::fs::file_stats> stats;
+    std::unique_ptr<file_stats> stats;
     if( jau::io::uri_tk::is_local_file_protocol(path_or_uri) ) {
         // cut of leading `file://`
         std::string path2 = path_or_uri.substr(7);
-        stats = std::make_unique<jau::fs::file_stats>(path2);
+        stats = std::make_unique<file_stats>(path2);
     } else {
-        stats = std::make_unique<jau::fs::file_stats>(path_or_uri);
+        stats = std::make_unique<file_stats>(path_or_uri);
     }
     if( !stats->is_dir() ) {
         if( stats->has_fd() ) {
-            jau::io::ByteInStream_File in(stats->fd());
+            jau::io::ByteStream_File in(stats->fd());
             if( in.fail() ) {
                 return nullptr;
             }
             return calc(algo, in);
         } else {
-            jau::io::ByteInStream_File in(stats->path());
+            jau::io::ByteStream_File in(stats->path());
             if( in.fail() ) {
                 return nullptr;
             }
@@ -452,12 +455,12 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
         jau::io::StreamConsumerFunc consume_data;
         uint64_t bytes_hashed;
     };
-    context_t ctx { std::vector<int>(), nullptr, jau::io::secure_vector<uint8_t>(), nullptr, 0 };
+    context_t ctx { .dirfds=std::vector<int>(), .hash_func=nullptr, .io_buffer=jau::io::secure_vector<uint8_t>(), .consume_data=nullptr, .bytes_hashed=0 };
     {
         const std::string algo_s(algo);
         ctx.hash_func = Botan::HashFunction::create(algo_s);
         if( nullptr == ctx.hash_func ) {
-            ERR_PRINT2("Hash failed: Algo %s not available", algo_s.c_str());
+            jau_ERR_PRINT2("Hash failed: Algo %s not available", algo_s);
             return nullptr;
         }
     }
@@ -468,27 +471,29 @@ std::unique_ptr<std::vector<uint8_t>> cipherpack::hash_util::calc(const std::str
     };
     ctx.io_buffer.reserve(Constants::buffer_size);
 
-    const jau::fs::path_visitor pv = jau::bind_capref<bool, context_t, jau::fs::traverse_event, const jau::fs::file_stats&, size_t>(&ctx,
-            ( bool(*)(context_t*, jau::fs::traverse_event, const jau::fs::file_stats&, size_t) ) /* help template type deduction of function-ptr */
-                ( [](context_t* ctx_ptr, jau::fs::traverse_event tevt, const jau::fs::file_stats& element_stats, size_t depth) -> bool {
+    const path_visitor pv = jau::bind_capref<bool, context_t, traverse_event, const file_stats&, size_t>(&ctx,
+            ( bool(*)(context_t*, traverse_event, const file_stats&, size_t) ) /* help template type deduction of function-ptr */
+                ( [](context_t* ctx_ptr, traverse_event tevt, const file_stats& element_stats, size_t depth) -> bool {
                     (void)depth;
-                    if( is_set(tevt, jau::fs::traverse_event::file) && !is_set(tevt, jau::fs::traverse_event::symlink) ) {
-                        jau::io::ByteInStream_File in(ctx_ptr->dirfds.back(), element_stats.item().basename());
+                    if( is_set(tevt, traverse_event::file) &&
+                        !is_set(tevt, traverse_event::symlink) )
+                    {
+                        jau::io::ByteStream_File in(ctx_ptr->dirfds.back(), element_stats.item().basename());
                         if( in.fail() ) {
                             return false;
                         }
                         const uint64_t in_bytes_total = jau::io::read_stream(in, ctx_ptr->io_buffer, ctx_ptr->consume_data);
                         in.close();
-                        if( in.has_content_size() && in_bytes_total != in.content_size() ) {
-                            ERR_PRINT2("Hash failed: Only read %" PRIu64 " bytes of %s", in_bytes_total, in.to_string().c_str());
+                        if( in.hasContentSize() && in_bytes_total != in.contentSize() ) {
+                            jau_ERR_PRINT2("Hash failed: Only read %" PRIu64 " bytes of %s", in_bytes_total, in.toString());
                             return false;
                         }
                         ctx_ptr->bytes_hashed += in_bytes_total;
                     }
                     return true;
                   } ) );
-    const jau::fs::traverse_options topts = jau::fs::traverse_options::recursive | jau::fs::traverse_options::lexicographical_order;
-    if( jau::fs::visit(*stats, topts, pv, &ctx.dirfds) ) {
+    const traverse_options topts = traverse_options::recursive | traverse_options::lexicographical_order;
+    if( visit(*stats, topts, pv, &ctx.dirfds) ) {
         std::unique_ptr<std::vector<uint8_t>> res = std::make_unique<std::vector<uint8_t>>(ctx.hash_func->output_length());
         ctx.hash_func->final(res->data());
         bytes_hashed = ctx.bytes_hashed;

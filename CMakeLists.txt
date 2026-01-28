@@ -21,9 +21,9 @@ endif()
 JaulibSetup()
 
 # Fixup clangd w/ absolute path
-set (cipherpack_clangd_source_args "-isystem, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/include, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/src, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/java_jni/jni, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/java_jni/jni/jau")
-set (cipherpack_clangd_source_args "${cipherpack_clangd_source_args}, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/include/catch2_jau, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/test")
-set (cipherpack_clangd_source_args "${cipherpack_clangd_source_args}, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/include, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/src/cipherpack, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/java/jni, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/java/jni/cipherpack, -isystem, ${CMAKE_CURRENT_SOURCE_DIR}/test/cipherpack")
+set (cipherpack_clangd_source_args "-I, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/include, -I, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/src, -I, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/java_jni/jni, -I, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/java_jni/jni/jau")
+set (cipherpack_clangd_source_args "${cipherpack_clangd_source_args}, -I, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/include/catch2_jau, -I, ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/test")
+set (cipherpack_clangd_source_args "${cipherpack_clangd_source_args}, -I, ${CMAKE_CURRENT_SOURCE_DIR}/include, -I, ${CMAKE_CURRENT_SOURCE_DIR}/src/cipherpack, -I, ${CMAKE_CURRENT_SOURCE_DIR}/java/jni, -I, ${CMAKE_CURRENT_SOURCE_DIR}/java/jni/cipherpack, -I, ${CMAKE_CURRENT_SOURCE_DIR}/test/cipherpack")
 configure_file (${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/clangd.in
                 ${CMAKE_CURRENT_BINARY_DIR}/.clangd)
 file(COPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.clangd ${CMAKE_CURRENT_SOURCE_DIR}/.clangd)
@@ -70,6 +70,7 @@ ENDIF(BUILDJAVA)
 find_package (Doxygen)
 if (DOXYGEN_FOUND)
   configure_file (${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile.cpp.out @ONLY)
+  file (COPY ${CMAKE_CURRENT_SOURCE_DIR}/jaulib/doc/doxygen-awesome.css DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
   if (BUILDJAVA)
     configure_file (${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.java.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile.java.out @ONLY)
     add_custom_command (OUTPUT ${cipherpack_DOCS_DIR}/cpp ${cipherpack_DOCS_DIR}/java

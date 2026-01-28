@@ -22,6 +22,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "jau/string_util.hpp"
 #include "org_cipherpack_CipherpackListener.h"
 
 // #define VERBOSE_ON 1
@@ -57,7 +58,7 @@ class JNICipherpackListener : public cipherpack::CipherpackListener {
   public:
 
     std::string toString() const noexcept override {
-        return "JNICipherpackListener[this "+jau::to_hexstring(this)+", iname "+std::to_string(iname)+"]";
+        return "JNICipherpackListener[this "+jau::toHexString(this)+", iname "+std::to_string(iname)+"]";
     }
 
     ~JNICipherpackListener() override { // NOLINT(modernize-use-equals-default)
