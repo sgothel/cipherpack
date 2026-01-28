@@ -13,7 +13,7 @@ ensuring their privacy and high-performance message encryption.
 
 *Cipherpack* securely streams messages through any media,
 via file using 
-[ByteInStream_File](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__File.html)
+[ByteStream_File](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteStream__File.html)
 and via all [*libcurl* network protocols](https://curl.se/docs/url-syntax.html) using 
 [ByteInStream_URL](https://jausoft.com/projects/jaulib/build/documentation/cpp/html/classjau_1_1io_1_1ByteInStream__URL.html)
 are *build-in* and supported. <br/>
@@ -26,6 +26,9 @@ to produce the input stream by injecting data off-thread and a
 to receive the processed output stream.
 
 *Cipherpack* is implemented using C++20 and is accessible via C++ and Java.
+
+*Cipherpack* uses [jaulib](https://jausoft.com/cgit/jaulib.git/about/) for general purpose
+functionality including streaming I/O.
 
 Please find the more detailed [overview in the API doc](https://jausoft.com/projects/cipherpack/build/documentation/cpp/html/group__CipherpackAPI.html#details).
 
