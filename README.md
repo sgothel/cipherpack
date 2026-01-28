@@ -94,6 +94,7 @@ This project uses the following git submodules
 #### Install on FreeBSD
 
 Installing build dependencies on FreeBSD >= 13:
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 pkg install git
 pkg install sudo
@@ -106,6 +107,7 @@ ln -s /usr/local/bin/bash /bin/bash
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Install optional Java dependencies:
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 pkg install openjdk17
 pkg install openjdk17-jre
@@ -114,6 +116,7 @@ rehash
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For Java ensure `/etc/fstab` includes:
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 fdesc   /dev/fd         fdescfs         rw      0       0
 proc    /proc           procfs          rw      0       0
@@ -126,15 +129,18 @@ hence testing using cmake option `-DTEST_WITH_SUDO=ON` is disabled. <br />
 To use URL streaming functionality via the `curl` library in `jau_io_util.hpp` and `jau/io_util.cpp`,
 the cmake option `-DUSE_LIBCURL=ON` must be set. <br />
 This also requires installation of the following packets:
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 pkg install curl
 apt install mini-httpd
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Note: `mini-httpd` is being used for unit testing URL streaming only.
 
 #### Install on Debian or Ubuntu
 
 Installing build dependencies for Debian >= 12 and Ubuntu >= 22:
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 apt install git
 apt install build-essential g++ gcc libc-dev libpthread-stubs0-dev 
@@ -151,6 +157,7 @@ After complete clang installation, you might want to setup the latest version as
 For Debian you can use this [clang alternatives setup script](https://jausoft.com/cgit/jaulib.git/tree/scripts/setup_clang_alternatives.sh).
 
 Install optional Java dependencies:
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 apt install openjdk-17-jdk openjdk-17-jre junit4
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,6 +165,7 @@ apt install openjdk-17-jdk openjdk-17-jre junit4
 To test `jau::fs::mount_image()` and `jau::fs::umount()` under `Linux`
 with enabled cmake option `-DTEST_WITH_SUDO=ON`, <br />
 the following build dependencies are added
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 apt install libcap-dev libcap2-bin
 apt install squashfs-tools
@@ -166,6 +174,7 @@ apt install squashfs-tools
 To use URL streaming functionality via the `curl` library in `jau_io_util.hpp` and `jau/io_util.cpp`,
 the cmake option `-DUSE_LIBCURL=ON` must be set. <br />
 This also requires installation of the following packets:
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 apt install libcurl4 libcurl4-gnutls-dev
 apt install mini-httpd
@@ -232,6 +241,7 @@ Following debug presets are defined in `CMakePresets.json`
 
 Kick-off the workflow by e.g. using preset `release-gcc` to configure, build, test, install and building documentation.
 You may skip `install` and `doc` by dropping it from `--target`.
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 cmake --preset release-gcc
 cmake --build --preset release-gcc --parallel
@@ -254,6 +264,7 @@ The hardcoded presets resemble `debug-clang` [presets](README.md#cmake_presets_o
 
 Kick-off the workflow to configure, build, test, install and building documentation.
 You may skip `install` and `doc` by dropping it from `--target`.
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{.sh}
 rm -rf build/default
 cmake -B build/default
@@ -342,10 +353,12 @@ IDE integration configuration files are provided for
 
 For VSCodium one might copy the [example root-workspace file](https://jausoft.com/cgit/cipherpack.git/tree/.vscode/cipherpack.code-workspace_example)
 to the parent folder of this project (*note the filename change*) and adjust the `path` to your filesystem.
+
 ~~~~~~~~~~~~~
 cp .vscode/cipherpack.code-workspace_example ../cipherpack.code-workspace
 vi ../cipherpack.code-workspace
 ~~~~~~~~~~~~~
+
 Then you can open it via `File . Open Workspace from File...` menu item.
 - All listed extensions are referenced in this workspace file to be installed via the IDE
 - Select one of the [CMake Presets](README.md#cmake_presets_optional) for
