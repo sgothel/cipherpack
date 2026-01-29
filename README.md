@@ -1,4 +1,4 @@
-# Cipherpack - A Cryprographic Stream Processor
+# Cipherpack - A Cryptographic Stream Processor
 
 [Original document location](https://jausoft.com/cgit/cipherpack.git/about/).
 
